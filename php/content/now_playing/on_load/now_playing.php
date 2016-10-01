@@ -1,0 +1,1 @@
+    load_view('now_playing', 'song_list', 'refresh=true', document.getElementById('now_playing_song_list_div'), function() {}, true);

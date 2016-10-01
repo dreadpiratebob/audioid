@@ -1,0 +1,243 @@
+body
+{
+  background-color: #000000;
+  color: #FFFFFF;
+  
+  font-family: courier new;
+  font-size: 10pt;
+  
+  padding: 0px;
+  margin: 0px;
+}
+
+a
+{
+  text-decoration: none;
+  color: #808080;
+}
+
+a.a_topnav
+{
+  color: #AAFF80;
+}
+
+a.show_hide
+{
+  text-decoration: none;
+  color: #FFFF80;
+}
+
+a.toxic_yellow:hover, a.toxic_brown:hover, a.toxic_green:hover
+{
+  text-decoration: none;
+  font-weight: bold;
+}
+
+a.toxic_yellow:hover
+{
+  color: #80FF80;
+}
+
+a.toxic_brown:hover, a.toxic_green:hover
+{
+  color: #FFFF80;
+}
+
+a:hover
+{
+  color: #90FF40;
+  text-decoration: none;
+}
+
+a:visited
+{
+  text-decoration: none;
+}
+
+button
+{
+  background-color: #202020;
+  color: #FFAA30;
+  border: 1px solid #AAFF80;
+}
+
+button:disabled
+{
+  background-color: #AA9910;
+}
+
+input[type="checkbox"]
+{
+  background-color: #000000;
+  color: #FFFF80;
+  border: 1px solid #FFAA30;
+}
+
+input[type="text"]
+{
+  background-color: #000000;
+  color: #AAFF80;
+  border: 1px solid #FFAA30;
+}
+
+input[type="text"]:disabled
+{
+  background-color: #AA9910
+}
+
+table, tr, th
+{
+  margin: 0px;
+  padding: 0px;
+}
+
+table
+{
+  border-collapse: collapse;
+}
+
+th
+{
+  font-weight: normal;
+  color: 80FF80;
+}
+
+td
+{
+  margin: 0px;
+  padding: 0px;
+}
+
+td.separator
+{
+  font-size: 6pt;
+}
+
+td.highhighlight
+{
+  background-color: #456020;
+}
+
+td.highlowlight
+{
+  background-color: #404040;
+}
+
+td.lowhighlight
+{
+  background-color: #606060;
+}
+
+td.lowlowlight
+{
+  background-color: #804510;
+}
+
+td.highlight
+{
+  background-color: #404040;
+}
+
+td.lowlight
+{
+  background-color: #202020;
+}
+
+th.edge_case, td.edge_case
+{
+  background-color: #000000;
+}
+
+.topnav
+{
+  background-color: #404040;
+  color: #AAFF80;
+  
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 10px;
+  padding-bottom: 0px;
+  
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-top: 0px;
+  margin-bottom: 10px;
+}
+
+.topsearch
+{
+  float: right;
+}
+.leftnav
+{
+  float: left;
+  
+  margin-left: 0px;
+  margin-right: 10px;
+  margin-top: 0px;
+  margin-bottom: 10px;
+  
+  padding: 0px;
+  
+  overflow: hidden;
+}
+
+.toxic_green
+{
+  text-decoration: none;
+  color: #AAFF80;
+}
+
+.toxic_brown
+{
+  text-decoration: none;
+  color: #FFAA30;
+}
+
+.toxic_yellow
+{
+  text-decoration: none;
+  color: #FFFF40;
+}
+
+.toxic_blue
+{
+  text-decoration: none;
+  color: #62C4EE;
+}
+
+#content
+{
+  display: inline-block;
+}
+
+#now_playing_div
+{
+  float: right;
+  color: FFFF80;
+  display: inline-block;
+}
+
+#now_playing_hints_div
+{
+  display: inline;
+  text-align: right;
+}
+
+#scan_feedback
+{
+  font-size: 8pt;
+  color: #FFFF80;
+}
+
+#footer
+{
+  float: right;
+  text-align: right;
+  border-top: 1px solid #FFAA30;
+}
+
+#wrapper
+{
+  overflow: hidden;
+}
