@@ -685,7 +685,7 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
   
   // $query_end should be called $from.  i'll rename it later.  maybe.
   $query_end = "FROM genres AS g\n" .
-               "  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n";
+               "  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n" .
                "  INNER JOIN songs AS s ON s.id = s_g.song_id\n";
   
   if (isset($id_filters['song']) && $id_filters['song'] !== null)
