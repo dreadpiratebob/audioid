@@ -319,7 +319,7 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
     
     if (isset($name_filters['song']) && $name_filters['song'] !== null)
     {
-      $query_end .= 's.title LIKE "%:song_name_filter%"';
+      $query_end .= 's.name LIKE "%:song_name_filter%"';
       $sql_params[':song_name_filter'] = $name_filters['song'];
     }
   }
@@ -367,7 +367,7 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
   
   $artist_group = 'DISTINCT \'<a href="#" onclick="' /* "> */ . 'filter_by(\\\'artist\\\', \', ar.id, \', \\\'id\\\'); return false;">\', ar.name, \'</a>\', s_ar.conjunction ORDER BY s_ar.list_order';
   
-  $query     = 'SELECT s.id AS song_id, s.title AS song_title, ar.id AS artist_id, GROUP_CONCAT(' . $artist_group . ' SEPARATOR "") AS artist_name, al.id AS album_id, al.name AS album_name, al_s.track_number AS track, g.id AS genre_id, g.name AS genre_name' . "\n" .
+  $query     = 'SELECT s.id AS song_id, s.name AS song_title, ar.id AS artist_id, GROUP_CONCAT(' . $artist_group . ' SEPARATOR "") AS artist_name, al.id AS album_id, al.name AS album_name, al_s.track_number AS track, g.id AS genre_id, g.name AS genre_name' . "\n" .
                $query_end . "\n" .
                $where .
                "GROUP BY s.id\n" .
@@ -427,7 +427,7 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
   }
   else if ($name_filters['song'] !== null && strlen($name_filters['song']) > 0)
   {
-    $query_end .= "    AND s.title LIKE \"%:song_name_filter%\"\n";
+    $query_end .= "    AND s.name LIKE \"%:song_name_filter%\"\n";
     $sql_params[':song_name_filter'] = $name_filters['song'];
   }
   
@@ -885,8 +885,7 @@ with this error: <?=$sql_link->errorInfo()[2]?><br />
     $filter_link = (str_replace('_', '&nbsp;', $filter_name) . ' is one of (');
     
     // filter value
-    $sql_col     = (strcmp($filter_name, 'song') == 0 ? 'title' : 'name');
-    $query       = 'SELECT ' . $sql_col . ' FROM ' . $filter_name . 's WHERE id IN (' . $val . ') ORDER BY id ASC;';
+    $query       = 'SELECT name FROM ' . $filter_name . 's WHERE id IN (' . $val . ') ORDER BY id ASC;';
     $result      = $sql_link->query($query);
     if ($result === false)
     {
