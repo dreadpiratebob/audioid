@@ -291,7 +291,8 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
   if ($id_filters['genre'] !== null || ($name_filters['genre'] !== null && strlen($name_filters['genre']) > 0))
     $join_type  = 'INNER';
   
-  $query_end .= '  ' . $join_type . ' JOIN genres AS g ON g.id = s.genre_id';
+  $query_end .= '  ' . $join_type . ' JOIN songs_genres AS s_g ON s_g.song_id = s.id';
+  $query_end .= '  ' . $join_type . ' JOIN genres AS g ON g.id = s_g.genre_id';
   
   if ($id_filters['genre'] !== null)
   {
