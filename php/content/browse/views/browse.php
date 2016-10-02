@@ -454,7 +454,9 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
     }
   }
   
-  $query_end .= '  ' . ($id_filters['genre'] !== null || ($name_filters['genre'] !== null && strlen($name_filters['genre']) > 0) ? 'INNER' : 'LEFT') . " JOIN genres AS g ON g.id = s.genre_id\n";
+  $join_type = ($id_filters['genre'] !== null || ($name_filters['genre'] !== null && strlen($name_filters['genre']) > 0) ? 'INNER' : 'LEFT');
+  $query_end .= '  ' . $join_type . " JOIN songs_genres AS s_g ON s_g.song_id = s.id\n";
+  $query_end .= '  ' . $join_type . " JOIN genres AS g ON g.id = s_g.genre_id\n";
   if ($id_filters['genre'] !== null)
   {
     $query_end .= '    AND g.id IN (' . $id_filters['genre'] . ")\n";
@@ -590,7 +592,8 @@ function browse_albums($data, $id_filters, $name_filters, $order_by, $offset, $c
   $has_name_filter = (isset($name_filters['genre']) && $name_filters['genre'] !== null && strlen($name_filters['genre']) > 0);
   $genre_join_type = ($has_id_filter || $has_name_filter ? 'INNER' : 'LEFT');
   
-  $query_end   .= '  ' . $genre_join_type . ' JOIN genres AS g ON g.id = s.genre_id' . "\n";
+  $query_end   .= "  $genre_join_type JOIN songs_genres AS s_g ON s_g.song_id = s.id\n";
+  $query_end   .= "  $genre_join_type JOIN genres AS g ON g.id = s_g.genre_id\n";
   if ($has_id_filter)
   {
     $query_end .= '    AND g.id IN (' . $id_filters['genre'] . ")\n";
@@ -682,7 +685,8 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
   
   // $query_end should be called $from.  i'll rename it later.  maybe.
   $query_end = "FROM genres AS g\n" .
-               "  INNER JOIN songs AS s ON s.genre_id = g.id\n";
+               "  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n";
+               "  INNER JOIN songs AS s ON s.id = s_g.song_id\n";
   
   if (isset($id_filters['song']) && $id_filters['song'] !== null)
   {
