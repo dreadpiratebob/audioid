@@ -22,21 +22,21 @@ function start($data, $sql_link, $session_id)
     return -1;
   }
   
-  $query       = 'SELECT id, name, base_path FROM catalogs WHERE id=' . $cat_id . ';';
+  $query       = "SELECT id, name, base_path FROM catalogs WHERE id=$cat_id;";
   $sql_catalog = $sql_link->query($query);
   if ($sql_catalog === false)
   {
-    add_status('query "' . $query . '" died:<br />' . $sql_link->error . '<br />done.', $session_id);
+    add_status('query "' . $query . '" died:<br />' . $sql_link->errorInfo()[2] . '<br />done.', $session_id);
     return -1;
   }
   
-  if ($sql_catalog->num_rows != 1)
+  if ($sql_catalog->rowCount() != 1)
   {
-    add_status('error: found ' . $sql_catalog->num_rows . ' catalogs.');
+    add_status('error: found ' . $sql_catalog->rowCount() . ' catalogs.');
     return -1;
   }
   
-  $sql_catalog = $sql_catalog->fetch_array(MYSQLI_ASSOC);
+  $sql_catalog = $sql_catalog->fetch(PDO::FETCH_ASSOC);
   $cat_name    = $sql_catalog['name'];
   
   session_start($session_id);
@@ -212,9 +212,9 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
     $query     = 'SELECT id FROM songs WHERE filename="' . $filename . '" AND catalog_id=' . $cat_id . ';';
     $res_songs = $sql_link->query($query);
     if ($res_songs === false)
-      die('query "' . $query . '" died: ' . $sql_link->error);
+      die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     
-    if ($res_songs->num_rows >= 1)
+    if ($res_songs->rowCount() >= 1)
     {
       add_status('this song is already in this catalog. skipping it.', $session_id);
       return;
@@ -229,24 +229,24 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
       $sql_genre = $sql_link->query($query);
       if ($sql_genre === false)
       {
-        add_status('query "' . $query . '" died: ' . $sql_link->error, $session_id);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2], $session_id);
       }
-      else if ($sql_genre->num_rows == 0)
+      else if ($sql_genre->rowCount() == 0)
       {
         $query  = 'INSERT INTO genres (name) VALUES("' . $genre_name . '");';
         $result = $sql_link->query($query);
         if ($result === false)
-          add_status('query "' . $query . '" died; failed to add genre "' . $genre_name . '": ' . $sql_link->error, $session_id);
+          add_status('query "' . $query . '" died; failed to add genre "' . $genre_name . '": ' . $sql_link->errorInfo()[2], $session_id);
         else
           $genre_id = $sql_link->insert_id; // ...i think this is right...
       }
-      else if ($sql_genre->num_rows >= 1)
+      else if ($sql_genre->rowCount() >= 1)
       {
         $sql_genre = $sql_genre->fetch_array(MYSQL_ASSOC);
         $genre_id  = $sql_genre['id'];
         
-        if ($sql_genre->num_rows > 1)
-          add_status('found ' . $sql_genre->num_rows . ' genres called "' . $genre_name . '"; using the first one...', $session_id);
+        if ($sql_genre->rowCount() > 1)
+          add_status('found ' . $sql_genre->rowCount() . ' genres called "' . $genre_name . '"; using the first one...', $session_id);
       }
     }
   }
@@ -257,7 +257,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
               'VALUES("' . $song_title . '", "' . $filename . '", ' . $cat_id . ', ' . (isset($genre_id) ? $genre_id : 'NULL') . ');';
     $result = $sql_link->query($query);
     if ($result === false)
-      die('query "' . $query . '" died: ' . $sql_link->error);
+      die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     
     $song_id = $sql_link->insert_id;
   }
@@ -270,25 +270,25 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
       $sql_artists = $sql_link->query($query);
       if ($sql_artists === false)
       { // failed to get artist info
-        add_status('query "' . $query . '" died: ' . $sql_link->error);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       }
-      else if ($sql_artists->num_rows == 0)
+      else if ($sql_artists->rowCount() == 0)
       { // first time dealing w/ this artist; insert a new row into the table
         $query  = 'INSERT INTO artists (name) VALUES("' . $artist_name . '");';
         $result = $sql_link->query($query);
         
         if ($result === false)
-          add_status('query "' . $query . '" died: ' . $sql_link->error);
+          add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
         else
           $artist_id = $sql_link->insert_id;
       }
-      else if ($sql_artists->num_rows >= 1)
+      else if ($sql_artists->rowCount() >= 1)
       { // seen this artist before; get its id
         $artists   = $sql_artists->fetch_array(MYSQL_ASSOC);
         $artist_id = $artists['id'];
         
-        if ($sql_artists->num_rows > 1)
-          add_status('found ' . $sql_artists->num_rows . ' artists called "' . $artist_name . '"; using the first one...', $session_id);
+        if ($sql_artists->rowCount() > 1)
+          add_status('found ' . $sql_artists->rowCount() . ' artists called "' . $artist_name . '"; using the first one...', $session_id);
       }
     }
     
@@ -297,7 +297,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
       $query  = 'INSERT INTO songs_artists (song_id, artist_id, conjunction) VALUES(' . $song_id . ', ' . $artist_id . ', "");';
       $result = $sql_link->query($query);
       if ($result === false)
-        add_status('query "' . $query . '" died: ' . $sql_link->error);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     }
   }
   
@@ -309,26 +309,26 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
       $sql_albums = $sql_link->query($query);
       if ($sql_albums === false)
       { // failed to get album info
-        add_status('query "' . $query . '" died: ' . $sql_link->error);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       }
-      else if ($sql_albums->num_rows == 0)
+      else if ($sql_albums->rowCount() == 0)
       { // first time dealing w/ this album; insert a new row into the table
         $query  = 'INSERT INTO albums (name) VALUES("' . $album_name . '");';
         $result = $sql_link->query($query);
         
         if ($result === false)
-          add_status('query "' . $query . '" died: ' . $sql_link->error);
+          add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
         else
           $album_id = $sql_link->insert_id;
         
       }
-      else if ($sql_albums->num_rows >= 1)
+      else if ($sql_albums->rowCount() >= 1)
       { // seen this artist before; get its id
         $album    = $sql_albums->fetch_array(MYSQL_ASSOC);
         $album_id = $album['id'];
         
-        if ($sql_albums->num_rows > 1)
-          add_status('found ' . $sql_albums->num_rows . ' albums called "' . $album_name . '"; using the first one...', $session_id);
+        if ($sql_albums->rowCount() > 1)
+          add_status('found ' . $sql_albums->rowCount() . ' albums called "' . $album_name . '"; using the first one...', $session_id);
       }
     }
     
@@ -342,7 +342,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_name, $artist_join
       $query  = 'INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(' . $song_id . ', ' . $album_id . ', ' . $track . ');';
       $result = $sql_link->query($query);
       if ($result === false)
-        add_status('query "' . $query . '" died: ' . $sql_link->error);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     }
   }
   

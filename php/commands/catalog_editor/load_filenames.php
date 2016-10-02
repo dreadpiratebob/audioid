@@ -30,17 +30,17 @@ function start($data, $sql_link, $session_id)
   $sql_catalog = $sql_link->query($query);
   if ($sql_catalog === false)
   {
-    add_status('query "' . $query . '" died:<br />' . $sql_link->error . '<br />done.', $session_id);
+    add_status('query "' . $query . '" died:<br />' . $sql_link->errorInfo()[2] . '<br />done.', $session_id);
     return -4;
   }
   
-  if ($sql_catalog->num_rows != 1)
+  if ($sql_catalog->rowCount() != 1)
   {
-    add_status('error: found ' . $sql_catalog->num_rows . ' catalogs.');
+    add_status('error: found ' . $sql_catalog->rowCount() . ' catalogs.');
     return -5;
   }
   
-  $sql_catalog = $sql_catalog->fetch_array(MYSQLI_ASSOC);
+  $sql_catalog = $sql_catalog->fetch(PDO::FETCH_ASSOC);
   $cat_name    = $sql_catalog['name'];
   
   session_start($session_id);

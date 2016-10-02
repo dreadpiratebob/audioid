@@ -22,9 +22,9 @@ function queue_album_up($data, $sql_link)
   if ($sql_album === false)
     return 'data error (error code 344)';
   
-  for ($i = 0; $i < $sql_album->num_rows; ++$i)
+  for ($i = 0; $i < $sql_album->rowCount(); ++$i)
   {
-    $song = $sql_album->fetch_array(MYSQL_ASSOC);
+    $song = $sql_album->fetch(PDO::FETCH_ASSOC);
     $_SESSION['now_playing']['song_list'][count($_SESSION['now_playing']['song_list'])] = $song;
   }
 }

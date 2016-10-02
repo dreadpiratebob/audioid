@@ -1,4 +1,4 @@
-<?php
+<?php //>
 
 function add_catalog($data, $sql_link)
 {
@@ -20,17 +20,18 @@ function add_catalog($data, $sql_link)
   $sql_catalogs = $sql_link->query($query);
   
   if ($sql_catalogs === false)
-    return $fb . 'query "' . $query . '" died: <br />' . $sql_link->error;
+    return $fb . 'query "' . $query . '" died: <br />' . $sql_link->$sql_link->errorInfo()[2];
   
-  for ($i = 0; $i < $sql_catalogs->num_rows; ++$i)
+  $catalogs = $sql_catalogs->fetchAll(PDO::FETCH_ASSOC);
+  for ($i = 0; $i < count($catalogs); ++$i)
   {
-    $catalog  = $sql_catalogs->fetch_array();
+    $catalog  = $catalogs[$i];
     $cat_path = $catalog['base_path'];
     
-    $fn1          = (strlen($path) <  strlen($cat_path) ? $path : $cat_path);
-    $fn2          = (strlen($path) >= strlen($cat_path) ? $path : $cat_path);
+    $fn1      = (strlen($path) <  strlen($cat_path) ? $path : $cat_path);
+    $fn2      = (strlen($path) >= strlen($cat_path) ? $path : $cat_path);
     
-    $fn2          = substr($fn2, 0, strlen($fn1));
+    $fn2      = substr($fn2, 0, strlen($fn1));
     
     if (strcmp($fn1, $fn2) == 0)
       return $fb . 'invalid path; either a catalog already exists in a subfolder of your path or a catalog already exists in a superfolder of your path.<br />';
@@ -42,7 +43,7 @@ function add_catalog($data, $sql_link)
   $result = $sql_link->query($query);
   
   if ($result === false)
-    return $fb . 'query "' . $query . '" died:<br />' . "\n" . $sql_link->error;
+    return $fb . 'query "' . $query . '" died:<br />' . "\n" . $sql_link->$sql_link->errorInfo()[2];
   else
     return $fb;
 }

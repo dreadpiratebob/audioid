@@ -51,7 +51,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
   $track       = $tags['track'];
   $genre       = $tags['genre'];
   
-  $title = clean_tag($title, $sql_link);
+  $title = clean_extra_chars($title);
   
   // deal w/ artists
   {
@@ -82,8 +82,8 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
         
         $art = substr($artist, 0, $min_pos);
         
-        $artist_names[count($artist_names)] = clean_tag($art, $sql_link);
-        $artist_joins[count($artist_joins)] = clean_tag($separators[$sep_index], $sql_link);
+        $artist_names[count($artist_names)] = clean_extra_chars($art);
+        $artist_joins[count($artist_joins)] = clean_extra_chars($separators[$sep_index]);
         
         $new_pos = $min_pos + strlen($separators[$sep_index]) ;
         $artist  = substr($artist, $new_pos);
@@ -93,7 +93,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
       while (true);
       
       add_status('adding "' . $artist . '" to the list of artists...', $session_id);
-      $artist_names[count($artist_names)] = clean_tag($artist, $sql_link);
+      $artist_names[count($artist_names)] = clean_extra_chars($artist);
     }
   }
   
@@ -102,7 +102,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
     if (strlen($album) == 0)
       unset($album);
     else
-      $album = clean_tag($album, $sql_link);
+      $album = clean_extra_chars($album);
   }
   
   if (isset($track))
@@ -141,7 +141,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
     else if (strlen($genre) == 0)
       unset($genre);
     else // assume $genre is (s'posed to be) a valid genre name.
-      $genre = clean_tag($genre, $sql_link);
+      $genre = clean_extra_chars($genre);
   }
   
   $metadata = "\n" .
@@ -164,7 +164,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
   return 'done';
 }
 
-function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joins, $album_name, $track, $genre_name, $sql_link, $session_id)
+function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joins, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id)
 {
   $joined_artists = '';
   if (count($artist_names) > 0)
@@ -178,55 +178,67 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   
   // make sure this song isn't already in the db
   {
-    $query     = 'SELECT id FROM songs WHERE filename="' . $filename . '" AND catalog_id=' . $cat_id . ';';
-    $res_songs = $sql_link->query($query);
+    $query     = 'SELECT id FROM songs WHERE filename=:filename AND catalog_id=' . $cat_id . ';';
+    $temp      = $sql_link->prepare($query);
+    $res_songs = $temp->execute(array(':filename' => $filename));
     if ($res_songs === false)
-      die('query "' . $query . '" died: ' . $sql_link->error);
+      die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     
-    if ($res_songs->num_rows >= 1)
+    if ($res_songs->rowCount() >= 1)
     {
       add_status('this song is already in this catalog. skipping it.', $session_id);
       return;
     }
   }
   
+  // insert the song
+  {
+    $query  = 'INSERT INTO songs (title, filename, catalog_id) ' .
+              "VALUES(:song_title, :filename, $cat_id);";
+    $result = $sql_link->query($query);
+    if ($result === false)
+      die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
+    
+    $song_id = $sql_link->lastInsertId;
+  }
+  
   // check for the genre & insert it if i have one that isn't there.
   if (isset($genre_name) && strlen($genre_name) > 0)
   {
-    $query     = 'SELECT id FROM genres WHERE name="' . $genre_name . '" ORDER BY id ASC;';
-    $sql_genre = $sql_link->query($query);
+    $query     = 'SELECT id FROM genres WHERE name=:genre_name ORDER BY id ASC;';
+    $temp      = $sql_link->prepare($query);
+    $sql_genre = $temp->execute(array(':genre_name' => $genre_name));
     if ($sql_genre === false)
     {
-      add_status('query "' . $query . '" died: ' . $sql_link->error, $session_id);
+      add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2], $session_id);
     }
-    else if ($sql_genre->num_rows == 0)
+    else if ($sql_genre->rowCount() == 0)
     {
-      $query  = 'INSERT INTO genres (name) VALUES("' . $genre_name . '");';
+      $query  = 'INSERT INTO genres (name) VALUES(:genre_name);';
+      $temp   = $sql_link->prepare($query);
+      $result = $temp->execute(array(':genre_name' => $genre_name));
+      if ($result === false)
+        add_status('query "' . $query . '" died; failed to add genre "' . $genre_name . '": ' . $sql_link->errorInfo()[2], $session_id);
+      else
+        $genre_id = $sql_link->lastInsertId;
+    }
+    else if ($sql_genre->rowCount() >= 1)
+    {
+      $arr_genre = $sql_genre->fetch(PDO::FETCH_ASSOC);
+      $genre_id  = $arr_genre['id'];
+      
+      if ($sql_genre->rowCount() > 1)
+        add_status('found ' . $sql_genre->rowCount() . ' genres called "' . $genre_name . '"; using the first one...', $session_id);
+    }
+    
+    if (isset($genre_id))
+    {
+      $query  = "INSERT INTO songs_genres (song_id, genre_id)\n" .
+                "VALUES($song_id, $genre_id)";
       $result = $sql_link->query($query);
       if ($result === false)
-        add_status('query "' . $query . '" died; failed to add genre "' . $genre_name . '": ' . $sql_link->error, $session_id);
-      else
-        $genre_id = $sql_link->insert_id; // ...i think this is right...
+        add_status("this query died:\n$query\n\ncouldn't link $song_title to $genre_name.\n" . $sql_link->errorInfo()[2], $session_id);
     }
-    else if ($sql_genre->num_rows >= 1)
-    {
-      $sql_genre = $sql_genre->fetch_array(MYSQL_ASSOC);
-      $genre_id  = $sql_genre['id'];
-      
-      if ($sql_genre->num_rows > 1)
-        add_status('found ' . $sql_genre->num_rows . ' genres called "' . $genre_name . '"; using the first one...', $session_id);
-    }
-  }
-  
-  // insert the song
-  {
-    $query  = 'INSERT INTO songs (title, filename, catalog_id, genre_id) ' .
-              'VALUES("' . $song_title . '", "' . $filename . '", ' . $cat_id . ', ' . (isset($genre_id) ? $genre_id : 'NULL') . ');';
-    $result = $sql_link->query($query);
-    if ($result === false)
-      die('query "' . $query . '" died: ' . $sql_link->error);
-    
-    $song_id = $sql_link->insert_id;
   }
   
   // if i have artist info, insert it & associate it with the song
@@ -236,38 +248,41 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       foreach ($artist_names as $index => $artist_name)
       {
         $artist_id   = null;
-        $query       = 'SELECT id FROM artists WHERE name="' . $artist_name . '" ORDER BY id ASC;';
-        $sql_artists = $sql_link->query($query);
+        $query       = 'SELECT id FROM artists WHERE name=:artist_name ORDER BY id ASC;';
+        $temp        = $sql_link->prepare($query);
+        $sql_artists = $temp->execute(array(':artist_name' => $artist_name));
         if ($sql_artists === false)
         { // failed to get artist info
-          add_status('query "' . $query . '" died: ' . $sql_link->error);
+          add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
         }
-        else if ($sql_artists->num_rows == 0)
+        else if ($sql_artists->rowCount() == 0)
         { // first time dealing w/ this artist; insert a new row into the table
-          $query  = 'INSERT INTO artists (name) VALUES("' . $artist_name . '");';
-          $result = $sql_link->query($query);
+          $query  = 'INSERT INTO artists (name) VALUES(:artist_name);';
+          $temp   = $sql_link->prepare($query);
+          $result = $temp->execute(array(':artist_name' => $artist_name));
           
           if ($result === false)
-            add_status('query "' . $query . '" died: ' . $sql_link->error);
+            add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
           else
-            $artist_id = $sql_link->insert_id;
+            $artist_id = $sql_link->lastInsertId;
         }
-        else if ($sql_artists->num_rows >= 1)
+        else if ($sql_artists->rowCount() >= 1)
         { // seen this artist before; get its id
-          $artists   = $sql_artists->fetch_array(MYSQL_ASSOC);
+          $artists   = $sql_artists->fetch(MYSQL_ASSOC);
           $artist_id = $artists['id'];
           
-          if ($sql_artists->num_rows > 1)
-            add_status('found ' . $sql_artists->num_rows . ' artists called "' . $artist_name . '"; using the first one...', $session_id);
+          if ($sql_artists->rowCount() > 1)
+            add_status('found ' . $sql_artists->rowCount() . ' artists called "' . $artist_name . '"; using the first one...', $session_id);
         }
         
         if ($artist_id !== null)
         {
           $art_join = (0 <= $index && $index < count($artist_joins) ? $artist_joins[$index] : '');
-          $query  = 'INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order) VALUES(' . $song_id . ', ' . $artist_id . ', "' . $art_join . '", ' . $index . ');';
-          $result = $sql_link->query($query);
+          $query  = "INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order) VALUES($song_id, $artist_id, :art_join, $index);";
+          $temp   = $sql_link->prepare($query);
+          $result = $temp->execute(array(':art_join' => $art_join));
           if ($result === false)
-            add_status('query "' . $query . '" died: ' . $sql_link->error);
+            add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
         }
       }
     }
@@ -277,30 +292,42 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   {
     if (isset($album_name))
     { // get album info so i can associate the current song w/ it
-      $query      = 'SELECT id FROM albums WHERE name="' . $album_name . '" ORDER BY id ASC;';
-      $sql_albums = $sql_link->query($query);
+      $query           = 'SELECT id FROM artists WHERE name=:artist_name;';
+      $temp            = $sql_link->prepare($query);
+      $result          = $temp->execute(array(':artist_name' => $artist_name));
+      $album_artist_id = null;
+      if ($result === false)
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
+      else if ($result->rowCount() === 1)
+        $album_artist_id = 
+      else if ($result->rowCount() > 1)
+        add_status("multiple artists named $artist_name found when looking for the album artist for $album_name.");
+      
+      $query      = 'SELECT id FROM albums WHERE name=:album_name ORDER BY id ASC;';
+      $temp       = $sql_link->prepare($query);
+      $sql_albums = $temp->execute(array(':album_name' => $album_name));
       if ($sql_albums === false)
       { // failed to get album info
-        add_status('query "' . $query . '" died: ' . $sql_link->error);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       }
-      else if ($sql_albums->num_rows == 0)
+      else if ($sql_albums->rowCount() == 0)
       { // first time dealing w/ this album; insert a new row into the table
-        $query  = 'INSERT INTO albums (name) VALUES("' . $album_name . '");';
-        $result = $sql_link->query($query);
-        
+        $query  = 'INSERT INTO albums (name, album_artist) VALUES(:album_name, :album_artist_id);';
+        $result = $sql_link->prepare($query);
+        $result = $result->execute(array(':album_name' => $album_name, ':album_artist_id' => ($album_artist_id === null ? 'NULL' : $album_artist_id)));
         if ($result === false)
-          add_status('query "' . $query . '" died: ' . $sql_link->error);
+          add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
         else
-          $album_id = $sql_link->insert_id;
+          $album_id = $sql_link->lastInsertId;
         
       }
-      else if ($sql_albums->num_rows >= 1)
-      { // seen this artist before; get its id
-        $album    = $sql_albums->fetch_array(MYSQL_ASSOC);
+      else if ($sql_albums->rowCount() >= 1)
+      { // seen this album before; get its id
+        $album    = $sql_albums->fetch(MYSQL_ASSOC);
         $album_id = $album['id'];
         
-        if ($sql_albums->num_rows > 1)
-          add_status('found ' . $sql_albums->num_rows . ' albums called "' . $album_name . '"; using the first one...', $session_id);
+        if ($sql_albums->rowCount() > 1)
+          add_status('found ' . $sql_albums->rowCount() . ' albums called "' . $album_name . '"; using the first one...', $session_id);
       }
     }
     
@@ -314,7 +341,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       $query  = 'INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(' . $song_id . ', ' . $album_id . ', ' . $track . ');';
       $result = $sql_link->query($query);
       if ($result === false)
-        add_status('query "' . $query . '" died: ' . $sql_link->error);
+        add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     }
   }
   
@@ -326,15 +353,18 @@ function get_tags($filename)
   $detagger  = new getID3();
   $file_info = $detagger->analyze($filename);
   
-  $version = intval($file_info['GETID3_VERSION']);
-  $v1tags  = $file_info['tags']['id3v1'];
-  $v2tags  = $file_info['tags']['id3v2'];
+  $version   = intval($file_info['GETID3_VERSION']);
+  $v1tags    = $file_info['tags']['id3v1'];
+  $v2tags    = $file_info['tags']['id3v2'];
   
-  $tags    = extract_tag(array(), $version, 'title',  $v1tags, $v2tags);
-  $tags    = extract_tag($tags,   $version, 'artist', $v1tags, $v2tags);
-  $tags    = extract_tag($tags,   $version, 'album',  $v1tags, $v2tags);
-  $tags    = extract_tag($tags,   $version, 'genre',  $v1tags, $v2tags);
-  $tags    = extract_tag($tags,   $version, 'year',   $v1tags, $v2tags);
+  $tags      = array();
+  $tags      = extract_tag($tags, $version, 'title',        $v1tags, $v2tags);
+  $tags      = extract_tag($tags, $version, 'artist',       $v1tags, $v2tags);
+  $tags      = extract_tag($tags, $version, 'album',        $v1tags, $v2tags);
+  $tags      = extract_tag($tags, $version, 'album_artist', $v1tags, $v2tags);
+  $tags      = extract_tag($tags, $version, 'band',         $v1tags, $v2tags);
+  $tags      = extract_tag($tags, $version, 'genre',        $v1tags, $v2tags);
+  $tags      = extract_tag($tags, $version, 'year',         $v1tags, $v2tags);
   
   if ($version == 1)
     $tags['track']  = $v1tags['track'][0];
@@ -354,6 +384,12 @@ function get_tags($filename)
     // got no title; pull from the filename
     $tmp           = explode('/', $filename);
     $tags['title'] = $tmp[count($tmp) - 1]; // leave the .mp3 on the end?  sure. why not?
+  }
+  
+  if (has_tag($tags, 'band') && !has_tag($tags, 'album_artist'))
+  { // dunno why the getID3 library calls this 'band' and not 'album artist' or 'album_artist'.
+    $tags['album_artist'] = $tags['band'];
+    unset($tags['band']);
   }
   
   return $tags;
@@ -382,14 +418,6 @@ function has_tag($tags, $tag_name)
   return (isset($tags[$tag_name]) && strlen($tags[$tag_name]) > 0);
 }
 
-function clean_tag($raw_tag, $sql_link)
-{
-  $tag = clean_extra_chars($raw_tag);
-  $tag = clean_mysql_unsafe_chars($tag, $sql_link);
-  
-  return $tag;
-}
-
 function clean_extra_chars($raw_tag)
 {
   if (strlen($raw_tag) >= 2 && ord(substr($raw_tag, 0, 1)) == 255 && ord(substr($raw_tag, 1, 1)) == 254)
@@ -404,21 +432,7 @@ function clean_extra_chars($raw_tag)
     $tag1 = $raw_tag;
   }
   
-  /*
-  $tag1 = str_replace(chr(0),   '', $raw_tag);
-  $tag1 = str_replace(chr(255), '', $tag1);
-  $tag1 = str_replace(chr(254), '', $tag1);
-  */
-  
   return $tag1;
-}
-
-function clean_mysql_unsafe_chars($raw_tag, $sql_link)
-{
-  // clean the rest of the characters.
-  $tag2 = $sql_link->escape_string($raw_tag);
-  
-  return $tag2;
 }
 
 function get_ascii($str)

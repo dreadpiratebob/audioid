@@ -21,13 +21,13 @@ function update_catalog($data, $sql_link)
   if (strlen($fb) > 0)
     return $fb;
   
-  $query        = 'SELECT base_path FROM catalogs WHERE id != ' . $id . ';';
+  $query        = "SELECT base_path FROM catalogs WHERE id!=$id;";
   $sql_catalogs = $sql_link->query($query);
   
   if ($sql_catalogs === false)
-    return $fb . 'query "' . $query . '" died: <br />' . $sql_link->error;
+    return $fb . 'query "' . $query . '" died: <br />' . $sql_link->errorInfo()[2];
   
-  for ($i = 0; $i < $sql_catalogs->num_rows; ++$i)
+  for ($i = 0; $i < $sql_catalogs->rowCount(); ++$i)
   {
     $catalog  = $sql_catalogs->fetch_array();
     $cat_path = $catalog['base_path'];
@@ -43,11 +43,12 @@ function update_catalog($data, $sql_link)
   
   /** end data validation & cleanup **/
   
-  $query  = 'UPDATE catalogs SET name="' . $name . '", base_path="' . $path . '" WHERE id=' . $id . ';';
-  $result = $sql_link->query($query);
+  $query  = "UPDATE catalogs SET name=:name, base_path=:path WHERE id=$id;";
+  $temp   = $sql_link->prepare($query);
+  $result = $temp->execute(array(':name' => $name, ':path' => $path));
   
   if ($result === false)
-    return $fb . 'query "' . $query . '" died:<br />' . "\n" . $sql_link->error;
+    return $fb . 'query "' . $query . '" died:<br />' . "\n" . $sql_link->errorInfo()[2];
   else
     return $fb . "done.<br />\n";
 }

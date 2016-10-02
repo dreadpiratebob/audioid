@@ -1,4 +1,4 @@
-<?php
+<?php //>
 
 function delete_catalog($data, $sql_link)
 {
@@ -23,7 +23,7 @@ function delete_catalog($data, $sql_link)
             ');';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->error);
+    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->errorInfo()[2]);
   
   $query  = "DELETE FROM artists WHERE id NOT IN\n" .
             "(\n" .
@@ -34,7 +34,7 @@ function delete_catalog($data, $sql_link)
             ');';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->error);
+    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->errorInfo()[2]);
   
   //// deal w/ albums ////
   $query  = "DELETE FROM songs_albums\n" .
@@ -46,7 +46,7 @@ function delete_catalog($data, $sql_link)
             ');';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->error);
+    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->errorInfo()[2]);
   
   $query  = "DELETE FROM albums WHERE id NOT IN\n" .
             "(\n" .
@@ -57,14 +57,14 @@ function delete_catalog($data, $sql_link)
             ');';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->error);
+    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->errorInfo()[2]);
   
   
   //// deal w/ songs ////
   $query  = 'DELETE FROM songs WHERE catalog_id=' . $cat_id . ';';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('query "' . $query . '" died: ' . $sql_link->error);
+    die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
   
   //// deal w/ genres ////
   $query  = "DELETE FROM genres WHERE id NOT IN\n" .
@@ -75,13 +75,13 @@ function delete_catalog($data, $sql_link)
             ');';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->error);
+    die('this query query died:<br />' . str_replace("\n", "<br />\n", str_replace(' ', '&nbsp;', $query)) . "<br />\nwith this error: " . $sql_link->errorInfo()[2]);
   
   //// delete the catalog ////
   $query  = 'DELETE FROM catalogs WHERE id=' . $cat_id . ';';
   $result = $sql_link->query($query);
   if ($result === false)
-    die('query "' . $query . '" died: ' . $sql_link->error);
+    die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
   
   return 'successfully deleted the catalog.';
 }
