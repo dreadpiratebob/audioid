@@ -267,7 +267,7 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
   else if ($name_filters['artist'] != null && strlen($name_filters['artist']) > 0)
   {
     $query_end .= "    AND ar2.name LIKE \"%:artist_name_filter%\"\n";
-    $sql_params[':artist_name_filter']
+    $sql_params[':artist_name_filter'];
   }
   
   $join_type    = 'LEFT';
