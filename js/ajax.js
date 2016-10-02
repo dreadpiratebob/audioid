@@ -15,7 +15,7 @@ function _request_obj (rel_path, method, params, async, on_load_function, on_err
   this._xml_request     = new XMLHttpRequest();
   this.index            = _requests.length;
   var self = this;
-  var base_url = "73.97.180.167/audioid/"; // This can be changed to the base dir for whatever project is using this file; rel_path will be relative to this.
+  var base_url = "http://73.97.180.167/audioid/"; // This can be changed to the base dir for whatever project is using this file; rel_path will be relative to this.
   
   method = get_value(method, "GET").toUpperCase();
   async  = get_value(async,  false);

@@ -77,7 +77,7 @@ function get_view($data)
   '}';
   
   if (isset($sql_link))
-    $sql_link->close();
+    $sql_link = null;
   
   return $view_content;
 }
