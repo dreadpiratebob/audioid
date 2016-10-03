@@ -1,4 +1,4 @@
-<?
+<?php //>
 // this & view.php don't go through index.php.  that's because they're gateways to the commands called by the js and the views loaded by the js (respectively) that allow me to hide
 // the fs architecture. (why do i wanna hide the fs architecture? well... i feel like things are more secure this way, and i feel like it'll be a lot harder for someone to copy me.
 // unless, of course, i let them.)
@@ -15,12 +15,12 @@ function run_cmd($data)
     return "O.O";
   }
   
-  $fn = 'php/commands/' . $page . '/' . $cmd . '.php';
+  $fn = "php/commands/$page/$cmd.php";
   
   if (!file_exists($fn))
-    return "!";
+    return '!';
   
-  $php_root    = 'php/';
+  $php_root = 'php/';
   
   include_once('php/utils/init_db_vars.php');
   
@@ -34,7 +34,7 @@ function run_cmd($data)
   else
   {
     $db_username = 'audioid';
-    $db_password = '_music_now_';
+    $db_password = 'useless_password';
   }
   
   include_once('php/utils/startup_connections.php');
