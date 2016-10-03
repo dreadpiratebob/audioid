@@ -35,13 +35,13 @@
 $query        = 'SELECT id, name, base_path FROM catalogs;';
 $sql_catalogs = $sql_link->query($query);
 if ($sql_catalogs === false)
-  die('query "' . $query . '" died:<br />' . mysql_error());
+  die('query "' . $query . '" died:<br />' . $sql_link->errorInfo()[2]);
 
-$num_catalogs = $sql_catalogs->num_rows;
+$num_catalogs = $sql_catalogs->rowCount();
 
 for ($i = 0; $i < $num_catalogs; ++$i)
 {
-  $catalog = $sql_catalogs->fetch_array(MYSQL_ASSOC);
+  $catalog = $sql_catalogs->fetch(PDO::FETCH_ASSOC);
   
 ?>
           <tr>
