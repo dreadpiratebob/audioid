@@ -29,7 +29,7 @@ function run_cmd($data)
   
   if (isset($db_username) && strcmp($db_username, 'audioid_admin') == 0)
   {
-    $db_password = 'no_music_for_you';
+    $db_password = '_you_are_chickenfeed_nub_';
   }
   else
   {

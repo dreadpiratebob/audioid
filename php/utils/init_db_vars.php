@@ -32,12 +32,13 @@ if (!isset($db_username) || (strcmp($db_username, 'audioid') != 0 && strcmp($db_
     $db_password = '_you_are_chickenfeed_nub_';
   }
   else
+  {
     $db_username = 'audioid';
+    $db_password = 'useless_password';
+  }
 }
 
-if (strcmp($db_username, 'audioid') == 0)
-  $db_password = 'useless_password';
-else if (!isset($db_password))
+if (!isset($db_password))
   $db_password = '';
 
 ?>
