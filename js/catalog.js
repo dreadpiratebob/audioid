@@ -254,7 +254,6 @@ function get_scan_status(ending)
   }
   else
   {
-    document.getElementById('scan_feedback').innerHTML = '';
     scanning = false;
   }
 }
