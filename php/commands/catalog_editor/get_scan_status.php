@@ -1,4 +1,4 @@
-<?
+<?php //>
 
 $max = $data['max'];
 if (isset($max) && is_numeric($max))
@@ -18,4 +18,5 @@ else
 {
   echo 'data error (error code 3)';
 }
+
 ?>
