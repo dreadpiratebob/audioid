@@ -47,6 +47,6 @@ if (isset($cmd_fn))
   </body>
 </html><?php
 
-$sql_link->close();
+$sql_link = null;
 
 ?>

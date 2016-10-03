@@ -42,7 +42,7 @@ function run_cmd($data)
   
   include_once($fn);
   
-  $sql_link->close();
+  $sql_link = null;
   
   return $feedback;
 }
