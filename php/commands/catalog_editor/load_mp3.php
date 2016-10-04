@@ -299,7 +299,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       if ($result === false)
         add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       else if ($result->rowCount() === 1)
-        $album_artist_id = 
+        $album_artist_id = $result->fetch(PDO::FETCH_ASSOC)['id'];
       else if ($result->rowCount() > 1)
         add_status("multiple artists named $artist_name found when looking for the album artist for $album_name.");
       
