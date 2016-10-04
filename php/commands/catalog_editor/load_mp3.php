@@ -188,12 +188,13 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   // make sure this song isn't already in the db
   {
     $query     = 'SELECT id FROM songs WHERE filename=:filename AND catalog_id=' . $cat_id . ';';
-    $temp      = $sql_link->prepare($query);
-    $res_songs = $temp->execute(array(':filename' => $filename));
+    $stmt      = $sql_link->prepare($query);
+    $res_songs = $stmt->execute(array(':filename' => $filename));
+    
     if ($res_songs === false)
       die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     
-    if ($res_songs->rowCount() >= 1)
+    if ($stmt->rowCount() >= 1)
     {
       add_status('this song is already in this catalog. skipping it.', $session_id);
       return;
@@ -215,9 +216,9 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   if (isset($genre_name) && strlen($genre_name) > 0)
   {
     $query     = 'SELECT id FROM genres WHERE name=:genre_name ORDER BY id ASC;';
-    $temp      = $sql_link->prepare($query);
-    $sql_genre = $temp->execute(array(':genre_name' => $genre_name));
-    if ($sql_genre === false)
+    $sql_genre = $sql_link->prepare($query);
+    $result    = $sql_genre->execute(array(':genre_name' => $genre_name));
+    if ($result === false)
     {
       add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2], $session_id);
     }
@@ -258,9 +259,9 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       {
         $artist_id   = null;
         $query       = 'SELECT id FROM artists WHERE name=:artist_name ORDER BY id ASC;';
-        $temp        = $sql_link->prepare($query);
-        $sql_artists = $temp->execute(array(':artist_name' => $artist_name));
-        if ($sql_artists === false)
+        $sql_artists = $sql_link->prepare($query);
+        $result      = $sql_artists->execute(array(':artist_name' => $artist_name));
+        if ($result === false)
         { // failed to get artist info
           add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
         }
@@ -302,10 +303,10 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     if (isset($album_name))
     { // get album info so i can associate the current song w/ it
       $query           = 'SELECT id FROM artists WHERE name=:artist_name;';
-      $temp            = $sql_link->prepare($query);
-      $result          = $temp->execute(array(':artist_name' => $artist_name));
+      $result          = $sql_link->prepare($query);
+      $temp            = $temp->execute(array(':artist_name' => $artist_name));
       $album_artist_id = null;
-      if ($result === false)
+      if ($temp === false)
         add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       else if ($result->rowCount() === 1)
         $album_artist_id = $result->fetch(PDO::FETCH_ASSOC)['id'];
@@ -313,9 +314,9 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
         add_status("multiple artists named $artist_name found when looking for the album artist for $album_name.");
       
       $query      = 'SELECT id FROM albums WHERE name=:album_name ORDER BY id ASC;';
-      $temp       = $sql_link->prepare($query);
-      $sql_albums = $temp->execute(array(':album_name' => $album_name));
-      if ($sql_albums === false)
+      $sql_albums = $sql_link->prepare($query);
+      $result     = $sql_albums->execute(array(':album_name' => $album_name));
+      if ($result === false)
       { // failed to get album info
         add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       }
