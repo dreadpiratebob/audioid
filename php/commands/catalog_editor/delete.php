@@ -67,11 +67,12 @@ function delete_catalog($data, $sql_link)
     die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
   
   //// deal w/ genres ////
-  $query  = "DELETE FROM genres WHERE id NOT IN\n" .
+  $query  = "DELETE FROM genres WHERE id IN\n" .
             "(\n" .
-            "  SELECT genre_id\n" .
-            "  FROM songs\n" .
-            '  WHERE catalog_id != ' . $cat_id . "\n" .
+            "  SELECT s_g.genre_id\n" .
+            "  FROM songs_genres AS s_g\n" .
+            "    INNER JOIN songs AS s ON s.id = s_g.song_id\n" .
+            "  WHERE s.catalog_id = $cat_id\n" .
             ');';
   $result = $sql_link->query($query);
   if ($result === false)
