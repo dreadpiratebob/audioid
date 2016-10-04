@@ -42,14 +42,15 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
 {
   add_status('parsing ' . $filename, $session_id);
   
-  $tags        = get_tags($filename);
-  $status_tags = print_r($tags, true);
+  $tags         = get_tags($filename);
+  $status_tags  = print_r($tags, true);
   
-  $title       = $tags['title'];
-  $artist      = $tags['artist'];
-  $album       = $tags['album'];
-  $track       = $tags['track'];
-  $genre       = $tags['genre'];
+  $title        = $tags['title'];
+  $artist       = $tags['artist'];
+  $album        = $tags['album'];
+  $album_artist = $tags['album_artist'];
+  $track        = $tags['track'];
+  $genre        = $tags['genre'];
   
   $title = clean_extra_chars($title);
   
@@ -103,6 +104,14 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
       unset($album);
     else
       $album = clean_extra_chars($album);
+  }
+  
+  if (isset($album_artist))
+  {
+    if (strlen($album_artist) == 0)
+      unset($album_artist);
+    else
+      $album_artist = clean_extra_chars($album_artist);
   }
   
   if (isset($track))
@@ -159,7 +168,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
   add_status('parsed and validated metadata:' . $metadata, $session_id);
   add_status('', $session_id);
   
-  insert_song($cat_id, $title, $filename, $artist_names, $artist_joins, $album, $track, $genre, $sql_link, $session_id);
+  insert_song($cat_id, $title, $filename, $artist_names, $artist_joins, $album, $album_artist, $track, $genre, $sql_link, $session_id);
   
   return 'done';
 }
