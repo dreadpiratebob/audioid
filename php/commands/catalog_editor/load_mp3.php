@@ -201,16 +201,26 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     }
   }
   
+  add_status('didn\'t find the song.', $session_id);
+  
   // insert the song
   {
-    $query  = 'INSERT INTO songs (title, filename, catalog_id) ' .
-              "VALUES(:song_title, :filename, $cat_id);";
-    $result = $sql_link->query($query);
+    $query      = 'INSERT INTO songs (name, filename, catalog_id) ' .
+                  "VALUES(:song_title, :filename, $cat_id);";
+    $stmt       = $sql_link->prepare($query);
+    $sql_params = array(':song_title' => $song_title, ':filename' => $filename);
+    $result     = $stmt->execute($sql_params);
     if ($result === false)
-      die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
+    {
+      $message = "this query died: $query\nerror:\n" . print_r($sql_link->errorInfo(), true) . "\n" . $sql_link->errorCode() . "\n\nparams:\n" . print_r($sql_params, true);
+      add_status($message, $session_id);
+      die($message);
+    }
     
     $song_id = $sql_link->lastInsertId;
   }
+  
+  add_status("inserted $song_title", $session_id);
   
   // check for the genre & insert it if i have one that isn't there.
   if (isset($genre_name) && strlen($genre_name) > 0)
