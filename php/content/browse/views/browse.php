@@ -852,9 +852,9 @@ function list_stuff($data, $query, $what, $id_filters, $name_filters, $columns, 
 {
   $fbq         = $query; // fbq == feedback query
   
-  $sql_stmt    = $sql_link->prepare($query);
-  $sql_results = $sql_stmt->execute($sql_params);
-  if ($sql_results === false)
+  $sql_results = $sql_link->prepare($query);
+  $sql_success = $sql_stmt->execute($sql_params);
+  if ($sql_success === false)
   {
     $html_query = str_replace(' ',  '&nbsp;',   $query);
     $html_query = str_replace("\n", "<br />\n", $html_query);
