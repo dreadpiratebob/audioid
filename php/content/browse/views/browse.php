@@ -900,7 +900,7 @@ function list_stuff($data, $query, $what, $id_filters, $name_filters, $columns, 
       $ids_str      = implode(',', $tmp);
       
       $this_name    = $result->fetch(PDO::FETCH_ASSOC);
-      $filter_link .= $this_name[$sql_col];
+      $filter_link .= $this_name['name'];
       
       if ($result->rowCount() > 1)
         $filter_link .= ' [<a href="#" onclick="' . // ">
