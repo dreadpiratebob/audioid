@@ -115,6 +115,7 @@ function add_status($new_status, $session_id)
 {
   session_start($session_id);
   $_SESSION['scan_status'][count($_SESSION['scan_status'])] = $new_status;
+  $_SESSION['scan_log'][count($_SESSION['scan_log'])] = $new_status;
   session_write_close();
 }
 

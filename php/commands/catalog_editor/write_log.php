@@ -8,9 +8,9 @@ function write_log()
   $name       = $_SESSION['scan_status']['name'];
   $start_time = $_SESSION['scan_status']['start_time'];
   $log        = 'catalog "' . $name . '" scanned from ' . $_SERVER['REMOTE_ADDR'] . '; started at ' . $start_time . ".\n";
-  for ($i = 0; $i < count($_SESSION['scan_status']); $i++)
+  for ($i = 0; $i < count($_SESSION['scan_log']); $i++)
   {
-    $line = $_SESSION['scan_status'][$i] . "\n";
+    $line = $_SESSION['scan_log'][$i] . "\n";
     $line = preg_replace("/[^\n-þ]/", '?', $line);
     $log .= $line;
   }

@@ -854,18 +854,17 @@ function list_stuff($data, $query, $what, $id_filters, $name_filters, $columns, 
   
   $sql_results = $sql_link->prepare($query);
   $sql_success = $sql_results->execute($sql_params);
+  
+  $html_query  = str_replace(' ',  '&nbsp;',   $query);
+  $html_query  = str_replace("\n", "<br />\n", $html_query);
+  
   if ($sql_success === false)
   {
-    $html_query = str_replace(' ',  '&nbsp;',   $query);
-    $html_query = str_replace("\n", "<br />\n", $html_query);
-    
-?>
-this query died:<br />
-<br />
-<?=$html_query?><br />
-<br />
-with this error: <?=$sql_link->errorInfo()[2]?><br />
-<?php // >
+    echo "this query died:<br />\n";
+    echo "<br />\n";
+    echo $html_query . "<br />\n";
+    echo "<br />\n";
+    echo 'with this error: ' . $sql_link->errorInfo()[2] . "<br />\n";
     
     return;
   }

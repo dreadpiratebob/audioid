@@ -187,10 +187,11 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   
   // make sure this song isn't already in the db
   {
-    $query     = 'SELECT id FROM songs WHERE filename=:filename AND catalog_id=' . $cat_id . ';';
-    $stmt      = $sql_link->prepare($query);
-    $res_songs = $stmt->execute(array(':filename' => $filename));
-    
+    $query      = 'SELECT id FROM songs WHERE filename=:filename AND catalog_id=' . $cat_id . ';';
+    $stmt       = $sql_link->prepare($query);
+    $sql_params = array(':filename' => $filename);
+    $res_songs  = $stmt->execute($sql_params);
+    dump_query('song id check', $query, $sql_params, $session_id);
     if ($res_songs === false)
       die('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     
@@ -208,6 +209,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     $stmt       = $sql_link->prepare($query);
     $sql_params = array(':song_title' => $song_title, ':filename' => $filename);
     $result     = $stmt->execute($sql_params);
+    dump_query('song insertion', $query, $sql_params, $session_id);
     if ($result === false)
     {
       $message = "this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo(), true) . "\n" . $sql_link->errorCode() . "\n\nparams:\n" . print_r($sql_params, true);
@@ -218,14 +220,14 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     $song_id = $sql_link->lastInsertId();
   }
   
-  add_status("inserted $song_title", $session_id);
-  
   // check for the genre & insert it if i have one that isn't there.
   if (isset($genre_name) && strlen($genre_name) > 0)
   {
-    $query     = 'SELECT id FROM genres WHERE name=:genre_name ORDER BY id ASC;';
-    $sql_genre = $sql_link->prepare($query);
-    $result    = $sql_genre->execute(array(':genre_name' => $genre_name));
+    $query      = 'SELECT id FROM genres WHERE name=:genre_name ORDER BY id ASC;';
+    $sql_genre  = $sql_link->prepare($query);
+    $sql_params = array(':genre_name' => $genre_name);
+    $result     = $sql_genre->execute($sql_params);
+    dump_query('genre id check', $query, $sql_params, $session_id);
     if ($result === false)
     {
       add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2], $session_id);
@@ -233,12 +235,13 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     else if ($sql_genre->rowCount() == 0)
     {
       $query      = 'INSERT INTO genres (name) VALUES(:genre_name);';
-      $temp       = $sql_link->prepare($query);
+      $stmt       = $sql_link->prepare($query);
       $sql_params = array(':genre_name' => $genre_name);
-      $result     = $temp->execute($sql_params);
+      $result     = $stmt->execute($sql_params);
+      dump_query('genre insertion', $query, $sql_params, $session_id);
       if ($result === false)
       {
-        add_status("this query died: $query\nfailed to add genre '$genre_name'.\nerror info:\n" . print_r($sql_link->errorInfo()[2], true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
+        add_status("this query died: $query\nfailed to add genre '$genre_name'.\nerror info:\n" . print_r($sql_link->errorInfo(), true) . print_r($stmt->errorInfo(), true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
       }
       else
       {
@@ -259,6 +262,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       $query  = "INSERT INTO songs_genres (song_id, genre_id)\n" .
                 "VALUES($song_id, $genre_id)";
       $result = $sql_link->query($query);
+      dump_query('songs_genres insertion', $query, array(), $session_id);
       if ($result === false)
         add_status("this query died:\n$query\n\ncouldn't link $song_title to $genre_name.\n" . $sql_link->errorInfo()[2], $session_id);
     }
@@ -274,26 +278,27 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
         $query       = 'SELECT id FROM artists WHERE name=:artist_name ORDER BY id ASC;';
         $sql_artists = $sql_link->prepare($query);
         $sql_params  = array(':artist_name' => $artist_name);
+        dump_query('artist id check', $query, $sql_params, $session_id);
         $result      = $sql_artists->execute($sql_params);
         if ($result === false)
         { // failed to get artist info
-          add_status("this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo()[2], true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
+          add_status("this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo(), true) . print_r($sql_artists->errorInfo(), true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
         }
         else if ($sql_artists->rowCount() == 0)
         { // first time dealing w/ this artist; insert a new row into the table
           $query      = 'INSERT INTO artists (name) VALUES(:artist_name);';
-          $temp       = $sql_link->prepare($query);
+          $stmt       = $sql_link->prepare($query);
           $sql_params = array(':artist_name' => $artist_name);
-          $result     = $temp->execute($sql_params);
-          
+          $result     = $stmt->execute($sql_params);
+          dump_query('artist insertion', $query, $sql_params, $session_id);
           if ($result === false)
-            add_status("this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo()[2], true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
+            add_status("this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo(), true) . print_r($stmt->errorInfo(), true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
           else
             $artist_id = $sql_link->lastInsertId();
         }
         else if ($sql_artists->rowCount() >= 1)
         { // seen this artist before; get its id
-          $artists   = $sql_artists->fetch(MYSQL_ASSOC);
+          $artists   = $sql_artists->fetch(PDO::FETCH_ASSOC);
           $artist_id = $artists['id'];
           
           if ($sql_artists->rowCount() > 1)
@@ -302,12 +307,14 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
         
         if ($artist_id !== null)
         {
-          $art_join = (0 <= $index && $index < count($artist_joins) ? $artist_joins[$index] : '');
-          $query  = "INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order) VALUES($song_id, $artist_id, :art_join, $index);";
-          $temp   = $sql_link->prepare($query);
-          $result = $temp->execute(array(':art_join' => $art_join));
+          $art_join   = (0 <= $index && $index < count($artist_joins) ? $artist_joins[$index] : '');
+          $query      = "INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order) VALUES($song_id, $artist_id, :art_join, $index);";
+          $stmt       = $sql_link->prepare($query);
+          $sql_params = array(':art_join' => $art_join);
+          $result     = $stmt->execute($sql_params);
+          dump_query('songs_artists insertion', $query, $sql_params, $session_id);
           if ($result === false)
-            add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
+            add_status("query '$query' died:\n" . print_r($sql_link->errorInfo(), true) . print_r($stmt->errorInfo(), true));
         }
       }
     }
@@ -317,30 +324,37 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   {
     if (isset($album_name))
     { // get album info so i can associate the current song w/ it
-      $query           = 'SELECT id FROM artists WHERE name=:artist_name;';
-      $result          = $sql_link->prepare($query);
-      $temp            = $temp->execute(array(':artist_name' => $artist_name));
+      $query           = 'SELECT id FROM artists WHERE name=:album_artist_name;';
+      $stmt            = $sql_link->prepare($query);
+      $sql_params      = array(':album_artist_name' => $album_artist);
+      $temp            = $stmt->execute($sql_params);
       $album_artist_id = null;
+      dump_query('album artist id check', $query, $sql_params, $session_id);
       if ($temp === false)
         add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
-      else if ($result->rowCount() === 1)
-        $album_artist_id = $result->fetch(PDO::FETCH_ASSOC)['id'];
-      else if ($result->rowCount() > 1)
+      else if ($stmt->rowCount() === 1)
+        $album_artist_id = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
+      else if ($stmt->rowCount() > 1)
         add_status("multiple artists named $artist_name found when looking for the album artist for $album_name.");
       
       $query      = 'SELECT id FROM albums WHERE name=:album_name ORDER BY id ASC;';
       $sql_albums = $sql_link->prepare($query);
-      $result     = $sql_albums->execute(array(':album_name' => $album_name));
+      $sql_params = array(':album_name' => $album_name);
+      $result     = $sql_albums->execute($sql_params);
+      dump_query('album id check', $query, $sql_params, $session_id);
       if ($result === false)
       { // failed to get album info
         add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
       }
       else if ($sql_albums->rowCount() == 0)
       { // first time dealing w/ this album; insert a new row into the table
+        // $album_artist_id might be null; PDO doesn't handle that well.
+        // http://stackoverflow.com/questions/1391777/how-do-i-insert-null-values-using-pdo
         $query      = 'INSERT INTO albums (name, album_artist) VALUES(:album_name, :album_artist_id);';
         $result     = $sql_link->prepare($query);
-        $sql_params = array(':album_name' => $album_name, ':album_artist_id' => ($album_artist_id === null ? 'NULL' : $album_artist_id));
+        $sql_params = array(':album_name' => $album_name, ':album_artist_id' => (isset($album_artist_id) ? $album_artist_id : null));
         $result     = $result->execute($sql_params);
+        dump_query('album insertion', $query, $sql_params, $session_id);
         if ($result === false)
           add_status("this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo()[2], true) . "\n\nparams:" . print_r($sql_params, true), $session_id);
         else
@@ -349,7 +363,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       }
       else if ($sql_albums->rowCount() >= 1)
       { // seen this album before; get its id
-        $album    = $sql_albums->fetch(MYSQL_ASSOC);
+        $album    = $sql_albums->fetch(PDO::FETCH_ASSOC);
         $album_id = $album['id'];
         
         if ($sql_albums->rowCount() > 1)
@@ -366,6 +380,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       
       $query  = 'INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(' . $song_id . ', ' . $album_id . ', ' . $track . ');';
       $result = $sql_link->query($query);
+      dump_query('songs_albums insertion', $query, array(), $session_id);
       if ($result === false)
         add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2]);
     }
@@ -470,11 +485,24 @@ function get_ascii($str)
   return $ord;
 }
 
-function add_status($new_status, $session_id)
+function add_status($new_status, $session_id, $dump_to_screen = true)
 {
   session_start($session_id);
-  $_SESSION['scan_status'][count($_SESSION['scan_status'])] = $new_status;
+  $_SESSION['scan_log'][count($_SESSION['scan_log'])] = $new_status;
+  if ($dump_to_screen)
+    $_SESSION['scan_status'][count($_SESSION['scan_status'])] = $new_status;
+  
   session_write_close();
+}
+
+function dump_query($title, $query, $params, $session_id)
+{
+  $deparamed_query = $query;
+  foreach ($params as $param => $value)
+    $deparamed_query = str_replace($param, "\"$value\"", $deparamed_query);
+  
+  $log_message = "\n\n----query dump: $title ----\nquery w/ params:\n$query\n\nquery w/o params:\n$deparamed_query\n\nparams:\n" . print_r($params, true) . "----end query dump: $title ----\n\n";
+  add_status($log_message, $session_id, false);
 }
 
 // this attempt at error handling doesn't seem to be working.
