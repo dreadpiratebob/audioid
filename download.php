@@ -19,10 +19,10 @@ $result = $sql_link->query($query);
 if ($result === false)
   die('query "' . $query . '" died: <br />' . $sql_link->errorInfo()[2]);
 
-if ($result->num_rows != 1)
+if ($result->rowCount() != 1)
   die('invalid id');
 
-$tmp      = $result->fetch(PDO:FETCH_ASSOC);
+$tmp      = $result->fetch(PDO::FETCH_ASSOC);
 $title    = $tmp['name'];
 $filename = $tmp['filename'];
 
