@@ -37,9 +37,9 @@ if (!file_exists($filename))
   exit;
 }
 
-$size	= filesize($filename);
-$time	= date('r', filemtime($filename));
-$fm	  = @fopen($filename, 'rb');
+$size = filesize($filename);
+$time = date('r', filemtime($filename));
+$fm   = @fopen($filename, 'rb');
 if (!$fm)
 {
   header ('HTTP/1.1 505 Internal server error');
