@@ -283,8 +283,8 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
   }
   else if ($name_filters['album'] !== null && strlen($name_filters['album']) > 0)
   {
-    $query_end .= "    AND al.name LIKE \"%:album_name_filter%\"\n";
-    $sql_params[':album_name_filter'] = $name_filters['album'];
+    $query_end .= "    AND al.name LIKE :album_name_filter\n";
+    $sql_params[':album_name_filter'] = '%' . $name_filters['album'] . '%';
   }
   
   $join_type    = 'LEFT';
@@ -300,8 +300,8 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
   }
   else if ($name_filters['genre'] !== null && strlen($name_filters['genre']) > 0)
   {
-    $query_end .= "\n    AND g.name LIKE \"%:genre_name_filter%\"";
-    $sql_params[':genre_name_filter'] = $name_filters['genre'];
+    $query_end .= "\n    AND g.name LIKE :genre_name_filter";
+    $sql_params[':genre_name_filter'] = '%' . $name_filters['genre'] . '%';
   }
   
   $has_where = false;
@@ -319,8 +319,8 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
     
     if (isset($name_filters['song']) && $name_filters['song'] !== null)
     {
-      $query_end .= 's.name LIKE "%:song_name_filter%"';
-      $sql_params[':song_name_filter'] = $name_filters['song'];
+      $query_end .= 's.name LIKE :song_name_filter';
+      $sql_params[':song_name_filter'] = '%' . $name_filters['song'] . '%';
     }
   }
   
@@ -346,7 +346,8 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
               $query_end . "\n" .
               $where;
   
-  $result   = $sql_link->query($query);
+  $stmt   = $sql_link->prepare($query);
+  $result = $stmt->execute($sql_params);
   if ($result === false)
   {
     echo 'this query died:<br />';
@@ -358,7 +359,7 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
     return;
   }
   
-  $tmp       = $result->fetch(PDO::FETCH_ASSOC);
+  $tmp       = $stmt->fetch(PDO::FETCH_ASSOC);
   $ttl_count = intval($tmp['ttl_count']);
   
   // just checkin'.  (never trust user data.  it's not actually that much of a problem if offset is too big ('cause then the query just returns 0 rows), but it's still better to check.)
@@ -427,8 +428,8 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
   }
   else if ($name_filters['song'] !== null && strlen($name_filters['song']) > 0)
   {
-    $query_end .= "    AND s.name LIKE \"%:song_name_filter%\"\n";
-    $sql_params[':song_name_filter'] = $name_filters['song'];
+    $query_end .= "    AND s.name LIKE :song_name_filter\n";
+    $sql_params[':song_name_filter'] = '%' . $name_filters['song'] . '%';
   }
   
   if ($id_filters['cat'] != null)
@@ -449,8 +450,8 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
     {
       $query_end .= "  INNER JOIN songs_albums AS s_al ON s_al.song_id = s.id\n" .
                     "  INNER JOIN albums       AS al   ON al.id        = s_al.album_id\n" .
-                    "    AND al.name LIKE \"%:album_name_filter%\"\n";
-      $sql_params[':album_name_filter'] = $name_filters['album'];
+                    "    AND al.name LIKE :album_name_filter\n";
+      $sql_params[':album_name_filter'] = '%' . $name_filters['album'] . '%';
     }
   }
   
@@ -463,8 +464,8 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
   }
   else if ($name_filters['genre'] !== null && strlen($name_filters['genre']) > 0)
   {
-    $query_end .= "    AND g.name LIKE \"%:genre_name_filter%\"\n";
-    $sql_params[':genre_name_filter'] = $name_filters['genre'];
+    $query_end .= "    AND g.name LIKE :genre_name_filter\n";
+    $sql_params[':genre_name_filter'] = '%' . $name_filters['genre'] . '%';
   }
   
   //// end query_end ////
@@ -482,7 +483,8 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
   // note: not allowing the user to filter the artist list by artists that don't exist.
   if (isset($name_filters['artist']) && $name_filters['artist'] !== null && strlen($name_filters['artist']) > 0)
   {
-    $where .= ($first_where ? 'WHERE' : '  AND') . ' ar.name LIKE "%' . $name_filters['artist'] . "%\"\n";
+    $where .= ($first_where ? 'WHERE' : '  AND') . " ar.name LIKE :artist_name_filter\n";
+    $sql_params[':artist_name_filter'] = '%' . $name_filters['artist'] . '%';
     $first_where = false;
   }
   
@@ -494,7 +496,8 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
   
   $query  = "SELECT COUNT(DISTINCT(ar.id)) AS num_artists\n" . $query_end . "\n" . $where;
   
-  $result = $sql_link->query($query);
+  $stmt   = $sql_link->prepare($query);
+  $result = $stmt->execute($sql_params);
   if ($result === false)
   {
     echo "this query failed:<br />\n";
@@ -506,7 +509,7 @@ function browse_artists($data, $id_filters, $name_filters, $order_by, $offset, $
     return;
   }
   
-  $result    = $result->fetch(PDO::FETCH_ASSOC);
+  $result    = $stmt->fetch(PDO::FETCH_ASSOC);
   $ttl_count = intval($result['num_artists']);
   
   // just checkin'.  (never trust user data.  it's not actually that much of a problem if offset is too big ('cause then the query just returns 0 rows), but it's still better to check.)
@@ -567,8 +570,8 @@ function browse_albums($data, $id_filters, $name_filters, $order_by, $offset, $c
   }
   else if (isset($name_filters['song']) && $name_filters['song'] !== null)
   {
-    $query_end .= "    AND s.name LIKE \"%:song_name_filter%\"\n";
-    $sql_params[':song_name_filter'] = $name_filters['song'];
+    $query_end .= "    AND s.name LIKE :song_name_filter\n";
+    $sql_params[':song_name_filter'] = '%' . $name_filters['song'] . '%';
   }
   
   $has_id_filter    = (isset($id_filters['artist'])    && $id_filters['artist']   !== null);
@@ -584,8 +587,8 @@ function browse_albums($data, $id_filters, $name_filters, $order_by, $offset, $c
   }
   else if ($has_name_filter)
   {
-    $query_end .= "    AND ar.name LIKE \"%:artist_name_filter%\"\n";
-    $sql_params[':artist_name_filter'] = $name_filters['artist'];
+    $query_end .= "    AND ar.name LIKE :artist_name_filter\n";
+    $sql_params[':artist_name_filter'] = '%' . $name_filters['artist'] . '%';
   }
   
   $has_id_filter   = (isset($id_filters['genre'])   && $id_filters['genre']   !== null);
@@ -600,15 +603,16 @@ function browse_albums($data, $id_filters, $name_filters, $order_by, $offset, $c
   }
   else if ($has_name_filter)
   {
-    $query_end .= "    AND g.name LIKE \"%:genre_name_filter%\"\n";
-    $sql_params[':genre_name_filter'] = $name_filters['genre'];
+    $query_end .= "    AND g.name LIKE :genre_name_filter\n";
+    $sql_params[':genre_name_filter'] = '%' . $name_filters['genre'] . '%';
   }
   
   $first_where  = true;
   $where        = '';
   if (isset($name_filters['album']) && $name_filters['album'] !== null && strlen($name_filters['album']) > 0)
   {
-    $where     .= ($first_where ? 'WHERE ' : '  AND') . ' al.name LIKE "%' . $name_filters['album'] . "%\"\n";
+    $where     .= ($first_where ? 'WHERE ' : '  AND') . " al.name LIKE :album_name_filter\n";
+    $sql_params[':album_name_filter'] = '%' . $name_filters['album'] . '%';
     $first_where = false;
   }
   
@@ -626,7 +630,8 @@ function browse_albums($data, $id_filters, $name_filters, $order_by, $offset, $c
   
   $query        = "SELECT COUNT(DISTINCT(al.id)) AS num_albums\n" . $query_end . $where;
   
-  $result       = $sql_link->query($query);
+  $stmt         = $sql_link->prepare($query);
+  $result       = $stmt->execute($sql_params);
   if ($result === false)
   {
     echo "this query failed:<br />\n";
@@ -637,7 +642,7 @@ function browse_albums($data, $id_filters, $name_filters, $order_by, $offset, $c
     echo $sql_link->errorInfo()[2];
     return;
   }
-  $tmp        = $result->fetch(PDO::FETCH_ASSOC);
+  $tmp        = $stmt->fetch(PDO::FETCH_ASSOC);
   $ttl_count  = $tmp['num_albums'];
   
   // just checkin'.  (never trust user data.  it's not actually that much of a problem if offset is too big ('cause then the query just returns 0 rows), but it's still better to check.)
@@ -694,8 +699,8 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
   }
   else if (isset($name_filters['song']) && $name_filters['song'] !== null && strlen($name_filters['song']) > 0)
   {
-    $query_end .= "    AND s.name LIKE \"%:song_name_filter%\"\n";
-    $sql_params[':song_name_filter'] = $name_filters['song'];
+    $query_end .= "    AND s.name LIKE :song_name_filter\n";
+    $sql_params[':song_name_filter'] = '%' . $name_filters['song'] . '%';
   }
   
   if (isset($id_filters['artist']) && $id_filters['artist'] !== null)
@@ -707,8 +712,8 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
   {
     $query_end .= "  INNER JOIN songs_artists AS s_ar ON s_ar.song_id = s.id\n" .
                   "  INNER JOIN artists AS ar ON ar.id = s_ar.artist_id\n" .
-                  "    AND ar.name LIKE \"%:artist_name_filter%\"\n";
-    $sql_params[':artist_name_filter'] = $name_filters['artist'];
+                  "    AND ar.name LIKE :artist_name_filter\n";
+    $sql_params[':artist_name_filter'] = '%' . $name_filters['artist'] . '%';
   }
   
   if (isset($id_filters['album']) && $id_filters['album'] !== null)
@@ -720,36 +725,38 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
   {
     $query_end .= "  INNER JOIN songs_albums AS s_al ON s_al.song_id = s.id\n" .
                   "  INNER JOIN albums AS al ON al.id = s_al.album_id\n" .
-                  "    AND al.name LIKE \"%:album_name_filter%\"\n";
-    $sql_params[':album_name_filter'] = $name_filters['album'];
+                  "    AND al.name LIKE :album_name_filter\n";
+    $sql_params[':album_name_filter'] = '%' . $name_filters['album'] . '%';
   }
   
   $first_where  = true;
   $where        = '';
   
-  if (isset($name_filters['genre']) && $name_filters['genre'] !== null && strlen($name_fiters['genre']) > 0)
+  if (isset($name_filters['genre']) && $name_filters['genre'] !== null && strlen($name_filters['genre']) > 0)
   {
-    $query .= ($first_where ? 'WHERE' : '  AND') . " g.name LIKE \"%:genre_name_filter%\"\n";
-    $sql_params[':genre_name_filter'] = $name_filters['genre'];
+    $where .= ($first_where ? 'WHERE' : '  AND') . " g.name LIKE :genre_name_filter\n";
+    $sql_params[':genre_name_filter'] = '%' . $name_filters['genre'] . '%';
     $first_where = false;
   }
   
   if (isset($name_filters['artist']) && $name_filters['artist'] !== null && strlen($name_filters['artist']) == 0)
   {
-    $query .= ($first_where ? 'WHERE' : '  AND') . " s_ar.artist_id IS NULL\n";
+    $where .= ($first_where ? 'WHERE' : '  AND') . " s_ar.artist_id IS NULL\n";
     $first_where = false;
   }
   
   if (isset($name_filters['album']) && $name_filters['album'] !== null && strlen($name_filters['album']) == 0)
   {
-    $query .= ($first_where ? 'WHERE' : '  AND') . " s_al.artist_id IS NULL\n";
+    $where .= ($first_where ? 'WHERE' : '  AND') . " s_al.artist_id IS NULL\n";
     $first_where = false;
   }
   
   $query  = "SELECT COUNT(DISTINCT g.id) AS num_genres\n" .
-            $query_end;
+            $query_end .
+            $where;
   
-  $result = $sql_link->query($query);
+  $stmt   = $sql_link->prepare($query);
+  $result = $stmt->execute($sql_params);
   if ($result === false)
   {
     echo "this query failed:<br />\n";
@@ -760,7 +767,7 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
     echo $sql_link->errorInfo()[2];
     return;
   }
-  $tmp        = $result->fetch(PDO::FETCH_ASSOC);
+  $tmp        = $stmt->fetch(PDO::FETCH_ASSOC);
   $ttl_count  = $tmp['num_genres'];
   
   // just checkin'.  (never trust user data.  it's not actually that much of a problem if offset is too big ('cause then the query just returns 0 rows), but it's still better to check.)
@@ -768,10 +775,8 @@ function browse_genres($data, $id_filters, $name_filters, $order_by, $offset, $c
     $offset = 0;
   
   $query  = "SELECT g.id AS genre_id, g.name AS genre_name, COUNT(DISTINCT s.id) AS num_songs\n" .
-            $query_end;
-  
-  if (isset($name_filters['genre']) && $name_filters['genre'] != null)
-    $query .= 'WHERE g.name LIKE "%' . $name_filters['genre'] . "%\"\n";
+            $query_end .
+            $where;
   
   $query .= "GROUP BY g.id\n" .
             'ORDER BY genre_name ' . $order_by_str . "\n" .
@@ -865,6 +870,8 @@ function list_stuff($data, $query, $what, $id_filters, $name_filters, $columns, 
     echo $html_query . "<br />\n";
     echo "<br />\n";
     echo 'with this error: ' . $sql_link->errorInfo()[2] . "<br />\n";
+    
+    echo "and these params:<br />\n<pre>" . print_r($sql_params, true) . "</pre><br />\n";
     
     return;
   }
