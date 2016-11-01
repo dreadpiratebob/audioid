@@ -42,7 +42,7 @@ if (isset($cmd_fn))
       <div id="feedback"><?=$feedback?></div>
     </div>
     <div id="footer">
-      all web (non-music) content copyright &copy; 2014 <a href="http://heinrich.hoza.us" target="tab">heinrich hoza</a>
+      all web (non-music) content copyright &copy; 2014-2016 <a href="http://heinrich.hoza.us" target="tab">heinrich hoza</a>
     </div>
   </body>
 </html><?php
