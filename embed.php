@@ -25,6 +25,10 @@ if ($result->rowCount() != 1)
 $tmp      = $result->fetch(PDO::FETCH_ASSOC);
 $title    = $tmp['name'];
 $filename = $tmp['filename'];
+$title_fn = strtolower($title);
+
+if (substr($title_fn, strlen($title_fn) - 4, 4) !== '.mp3')
+  $title_fn .= '.mp3';
 
 if (!file_exists($filename))
 {
@@ -33,9 +37,9 @@ if (!file_exists($filename))
   exit;
 }
 
-$size	= filesize($filename);
-$time	= date('r', filemtime($filename));
-$fm	  = @fopen($filename, 'rb');
+$size = filesize($filename);
+$time = date('r', filemtime($filename));
+$fm   = @fopen($filename, 'rb');
 if (!$fm)
 {
   header ('HTTP/1.1 505 Internal server error');
@@ -61,7 +65,7 @@ header('Cache-Control: public, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Accept-Ranges: bytes');
 header('Content-Length:' . (($end - $begin) + 1));
-header('Content-Disposition: inline; filename=' . $filename);
+header('Content-Disposition: inline; filename=' . $title_fn);
 header('Content-Transfer-Encoding: binary');
 header('Last-Modified: ' . $time);
 
