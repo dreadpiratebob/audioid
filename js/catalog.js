@@ -220,7 +220,9 @@ function scan_catalog(index)
     scanning = false;
   };
   
-  exec_cmd('catalog_editor', 'load_filenames', 'id=' + id + '&separators=' + separators, false, part1)
+  // exec_cmd('catalog_editor', 'load_filenames', 'id=' + id + '&separators=' + separators, false, part1)
+  
+  exec_cmd('catalog_editor', 'scan', 'id=' + id)
   
   get_scan_status('.&nbsp;&nbsp;');
 }
