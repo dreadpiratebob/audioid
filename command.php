@@ -21,6 +21,7 @@ function run_cmd($data)
     return '!';
   
   $php_root = 'php/';
+  $feedback = '';
   
   include_once('php/utils/init_db_vars.php');
   
