@@ -1,7 +1,7 @@
 <?php //>
 
 $max = $data['max'];
-if (isset($max) && is_numeric($max))
+if (isset($max) && is_numeric($max) && array_key_exists('scan_status', $_SESSION))
 {
   $max   = intval($max);
   $start = count($_SESSION['scan_status']) - $max;
