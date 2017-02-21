@@ -189,7 +189,7 @@ function scan_catalog(index)
   
   scanning = true;
   
-  var separators = get_artist_separators();
+  var artist_separators = get_artist_separators();
   document.getElementById('scan_steps').innerHTML = 'scanning filenames...';
   
   var part1 = function(feedback)
@@ -220,16 +220,16 @@ function scan_catalog(index)
     scanning = false;
   };
   
-  // exec_cmd('catalog_editor', 'load_filenames', 'id=' + id + '&separators=' + separators, false, part1)
+  // exec_cmd('catalog_editor', 'load_filenames', 'id=' + id + '&separators=' + artist_separators, false, part1)
   
-  exec_cmd('catalog_editor', 'scan', 'id=' + id)
+  exec_cmd('catalog_editor', 'scan', 'id=' + id + '&artist_separators=' + artist_separators)
   
   get_scan_status('.&nbsp;&nbsp;');
 }
 
 function get_scan_status(ending)
 {
-  var status = exec_cmd('catalog_editor', 'get_scan_status', 'max=20', true, null);
+  var status = exec_cmd('catalog_editor', 'get_scan_status', 'max=40', true, null);
   document.getElementById('scan_feedback').innerHTML = status + '<br /><button type="button" onclick="var cmd=\'write_log\'; if (confirm(\'clear?\')) cmd=\'clear_scan_status\'; exec_cmd(\'catalog_editor\', cmd, \'nuke=false\', false, function (feedback) {});">write log</button>';
   var status_end = status.substring(status.length - 12, status.length);
   if (scanning && status_end != 'done.<br />\n')
