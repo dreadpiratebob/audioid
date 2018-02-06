@@ -1,3 +1,7 @@
+CREATE DATABASE audioid;
+
+USE audioid;
+
 CREATE TABLE catalogs
 (
   id int(64) unsigned not null primary key auto_increment,
