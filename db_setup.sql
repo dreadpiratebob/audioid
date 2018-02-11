@@ -98,6 +98,28 @@ CREATE USER 'audioid_user'@'localhost' IDENTIFIED BY 'some password';
 
 DELIMITER //
 
+CREATE FUNCTION catalog_path_is_used(in_catalog_path VARCHAR(1024))
+RETURNS INT(1) unsigned
+BEGIN
+  DECLARE wild_in_path VARCHAR(1025);
+  DECLARE path_count   INT(64) unsigned;
+  
+  SET wild_in_path = CONCAT(in_catalog_path, '%');
+  
+  SELECT COUNT(base_path) INTO path_count FROM catalogs WHERE base_path LIKE wild_in_path OR in_catalog_path LIKE CONCAT(base_path, '%');
+  
+  CASE path_count
+    WHEN 0 THEN RETURN 0;
+    ELSE RETURN 1;
+  END CASE;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.catalog_path_is_used TO 'audioid_user'@'localhost';
+
+DELIMITER //
+
 CREATE PROCEDURE get_catalog_properties(IN in_catalog_id INT(64) UNSIGNED, OUT out_catalog_name varchar(64), OUT out_catalog_base_path varchar(1024), OUT dbg INT)
 BEGIN
   SELECT name, base_path INTO out_catalog_name, out_catalog_base_path FROM catalogs WHERE id = in_catalog_id;
