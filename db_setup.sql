@@ -103,6 +103,13 @@ RETURNS INT(1) unsigned
 BEGIN
   DECLARE wild_in_path VARCHAR(1025);
   DECLARE path_count   INT(64) unsigned;
+  DECLARE last_char VARCHAR(1);
+  
+  SET last_char = SUBSTR(in_catalog_path, LENGTH(in_catalog_path), 1);
+  
+  IF last_char != '/' THEN
+    SET in_catalog_path = CONCAT(in_catalog_path, '/');
+  END IF;
   
   SET wild_in_path = CONCAT(in_catalog_path, '%');
   
@@ -116,14 +123,32 @@ END//
 
 DELIMITER ;
 
-GRANT EXECUTE ON PROCEDURE audioid.catalog_path_is_used TO 'audioid_user'@'localhost';
+GRANT EXECUTE ON FUNCTION audioid.catalog_path_is_used TO 'audioid_user'@'localhost';
 
 DELIMITER //
 
-CREATE PROCEDURE get_catalog_properties(IN in_catalog_id INT(64) UNSIGNED, OUT out_catalog_name varchar(64), OUT out_catalog_base_path varchar(1024), OUT dbg INT)
+CREATE PROCEDURE insert_catalog(IN in_catalog_name varchar(64), IN in_catalog_path VARCHAR(1024))
+BEGIN
+  DECLARE last_char VARCHAR(1);
+  
+  SET last_char = SUBSTR(in_catalog_path, LENGTH(in_catalog_path), 1);
+  
+  IF last_char != '/' THEN
+    SET in_catalog_path = CONCAT(in_catalog_path, '/');
+  END IF;
+  
+  INSERT INTO catalogs (name, base_path) VALUES(in_catalog_name, in_catalog_path);
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.insert_catalog TO 'audioid_user'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE get_catalog_properties(IN in_catalog_id INT(64) UNSIGNED, OUT out_catalog_name varchar(64), OUT out_catalog_base_path varchar(1024))
 BEGIN
   SELECT name, base_path INTO out_catalog_name, out_catalog_base_path FROM catalogs WHERE id = in_catalog_id;
-  SELECT COUNT(id) INTO dbg FROM catalogs;
 END//
 
 DELIMITER ;
