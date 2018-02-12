@@ -16,31 +16,17 @@ function add_catalog($data, $sql_link)
   if (strlen($fb) > 0)
     return $fb;
   
-  $query        = 'SELECT base_path FROM catalogs;';
-  $sql_catalogs = $sql_link->query($query);
+  $query    = "SELECT catalog_path_is_used('{$path}') as is_used;";
+  $sql_path = $sql_link->query($query);
+  $arr_path = $sql_path->fetch(PDO::FETCH_ALL);
   
-  if ($sql_catalogs === false)
-    return $fb . 'query "' . $query . '" died: <br />' . $sql_link->$sql_link->errorInfo()[2];
-  
-  $catalogs = $sql_catalogs->fetchAll(PDO::FETCH_ASSOC);
-  for ($i = 0; $i < count($catalogs); ++$i)
-  {
-    $catalog  = $catalogs[$i];
-    $cat_path = $catalog['base_path'];
-    
-    $fn1      = (strlen($path) <  strlen($cat_path) ? $path : $cat_path);
-    $fn2      = (strlen($path) >= strlen($cat_path) ? $path : $cat_path);
-    
-    $fn2      = substr($fn2, 0, strlen($fn1));
-    
-    if (strcmp($fn1, $fn2) == 0)
-      return $fb . 'invalid path; either a catalog already exists in a subfolder of your path or a catalog already exists in a superfolder of your path.<br />';
-  }
-  
+  if ($arr_path['is_used'] === 1)
+    return $fb . 'invalid path; either a catalog already exists in a subfolder of your path or a catalog already exists in a superfolder of your path.<br />';
   /** end data validation & cleanup **/
   
-  $query  = 'INSERT INTO catalogs (name, base_path) VALUES("' . $name . '", "' . $path . '");';
-  $result = $sql_link->query($query);
+  $query  = 'CALL insert_catalog(:name, :path);';
+  $stmt   = $sql_link->prepare($query);
+  $result = $stmt->execute(array(':name' => $name, ':path' => $path);
   
   if ($result === false)
     return $fb . 'query "' . $query . '" died:<br />' . "\n" . $sql_link->$sql_link->errorInfo()[2];
