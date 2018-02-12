@@ -21,7 +21,7 @@ function add_catalog($data, $sql_link)
   $arr_path = $sql_path->fetch(PDO::FETCH_ALL);
   
   if ($arr_path['is_used'] === 1)
-    return $fb . 'invalid path; either a catalog already exists in a subfolder of your path or a catalog already exists in a superfolder of your path.<br />';
+    return 'invalid path; either a catalog already exists in a subfolder of your path or a catalog already exists in a superfolder of your path.<br />';
   /** end data validation & cleanup **/
   
   $query  = 'CALL insert_catalog(:name, :path);';
@@ -29,9 +29,9 @@ function add_catalog($data, $sql_link)
   $result = $stmt->execute(array(':name' => $name, ':path' => $path);
   
   if ($result === false)
-    return $fb . 'query "' . $query . '" died:<br />' . "\n" . $sql_link->$sql_link->errorInfo()[2];
+    return "query '{$query}' died:<br />\n{$sql_link->$sql_link->errorInfo()[2]}";
   else
-    return $fb;
+    return '';
 }
 
 if (isset($_POST) && is_array($_POST) && count($_POST) > 0)
