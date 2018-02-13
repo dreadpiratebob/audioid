@@ -36,6 +36,18 @@ if (!isset($db_username) || (strcmp($db_username, 'audioid') != 0 && strcmp($db_
     $db_username = 'audioid';
     $db_password = 'useless_password';
   }
+  
+  $dsn = "mysql:dbname=audioid;host=127.0.0.1";
+  
+  try
+  {
+    $sql_link = new PDO($dsn, $db_username, $db_password);
+  }
+  catch (PDOException $pdoe)
+  {
+    echo "db connection error: " . $pdoe->GetMessage();
+  }
+  
 }
 
 if (!isset($db_password))
