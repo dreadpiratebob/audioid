@@ -93,8 +93,9 @@ CREATE TABLE songs_genres
     ON UPDATE CASCADE
 );
 
-# change the password here.
+# change the passwords here.
 CREATE USER 'audioid_user'@'localhost' IDENTIFIED BY 'some password';
+CREATE USER 'audioid_admin'@'localhost' IDENTIFIED BY 'other password';
 
 DELIMITER //
 
@@ -123,7 +124,7 @@ END//
 
 DELIMITER ;
 
-GRANT EXECUTE ON FUNCTION audioid.catalog_path_is_used TO 'audioid_user'@'localhost';
+GRANT EXECUTE ON FUNCTION audioid.catalog_path_is_used TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
@@ -142,7 +143,7 @@ END//
 
 DELIMITER ;
 
-GRANT EXECUTE ON PROCEDURE audioid.insert_catalog TO 'audioid_user'@'localhost';
+GRANT EXECUTE ON PROCEDURE audioid.insert_catalog TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
@@ -153,7 +154,7 @@ END//
 
 DELIMITER ;
 
-GRANT EXECUTE ON PROCEDURE audioid.get_catalog_properties TO 'audioid_user'@'localhost';
+GRANT EXECUTE ON PROCEDURE audioid.get_catalog_properties TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
@@ -202,4 +203,4 @@ END//
 
 DELIMITER ;
 
-GRANT EXECUTE ON PROCEDURE audioid.delete_catalog TO 'audioid_user'@'localhost';
+GRANT EXECUTE ON PROCEDURE audioid.delete_catalog TO 'audioid_admin'@'localhost';
