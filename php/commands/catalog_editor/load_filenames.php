@@ -26,22 +26,23 @@ function start($data, $sql_link, $session_id)
     return 'invalid separators.  (you gave "' . $separators . '".)';
   }
   
-  $query       = 'SELECT id, name, base_path FROM catalogs WHERE id=' . $cat_id . ';';
+  $cat_id      = intval($cat_id);
+  $query       = "call get_catalog_properties({$cat_id}, @name, @base_path);\nSELECT @name as name, @base_path as base_path;"
   $sql_catalog = $sql_link->query($query);
   if ($sql_catalog === false)
   {
-    add_status('query "' . $query . '" died:<br />' . $sql_link->errorInfo()[2] . '<br />done.', $session_id);
+    add_status("query died:<br />\n{$query}<br />\n<br />\n{$sql_link->errorInfo()[2]}<br />\ndone.", $session_id);
     return -4;
   }
   
   if ($sql_catalog->rowCount() != 1)
   {
-    add_status('error: found ' . $sql_catalog->rowCount() . ' catalogs.');
+    add_status("error: found {$sql_catalog->rowCount()} catalogs.");
     return -5;
   }
   
-  $sql_catalog = $sql_catalog->fetch(PDO::FETCH_ASSOC);
-  $cat_name    = $sql_catalog['name'];
+  $arr_catalog = $sql_catalog->fetch(PDO::FETCH_ASSOC);
+  $cat_name    = $arr_catalog['name'];
   
   session_start($session_id);
   if (isset($_SESSION['cat' . $cat_id . 'mp3s']))
@@ -50,9 +51,9 @@ function start($data, $sql_link, $session_id)
   $_SESSION['scan_status']['name'] = $cat_name;
   session_write_close();
   
-  add_status('got separators "' . $separators . '"', $session_id);
+  add_status("got separators '{$separators}'", $session_id);
   
-  $base_dir = $sql_catalog['base_path'];
+  $base_dir = substr($arr_catalog['base_path'], 0, strlen($arr_catalog['base_path']));
   scan_directory($base_dir, $cat_id, $cat_name, $sql_link, $session_id);
   
   add_status('',      $session_id);
@@ -74,7 +75,7 @@ function scan_directory($dir_name, $cat_id, $cat_name, $sql_link, $session_id)
   
   if ($dir_contents === false || !is_array($dir_contents))
   {
-    add_status('failed to get contents for "' . $dir_name . '"; skipping it.', $session_id);
+    add_status("failed to get contents for '{$dir_name}'; skipping it.", $session_id);
     return;
   }
   
@@ -84,19 +85,19 @@ function scan_directory($dir_name, $cat_id, $cat_name, $sql_link, $session_id)
     if (strcmp($dir_contents[$i], '.') == 0 || strcmp($dir_contents[$i], '..') == 0)
       continue;
     
-    $full_fn = $dir_name . '/' . $dir_contents[$i];
-    $status  = 'looking at "' . $full_fn . '"; ';
+    $full_fn = "{$dir_name}/{$dir_contents[$i]}";
+    $status  = "looking at \"{$full_fn}\"; ";
     
     if (is_dir($full_fn))
     {
-      add_status($status . "it's a dir; scanning it...", $session_id);
+      add_status("{$status}it's a dir; scanning it...", $session_id);
       scan_directory($full_fn, $cat_id, $cat_name, $sql_link, $session_id);
       continue;
     }
     
     if (strcmp(substr($full_fn, strlen($full_fn) - 4, strlen($full_fn)), '.mp3') != 0)
     {
-      add_status($status . "it's not an mp3 or a dir; ignoring it...", $session_id);
+      add_status("{$status}it's not an mp3 or a dir; ignoring it...", $session_id);
       continue;
     }
     
@@ -105,7 +106,7 @@ function scan_directory($dir_name, $cat_id, $cat_name, $sql_link, $session_id)
     $_SESSION['cat_scanner']['file_cnt']++;
     session_write_close();
     
-    add_status($status . 'it\'s an mp3; adding it to the list...', $session_id);
+    add_status("{$status}it's an mp3; adding it to the list...", $session_id);
     
     // parse_mp3($cat_id, $full_fn, $sql_link, $session_id);
   }

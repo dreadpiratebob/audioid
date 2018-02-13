@@ -12,7 +12,7 @@ function start($data, $sql_link)
   $artist_join_txt = $_SESSION['cat_scanner']['artist_join_txt'];
   
   if (!isset($cat_id) || !isset($index) || !isset($filename))
-    return 'no data (' . $cat_id . '/' . $index . '/' . $filename . ")\n";
+    return "insufficient data.\n";
   
   if ($index >= count($_SESSION['cat_scanner']['file_list']))
     return 'done.';
@@ -61,7 +61,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
     if (isset($artist) && strlen($artist) > 0)
     {
       $artist = clean_extra_chars($artist);
-      add_status('parsing artists "' . $artist . '"...', $session_id);
+      add_status("parsing artists \"{$artist}\"...", $session_id);
       $separators = $_SESSION['cat_scanner']['separators'];
       do
       {
@@ -89,7 +89,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
         $new_pos = $min_pos + strlen($separators[$sep_index]) ;
         $artist  = substr($artist, $new_pos);
         
-        add_status('adding "' . $art . '" to the list of artists.  got "' . $artist . '" left...', $session_id);
+        add_status("adding '{$art}' to the list of artists.  got '{$artist}' left...", $session_id);
       }
       while (true);
       
@@ -153,19 +153,23 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
       $genre = clean_extra_chars($genre);
   }
   
-  $metadata = "\n" .
-  'title: "' . $title  . '" (' . get_ascii($title) . ")\n" .
-  "artists:\n";
+  $metadata = "\ntitle: \"{$title}\" (" . get_ascii($title) . ")\nartists:\n";
   
   for ($i = 0; $i < count($artist_names); ++$i)
-    $metadata .= '  --"' . $artist_names[$i] . '" (' . get_ascii($artist_names[$i]) . ")\n";
+    $metadata .= "  --\"{$artist_names[$i]}\" (" . get_ascii($artist_names[$i]) . ")\n";
   
   $metadata .=
-  'album: "' . $album  . '" (' . get_ascii($album) . ")\n" .
-  'track: "' . $track  . '" (' . get_ascii($track) . ")\n" .
-  'genre: "' . $genre  . '" (' . get_ascii($genre) . ')';
+  implode
+  (
+    array
+    (
+      "album: '{$album}' (" . get_ascii($album) . ")\n",
+      "track: '{$track}' (" . get_ascii($track) . ")\n",
+      "genre: '{$genre}' (" . get_ascii($genre) . ')'
+    )
+  );
   
-  add_status('parsed and validated metadata:' . $metadata, $session_id);
+  add_status("parsed and validated metadata:{$metadata}", $session_id);
   add_status('', $session_id);
   
   insert_song($cat_id, $title, $filename, $artist_names, $artist_joins, $album, $album_artist, $track, $genre, $sql_link, $session_id);
@@ -183,7 +187,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       $joined_artists .= ' ' . $artist_joins[$i - 1] . ' ' . $artist_names[$i];
   }
   
-  add_status('inserting ' . $song_title . (strlen($joined_artists) > 0 ? ' by ' . $joined_artists : '') . ' into the database...', $session_id);
+  add_status("inserting '{$song_title}'" . (strlen($joined_artists) > 0 ? " by {$joined_artists}" : '') . ' into the database...', $session_id);
   
   // make sure this song isn't already in the db
   {
@@ -212,7 +216,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     dump_query('song insertion', $query, $sql_params, $session_id);
     if ($result === false)
     {
-      $message = "this query died: $query\nerror info:\n" . print_r($sql_link->errorInfo(), true) . "\n" . $sql_link->errorCode() . "\n\nparams:\n" . print_r($sql_params, true);
+      $message = "this query died: {$query}\nerror info:\n{$sql_link->errorInfo()[2]}\n{$sql_link->errorCode()}\n\nparams:\n" . print_r($sql_params, true);
       add_status($message, $session_id);
       die($message);
     }
