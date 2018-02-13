@@ -29,12 +29,12 @@ if (!isset($db_username) || (strcmp($db_username, 'audioid') != 0 && strcmp($db_
   if ($found)
   {
     $db_username = 'audioid_admin';
-    $db_password = '_you_are_chickenfeed_nub_';
+    $db_password = 'other password';
   }
   else
   {
-    $db_username = 'audioid';
-    $db_password = 'useless_password';
+    $db_username = 'audioid_user';
+    $db_password = 'some password';
   }
   
   $dsn = "mysql:dbname=audioid;host=127.0.0.1";
@@ -45,7 +45,7 @@ if (!isset($db_username) || (strcmp($db_username, 'audioid') != 0 && strcmp($db_
   }
   catch (PDOException $pdoe)
   {
-    echo "db connection error: " . $pdoe->GetMessage();
+    echo "db connection error: {$pdoe->GetMessage()}";
   }
   
 }
