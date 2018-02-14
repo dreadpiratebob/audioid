@@ -26,7 +26,7 @@ function add_catalog($data, $sql_link)
   
   $query  = 'CALL insert_catalog(:name, :path);';
   $stmt   = $sql_link->prepare($query);
-  $result = $stmt->execute(array(':name' => $name, ':path' => $path);
+  $result = $stmt->execute(array(':name' => $name, ':path' => $path));
   
   if ($result === false)
     return "query '{$query}' died:<br />\n{$sql_link->$sql_link->errorInfo()[2]}";
