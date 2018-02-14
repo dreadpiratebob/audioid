@@ -32,10 +32,15 @@
           </tr>
 <?php // >
 
+// i specifically didn't turn this into a stored procedure because
+// MySQL (at least as of version 5.5) doesn't support returning an
+// array or iterator (well... "cursor" in MySQL speak) from a function
+// or procedure.
+
 $query        = 'SELECT id, name, base_path FROM catalogs;';
 $sql_catalogs = $sql_link->query($query);
 if ($sql_catalogs === false)
-  die('query "' . $query . '" died:<br />' . $sql_link->errorInfo()[2]);
+  die("query '{$query}' died:<br />{$sql_link->errorInfo()[2]}");
 
 $num_catalogs = $sql_catalogs->rowCount();
 
