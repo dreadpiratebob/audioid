@@ -98,6 +98,7 @@ CREATE USER 'audioid_user'@'localhost' IDENTIFIED BY 'some password';
 CREATE USER 'audioid_admin'@'localhost' IDENTIFIED BY 'other password';
 
 GRANT SELECT ON audioid.catalogs TO 'audioid_admin'@'localhost';
+GRANT SELECT ON audioid.songs, audioid.artists, audioid.albums, audioid.genres, audioid.catalogs TO 'audioid_user'@'localhost';
 
 DELIMITER //
 
