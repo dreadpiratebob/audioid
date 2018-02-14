@@ -33,7 +33,7 @@ $topnav_sayings = array
                     'do stuff',       'hear sounds',    'loud.',              'O.x',       'warning: may cause sound',       '<a target="tab" class="a_topnav" href="https://www.youtube.com/watch?v=F0odBpvBAYM">LISTEN</a>',
                     'do something',   'hear stuff',     'now with music!',    ':P',        'side effects may include music', '<a target="tab" class="a_topnav" href="https://www.youtube.com/watch?v=GYjY98wMWkE">LISTEN</a>',
                     '_do_ something', 'hear here',      'now playing',        '&lt;.&lt;', 'don\'t forget about reality.',   '<a target="tab" class="a_topnav" href="https://www.youtube.com/watch?v=tVqPx5mUj0g">LISTEN</a>',
-                    'do stuff',       'now playing',    'loud?',              'd(o.o)b',   'side effects may include noise', '<a target="tab" class="a_topnav" href="https://www.youtube.com/watch?v=VznAYy5yL2A">LISTEN</a>'
+                    'do stuff',       'now playing',    'loud?',              'd(o.o)b',   'side effects may include noise', '<a target="tab" class="a_topnav" href="https://www.youtube.com/watch?v=VznAYy5yL2A">LISTEN</a>',
                     'do stuff',       'hear something', 'music recommended',  '8D',        'headphones recommended',         '<a target="tab" class="a_topnav" href="https://www.youtube.com/watch?v=bG-bK8e0agQ">LISTEN</a>'
                   );
 $topnav_index   = rand(0, count($topnav_sayings) - 1);
