@@ -97,6 +97,8 @@ CREATE TABLE songs_genres
 CREATE USER 'audioid_user'@'localhost' IDENTIFIED BY 'some password';
 CREATE USER 'audioid_admin'@'localhost' IDENTIFIED BY 'other password';
 
+GRANT SELECT ON audioid.catalogs TO 'audioid_admin'@'localhost';
+
 DELIMITER //
 
 CREATE FUNCTION catalog_path_is_used(in_catalog_path VARCHAR(1024))
