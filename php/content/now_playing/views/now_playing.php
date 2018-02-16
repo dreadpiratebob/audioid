@@ -1,7 +1,9 @@
 <?php
 
-$play_lnk = '';
-if (count($_SESSION['now_playing']['song_list']) > 0)
+$blank_txt = '';
+$play_lnk  = '';
+
+if (array_key_exists('now_playing', $_SESSION) && count($_SESSION['now_playing']['song_list']) > 0)
 {
   $blank_txt   = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
   $play_lnk    = '&nbsp;' .

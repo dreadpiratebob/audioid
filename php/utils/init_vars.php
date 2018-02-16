@@ -3,7 +3,7 @@
 if (!isset($page) || !file_exists('php/content/' . $page . '.php'))
   $page = '';
 
-if (!isset($cmd))
+if (!isset($cmd)  && array_key_exists('cmd', $_POST));
   $cmd = $_POST['cmd'];
 
 if (isset($cmd))

@@ -1,5 +1,6 @@
 <?php
 header("Content-Type: text/html; charset=utf-8");
+$feedback = '';
 
 include_once('php/utils/init_vars.php');
 include_once('php/utils/startup_connections.php');
