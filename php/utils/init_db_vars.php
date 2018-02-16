@@ -1,7 +1,8 @@
 <?php // >
 
-// make sure this stays sorted alphabetically.
+// make sure this array stays sorted alphabetically.
 $auto_admin_commands = array('add', 'delete', 'load_mp3', 'scan', 'update');
+$sql_link            = null;
 
 if (!isset($db_username) || (strcmp($db_username, 'audioid') != 0 && strcmp($db_username, 'audioid_admin') != 0))
 {
@@ -37,17 +38,16 @@ if (!isset($db_username) || (strcmp($db_username, 'audioid') != 0 && strcmp($db_
     $db_password = 'some password';
   }
   
-  $dsn = "mysql:dbname=audioid;host=127.0.0.1";
-  
-  try
-  {
-    $sql_link = new PDO($dsn, $db_username, $db_password);
-  }
-  catch (PDOException $pdoe)
-  {
-    echo "db connection error: {$pdoe->GetMessage()}";
-  }
-  
+}
+
+$dsn = "mysql:dbname=audioid;host=127.0.0.1";
+try
+{
+  $sql_link = new PDO($dsn, $db_username, $db_password);
+}
+catch (PDOException $pdoe)
+{
+  echo "db connection error: {$pdoe->GetMessage()}<br />\nusername: {$db_username}<br />\npassword: {$db_password}";
 }
 
 if (!isset($db_password))
