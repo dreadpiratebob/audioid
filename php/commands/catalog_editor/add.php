@@ -18,7 +18,7 @@ function add_catalog($data, $sql_link)
   
   $query    = "SELECT catalog_path_is_used('{$path}') as is_used;";
   $sql_path = $sql_link->query($query);
-  $arr_path = $sql_path->fetch(PDO::FETCH_ALL);
+  $arr_path = $sql_path->fetch(PDO::FETCH_ASSOC);
   
   if ($arr_path['is_used'] === 1)
     return 'invalid path; either a catalog already exists in a subfolder of your path or a catalog already exists in a superfolder of your path.<br />';
