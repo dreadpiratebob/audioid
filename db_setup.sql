@@ -136,17 +136,19 @@ GRANT EXECUTE ON FUNCTION audioid.catalog_path_is_used TO 'audioid_admin'@'local
 
 DELIMITER //
 
-CREATE PROCEDURE insert_catalog(IN in_catalog_name varchar(64), IN in_catalog_path VARCHAR(1024))
+CREATE PROCEDURE insert_catalog(IN in_catalog_name varchar(64), IN in_catalog_base_path VARCHAR(1024))
 BEGIN
   DECLARE last_char VARCHAR(1);
   
-  SET last_char = SUBSTR(in_catalog_path, LENGTH(in_catalog_path), 1);
+  SET last_char = SUBSTR(in_catalog_base_path, LENGTH(in_catalog_base_path), 1);
   
   IF last_char != '/' THEN
-    SET in_catalog_path = CONCAT(in_catalog_path, '/');
+    SET in_catalog_base_path = CONCAT(in_catalog_base_path, '/');
   END IF;
   
-  INSERT INTO catalogs (name, base_path) VALUES(in_catalog_name, in_catalog_path);
+  IF catalog_path_is_used(in_catalog_base_path) = 0 THEN
+    INSERT INTO catalogs (name, base_path) VALUES(in_catalog_name, in_catalog_base_path);
+  END IF;
 END//
 
 DELIMITER ;
@@ -163,6 +165,23 @@ END//
 DELIMITER ;
 
 GRANT EXECUTE ON PROCEDURE audioid.get_catalog_properties TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE FUNCTION update_catalog(in_catalog_id INT(64) UNSIGNED, in_catalog_name varchar(64), in_catalog_base_path varchar(1024))
+RETURNS INT(1) unsigned
+BEGIN
+  IF catalog_path_is_used(in_catalog_base_path) = 0 THEN
+    UPDATE catalogs SET name = in_catalog_name, base_path = in_catalog_base_path WHERE id = in_catalog_id;
+    RETURN 1;
+  END IF;
+  
+  RETURN 0;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON FUNCTION audioid.update_catalog TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
