@@ -93,7 +93,7 @@ function parse_mp3($cat_id, $filename, $sql_link, $session_id)
       }
       while (true);
       
-      add_status('adding "' . $artist . '" to the list of artists...', $session_id);
+      add_status("adding \"{$artist}\" to the list of artists...", $session_id);
       $artist_names[count($artist_names)] = clean_extra_chars($artist);
     }
   }
@@ -191,7 +191,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   
   // make sure this song isn't already in the db
   {
-    $query      = 'SELECT id FROM songs WHERE filename=:filename AND catalog_id=' . $cat_id . ';';
+    $query      = "SELECT id FROM songs WHERE filename=:filename AND catalog_id={$cat_id};";
     $stmt       = $sql_link->prepare($query);
     $sql_params = array(':filename' => $filename);
     $res_songs  = $stmt->execute($sql_params);
@@ -209,7 +209,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
   // insert the song
   {
     $query      = 'INSERT INTO songs (name, filename, catalog_id) ' .
-                  "VALUES(:song_title, :filename, $cat_id);";
+                  "VALUES(:song_title, :filename, {$cat_id});";
     $stmt       = $sql_link->prepare($query);
     $sql_params = array(':song_title' => $song_title, ':filename' => $filename);
     $result     = $stmt->execute($sql_params);
@@ -234,7 +234,7 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
     dump_query('genre id check', $query, $sql_params, $session_id);
     if ($result === false)
     {
-      add_status('query "' . $query . '" died: ' . $sql_link->errorInfo()[2], $session_id);
+      add_status("query \"{$query }\" died: {$sql_link->errorInfo()[2]}", $session_id);
     }
     else if ($sql_genre->rowCount() == 0)
     {
@@ -258,17 +258,17 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
       $genre_id  = $arr_genre['id'];
       
       if ($sql_genre->rowCount() > 1)
-        add_status('found ' . $sql_genre->rowCount() . ' genres called "' . $genre_name . '"; using the first one...', $session_id);
+        add_status("found {$sql_genre->rowCount()} genres called \"{$genre_name}\"; using the first one...", $session_id);
     }
     
     if (isset($genre_id))
     {
       $query  = "INSERT INTO songs_genres (song_id, genre_id)\n" .
-                "VALUES($song_id, $genre_id)";
+                "VALUES({$song_id}, {$genre_id})";
       $result = $sql_link->query($query);
       dump_query('songs_genres insertion', $query, array(), $session_id);
       if ($result === false)
-        add_status("this query died:\n$query\n\ncouldn't link $song_title to $genre_name.\n" . $sql_link->errorInfo()[2], $session_id);
+        add_status("this query died:\n{$query}\n\ncouldn't link \"{$song_title}\" to \"{$genre_name}\".\n{$sql_link->errorInfo()[2]}", $session_id);
     }
   }
   
@@ -306,19 +306,19 @@ function insert_song($cat_id, $song_title, $filename, $artist_names, $artist_joi
           $artist_id = $artists['id'];
           
           if ($sql_artists->rowCount() > 1)
-            add_status('found ' . $sql_artists->rowCount() . ' artists called "' . $artist_name . '"; using the first one...', $session_id);
+            add_status("found {$sql_artists->rowCount()} artists called \"{$artist_name}\"; using the first one...", $session_id);
         }
         
         if ($artist_id !== null)
         {
           $art_join   = (0 <= $index && $index < count($artist_joins) ? $artist_joins[$index] : '');
-          $query      = "INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order) VALUES($song_id, $artist_id, :art_join, $index);";
+          $query      = "INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order) VALUES({$song_id}, {$artist_id}, :art_join, {$index});";
           $stmt       = $sql_link->prepare($query);
           $sql_params = array(':art_join' => $art_join);
           $result     = $stmt->execute($sql_params);
           dump_query('songs_artists insertion', $query, $sql_params, $session_id);
           if ($result === false)
-            add_status("query '$query' died:\n" . print_r($sql_link->errorInfo(), true) . print_r($stmt->errorInfo(), true));
+            add_status("query '{$query}' died:\n" . print_r($sql_link->errorInfo(), true) . print_r($stmt->errorInfo(), true));
         }
       }
     }
