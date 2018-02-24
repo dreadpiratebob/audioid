@@ -188,11 +188,13 @@ DELIMITER //
 CREATE PROCEDURE get_song_id(IN in_song_name VARCHAR(128), IN in_filename VARCHAR(1024), IN in_year int(16) unsigned, IN in_catalog_id int(64) unsigned,
                              IN in_genre_name VARCHAR(64),
                              IN in_album_name VARCHAR(128), IN in_album_artist_name VARCHAR(128), IN in_track_number INT(64) unsigned,
-                             OUT out_song_id INT(64) unsigned, OUT out_song_was_inserted INT(1) unsigned)
+                             OUT out_song_id INT(64) unsigned, OUT out_song_was_inserted BOOL)
 get_song_id:BEGIN
   DECLARE var_song_id  INT(64) unsigned DEFAULT NULL;
   DECLARE var_genre_id INT(64) unsigned DEFAULT NULL;
   DECLARE var_album_id INT(64) unsigned DEFAULT NULL;
+  DECLARE var_rollback BOOL DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
   
   SELECT id INTO var_song_id FROM songs WHERE filename = in_filename;
   
@@ -205,14 +207,23 @@ get_song_id:BEGIN
   INSERT INTO songs (name, filename, year, catalog_id) VALUES(in_song_name, in_filename, in_year, in_catalog_id);
   SELECT LAST_INSERT_ID() INTO var_song_id;
   
-  SELECT get_genre_id(in_genre_name) INTO var_genre_id;
-  INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
+  IF in_genre_name IS NOT NULL THEN
+    SELECT get_genre_id(in_genre_name) INTO var_genre_id;
+    INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
+  END IF
   
-  SELECT get_album_id(in_album_name, in_album_artist_name) INTO var_album_id;
-  INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
+  IF in_album_name IS NOT NULL THEN
+    SELECT get_album_id(in_album_name, in_album_artist_name) INTO var_album_id;
+    INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
+  END IF;
   
-  SET out_song_id = var_song_id;
-  SET out_song_was_inserted = 1;
+  IF var_rollback THEN
+    ROLLBACK;
+  ELSE
+    COMMIT;
+    SET out_song_id = var_song_id;
+    SET out_song_was_inserted = 1;
+  END IF;
 END//
 
 CREATE FUNCTION get_genre_id(in_genre_name VARCHAR(64))
@@ -271,6 +282,9 @@ DELIMITER //
 
 CREATE PROCEDURE delete_catalog(IN in_catalog_id INT(64) UNSIGNED)
 BEGIN
+  DECLARE var_rollback BOOL DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
+  
   START TRANSACTION;
   
   DELETE FROM songs_artists
@@ -309,7 +323,11 @@ BEGIN
   
   DELETE FROM catalogs WHERE id = in_catalog_id;
   
-  COMMIT;
+  IF var_rollback THEN
+    ROLLBACK;
+  ELSE
+    COMMIT;
+  END IF;
 END//
 
 DELIMITER ;
