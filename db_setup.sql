@@ -185,6 +185,90 @@ GRANT EXECUTE ON FUNCTION audioid.update_catalog TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
+CREATE PROCEDURE get_song_id(IN in_song_name VARCHAR(128), IN in_filename VARCHAR(1024), IN in_year int(16) unsigned, IN in_catalog_id int(64) unsigned,
+                             IN in_genre_name VARCHAR(64),
+                             IN in_album_name VARCHAR(128), IN in_album_artist_name VARCHAR(128), IN in_track_number INT(64) unsigned,
+                             OUT out_song_id INT(64) unsigned, OUT out_song_was_inserted INT(1) unsigned)
+get_song_id:BEGIN
+  DECLARE var_song_id  INT(64) unsigned DEFAULT NULL;
+  DECLARE var_genre_id INT(64) unsigned DEFAULT NULL;
+  DECLARE var_album_id INT(64) unsigned DEFAULT NULL;
+  
+  SELECT id INTO var_song_id FROM songs WHERE filename = in_filename;
+  
+  IF var_song_id IS NOT NULL THEN
+    SET out_song_id = var_song_id;
+    SET out_song_was_inserted = 0;
+    LEAVE get_song_id;
+  END IF;
+  
+  INSERT INTO songs (name, filename, year, catalog_id) VALUES(in_song_name, in_filename, in_year, in_catalog_id);
+  SELECT LAST_INSERT_ID() INTO var_song_id;
+  
+  SELECT get_genre_id(in_genre_name) INTO var_genre_id;
+  INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
+  
+  SELECT get_album_id(in_album_name, in_album_artist_name) INTO var_album_id;
+  INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
+  
+  SET out_song_id = var_song_id;
+  SET out_song_was_inserted = 1;
+END//
+
+CREATE FUNCTION get_genre_id(in_genre_name VARCHAR(64))
+RETURNS INT(64) unsigned
+BEGIN
+  DECLARE var_gernre_id INT(64) unsigned DEFAULT NULL;
+  
+  SELECT id INTO var_gernre_id FROM genres WHERE name = in_genre_name;
+  
+  IF var_gernre_id IS NOT NULL THEN
+    RETURN var_gernre_id;
+  END IF;
+  
+  INSERT INTO genres (name) VALUES(in_genre_name);
+  
+  SELECT LAST_INSERT_ID() INTO var_gernre_id;
+  
+  RETURN var_gernre_id;
+END//
+
+CREATE FUNCTION get_album_id(in_album_name VARCHAR(128), in_album_artist_name VARCHAR(128))
+RETURNS INT(64) unsigned
+BEGIN
+  DECLARE var_album_id  INT(64) unsigned DEFAULT NULL;
+  DECLARE var_artist_id INT(64) unsigned DEFAULT NULL;
+  
+  IF in_album_artist_name IS NULL THEN
+    SELECT id INTO var_album_id FROM albums WHERE name = in_album_name AND album_artist IS NULL;
+  ELSE
+    SELECT id INTO var_artist_id FROM artists WHERE name = in_album_artist_name;
+    IF var_artist_id IS NOT NULL THEN
+      SELECT id INTO var_album_id FROM albums WHERE name = in_album_name AND album_artist = var_artist_id;
+    END IF;
+  END IF;
+  
+  IF var_album_id IS NOT NULL THEN
+    RETURN var_album_id;
+  END IF;
+  
+  IF in_album_artist_name IS NOT NULL AND var_artist_id IS NULL THEN
+    INSERT INTO artists (name) VALUES(in_album_artist_name);
+    SELECT LAST_INSERT_ID() INTO var_artist_id;
+  END IF;
+  
+  INSERT INTO albums (name, album_artist) VALUES(in_album_name, var_artist_id);
+  SELECT LAST_INSERT_ID() INTO var_album_id;
+  
+  RETURN var_album_id;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.get_song_id TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
 CREATE PROCEDURE delete_catalog(IN in_catalog_id INT(64) UNSIGNED)
 BEGIN
   START TRANSACTION;
