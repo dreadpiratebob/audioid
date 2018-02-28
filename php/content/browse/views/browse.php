@@ -355,7 +355,7 @@ function browse_songs($data, $id_filters, $name_filters, $order_by, $offset, $co
     $query = str_replace(' ',  '&nbsp;',   $query);
     echo $query . "<br />\n";
     echo "with this error: <br />\n";
-    echo $sql_link->errorInfo()[2];
+    echo $stmt->errorInfo()[2];
     return;
   }
   
