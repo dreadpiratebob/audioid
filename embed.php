@@ -9,9 +9,10 @@ if (!isset($id) || !is_numeric($id))
 
 $id = intval($id);
 
-$db_username = 'audioid';
-$db_password = 'useless_password';
+$db_username = 'audioid_user';
+$db_password = 'some password';
 include_once('php/utils/startup_connections.php');
+include_once('php/utils/init_db_vars.php');
 
 $query  = 'SELECT name, filename FROM songs WHERE id=' . $id . ';';
 $result = $sql_link->query($query);
