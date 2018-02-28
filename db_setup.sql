@@ -2,12 +2,19 @@ CREATE DATABASE audioid;
 
 USE audioid;
 
+# change the passwords here.
+CREATE USER 'audioid_user'@'localhost' IDENTIFIED BY 'some password';
+CREATE USER 'audioid_admin'@'localhost' IDENTIFIED BY 'other password';
+
 CREATE TABLE catalogs
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(64) not null,
   base_path varchar(1024)
 );
+
+GRANT SELECT ON audioid.catalogs TO 'audioid_admin'@'localhost';
+GRANT SELECT ON audioid.catalogs TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs
 (
@@ -22,11 +29,15 @@ CREATE TABLE songs
     ON UPDATE CASCADE
 );
 
+GRANT SELECT ON audioid.songs    TO 'audioid_user'@'localhost';
+
 CREATE TABLE artists
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(128) not null default ""
 );
+
+GRANT SELECT ON audioid.artists  TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs_artists
 (
@@ -45,6 +56,8 @@ CREATE TABLE songs_artists
     ON UPDATE CASCADE
 );
 
+GRANT SELECT ON audioid.songs_artists  TO 'audioid_user'@'localhost';
+
 CREATE TABLE albums
 (
   id int(64) unsigned not null primary key auto_increment,
@@ -55,6 +68,8 @@ CREATE TABLE albums
     ON DELETE SET NULL
     ON UPDATE CASCADE
 );
+
+GRANT SELECT ON audioid.albums   TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs_albums
 (
@@ -72,11 +87,15 @@ CREATE TABLE songs_albums
     ON UPDATE CASCADE
 );
 
+GRANT SELECT ON audioid.songs_albums   TO 'audioid_user'@'localhost';
+
 CREATE TABLE genres
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(64) not null default ""
 );
+
+GRANT SELECT ON audioid.genres   TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs_genres
 (
@@ -93,17 +112,7 @@ CREATE TABLE songs_genres
     ON UPDATE CASCADE
 );
 
-# change the passwords here.
-CREATE USER 'audioid_user'@'localhost' IDENTIFIED BY 'some password';
-CREATE USER 'audioid_admin'@'localhost' IDENTIFIED BY 'other password';
-
-GRANT SELECT ON audioid.catalogs TO 'audioid_admin'@'localhost';
-
-GRANT SELECT ON audioid.artists  TO 'audioid_user'@'localhost';
-GRANT SELECT ON audioid.albums   TO 'audioid_user'@'localhost';
-GRANT SELECT ON audioid.catalogs TO 'audioid_user'@'localhost';
-GRANT SELECT ON audioid.genres   TO 'audioid_user'@'localhost';
-GRANT SELECT ON audioid.songs    TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.songs_genres   TO 'audioid_user'@'localhost';
 
 DELIMITER //
 
