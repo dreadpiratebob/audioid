@@ -199,7 +199,7 @@ get_song_id:BEGIN
   SELECT id INTO var_song_id FROM songs WHERE filename = in_filename;
   
   IF var_song_id IS NOT NULL THEN
-    SET out_song_id = var_song_id;
+    SET out_song_id           = var_song_id;
     SET out_song_was_inserted = 0;
     LEAVE get_song_id;
   END IF;
@@ -210,16 +210,18 @@ get_song_id:BEGIN
   IF in_genre_name IS NOT NULL THEN
     SELECT get_genre_id(in_genre_name) INTO var_genre_id;
     INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
-  END IF
+  END IF;
   
   IF in_album_name IS NOT NULL THEN
     SELECT get_album_id(in_album_name, in_album_artist_name) INTO var_album_id;
     INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
   END IF;
   
-  IF var_rollback THEN
+  IF var_rollback = 1 THEN
     ROLLBACK;
-  ELSE
+    SET out_song_id           = NULL;
+    SET out_song_was_inserted = 0;
+   ELSE
     COMMIT;
     SET out_song_id = var_song_id;
     SET out_song_was_inserted = 1;
@@ -277,6 +279,43 @@ END//
 DELIMITER ;
 
 GRANT EXECUTE ON PROCEDURE audioid.get_song_id TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE link_song_to_artist(in_artist_name VARCHAR(128), in_song_id INT(64) unsigned, in_list_order INT(4) unsigned, in_conjunction VARCHAR(24), OUT out_success BOOL)
+link_song_to_artist:BEGIN
+  DECLARE var_artist_id INT(64) unsigned DEFAULT NULL;
+  DECLARE var_rollback  BOOL DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
+  
+  IF in_song_id IS NULL OR in_list_order IS NULL OR in_conjunction IS NULL THEN
+    SET out_success = 0;
+    LEAVE link_song_to_artist;
+  END IF;
+  
+  START TRANSACTION;
+  
+  SELECT id INTO var_artist_id FROM artists WHERE name = in_artist_name;
+  
+  IF var_artist_id IS NULL THEN
+    INSERT INTO artists (name) VALUES(in_artist_name);
+    SELECT LAST_INSERT_ID() INTO var_artist_id;
+  END IF;
+  
+  INSERT INTO songs_artists (song_id, artist_id, list_order, conjunction) VALUES(in_song_id, var_artist_id, in_list_order, in_conjunction);
+  
+  IF var_rollback THEN
+    ROLLBACK;
+    SET out_success = 0;
+  ELSE
+    COMMIT;
+    SET out_success = 1;
+  END IF;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.link_song_to_artist TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
