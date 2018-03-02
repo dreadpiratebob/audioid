@@ -20,7 +20,7 @@ CREATE TABLE songs
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(128) not null default "",
-  year int(16) unsigned not null,
+  year int(16) unsigned,
   filename varchar(1024) not null,
   catalog_id int(64) unsigned not null,
   FOREIGN KEY (catalog_id)
