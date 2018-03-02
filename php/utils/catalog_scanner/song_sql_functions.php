@@ -75,21 +75,22 @@ function insert_artist_data($song_id, $artist_names, $artist_joins, $sql_link, $
     {
       $conjunction = (0 <= $index && $index < count($artist_joins) ? $artist_joins[$index] : '');
       $params      = array(':artist_name' => $artist_name, ':conjunction' => $conjunction);
-      $query       = "CALL link_song_to_artist(:artist_name, {$song_id}, {$index}, :conjunction, @success);\nSELECT @success AS success;";
+      $query       = "CALL link_song_to_artist(:artist_name, {$song_id}, {$index}, :conjunction, @success);";
       $stmt        = $sql_link->prepare($query);
       $result      = $stmt->execute($params);
       
       if ($result === false)
       {
         add_status("query {$query} failed:\n{$stmt->errorInfo()[2]}\nparams:\n" . print_r($params, true), $session_id);
+        return;
       }
-      else
+      
+      $query      = 'SELECT @success AS success;';
+      $stmt       = $sql_link->query($query);
+      $arr_result = $stmt->fetch(PDO::FETCH_ASSOC);
+      if ($arr_result['success'] === false || $arr_result['success'] === 0)
       {
-        $arr_result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($arr_result['success'] === false || $arr_result['success'] === 0)
-        {
-          add_status("failed to add / link the artist {$artist_name} to '{$song_name}'.", $session_id);
-        }
+        add_status("failed to add / link the artist {$artist_name} to '{$song_name}'.", $session_id);
       }
     }
   }
