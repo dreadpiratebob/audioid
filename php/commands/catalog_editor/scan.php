@@ -86,7 +86,7 @@ function scan_directory($dir_name, $cat_id, $cat_name, $artist_separators, $sql_
     return;
   }
   
-  if (strcmp(substr($dir_name, strlen($dirname) - 1, 1), '/') == 0)
+  if (strcmp(substr($dir_name, strlen($dir_name) - 1, 1), '/') == 0)
   {
     $dir_name = substr($dir_name, 0, strlen($dir_name) - 1);
   }
