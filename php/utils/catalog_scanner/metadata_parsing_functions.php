@@ -184,16 +184,16 @@ function get_tags($filename)
 
 function extract_tag($tags, $version, $name, $v1tags, $v2tags)
 {
-  if ($version == 1)
+  if ($version == 1 && array_key_exists($name, $v1tags))
     $tags[$name]  = $v1tags[$name][0];
-  else
+  else if (array_key_exists($name, $v2tags))
     $tags[$name]  = $v2tags[$name][0];
   
   if (!has_tag($tags, $name))
   {
-    if ($version == 2)
+    if ($version == 2 && array_key_exists($name, $v2tags))
       $tags[$name]  = $v1tags[$name][0];
-    else
+    else if (array_key_exists($name, $v1tags))
       $tags[$name]  = $v2tags[$name][0];
   }
   
@@ -202,7 +202,7 @@ function extract_tag($tags, $version, $name, $v1tags, $v2tags)
 
 function has_tag($tags, $tag_name)
 {
-  return (isset($tags[$tag_name]) && strlen($tags[$tag_name]) > 0);
+  return (array_key_exists($tag_name, $tags) && isset($tags[$tag_name]) && strlen($tags[$tag_name]) > 0);
 }
 
 function clean_extra_chars($raw_tag)
