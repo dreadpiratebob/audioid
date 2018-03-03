@@ -2,7 +2,15 @@
 
 function insert_song($cat_id, $song_name, $filename, $year, $artist_names, $artist_joins, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id)
 {
-  insert_song_data($cat_id, $song_name, $filename, $year, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id, $song_id, $inserted);
+  $joined_artists = '';
+  if (isset($artist_names) && count($artist_names) > 0)
+  {
+    $joined_artists = $artist_names[0];
+    for ($i = 1; $i < count($artist_names); ++$i)
+      $joined_artists .= ' ' . $artist_joins[$i - 1] . ' ' . $artist_names[$i];
+  }
+  
+  insert_song_data($cat_id, $song_name, $filename, $year, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id, $joined_artists, $song_id, $inserted);
   
   if (!$inserted)
     return;
@@ -11,7 +19,7 @@ function insert_song($cat_id, $song_name, $filename, $year, $artist_names, $arti
   add_status("done adding {$song_name} to the database.", $session_id);
 }
 
-function insert_song_data($cat_id, $song_name, $filename, $year, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id, &$song_id, &$inserted)
+function insert_song_data($cat_id, $song_name, $filename, $year, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id, $joined_artists, &$song_id, &$inserted)
 {
   // ':year' isn't a parameter in the SQL below because i'm trusting that the string 'NULL' and any result of the intval function are good values to stick in the middle of a SQL query.
   if (is_numeric($year))
@@ -23,13 +31,13 @@ function insert_song_data($cat_id, $song_name, $filename, $year, $album_name, $a
     $year = 'NULL';
   }
   
-  add_status("inserting '{$song_name}'" . (strlen($joined_artists) > 0 ? " by {$joined_artists}" : '') . ' into the database...', $session_id);
+  add_status("inserting '{$song_name}'" . (isset($joined_artists) ? " by {$joined_artists}" : '') . ' into the database...', $session_id);
   $song_id    = null;
   $query      = "CALL get_song_id(:song_name, :filename, {$year}, {$cat_id}, :genre_name, :album_name, :album_artist_name, :track_number, @song_id, @song_was_inserted);";
   $stmt       = $sql_link->prepare($query);
   $sql_params = array(':song_name' => $song_name, ':filename' => $filename, ':genre_name' => $genre_name, ':album_name' => $album_name, ':album_artist_name' => $album_artist, ':track_number' => $track);
   $result     = $stmt->execute($sql_params);
-  dump_query('song insertion', $query, $sql_params, $session_id, true);
+  dump_query('song insertion', $query, $sql_params, $session_id);
   if ($result === false)
   {
     $message = "this query died: {$query}\nerror info:\n{$stmt->errorInfo()[2]}\n{$stmt->errorCode()}\n\nparams:\n" . print_r($sql_params, true);
@@ -61,14 +69,6 @@ function insert_song_data($cat_id, $song_name, $filename, $year, $album_name, $a
 
 function insert_artist_data($song_id, $artist_names, $artist_joins, $sql_link, $session_id)
 {
-  $joined_artists = '';
-  if (count($artist_names) > 0)
-  {
-    $joined_artists = $artist_names[0];
-    for ($i = 1; $i < count($artist_names); ++$i)
-      $joined_artists .= ' ' . $artist_joins[$i - 1] . ' ' . $artist_names[$i];
-  }
-  
   if (isset($artist_names) && is_array($artist_names) && count($artist_names) > 0)
   { // get artist info so i can associate the current song w/ it
     foreach ($artist_names as $index => $artist_name)
