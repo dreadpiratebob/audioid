@@ -30,6 +30,7 @@ CREATE TABLE songs
 );
 
 GRANT SELECT ON audioid.songs    TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.songs    TO 'audioid_admin'@'localhost';
 
 CREATE TABLE artists
 (
@@ -381,3 +382,31 @@ END//
 DELIMITER ;
 
 GRANT EXECUTE ON PROCEDURE audioid.delete_catalog TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE delete_song(IN in_song_id INT(64) unsigned, OUT out_success BOOL)
+delete_song:BEGIN
+  DECLARE var_rollback BOOL DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
+  
+  SET out_success = 1;
+  
+  START TRANSACTION;
+  
+  DELETE FROM songs_albums  WHERE song_id = in_song_id;
+  DELETE FROM songs_artists WHERE song_id = in_song_id;
+  DELETE FROM songs_genres  WHERE song_id = in_song_id;
+  DELETE FROM songs         WHERE id      = in_song_id;
+  
+  IF var_rollback THEN
+    SET out_success = 0;
+    ROLLBACK;
+  ELSE
+    COMMIT;
+  END IF;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.delete_song TO 'audioid_admin'@'localhost';

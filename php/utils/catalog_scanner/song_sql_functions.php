@@ -1,5 +1,50 @@
 <?php
 
+function delete_nonexistent_songs($cat_id, $sql_link, $session_id, $base_path = null)
+{
+  if ($base_path == null)
+  {
+    $query     = "SELECT base_path FROM catalogs WHERE id = {$cat_id};";
+    $stmt      = $sql_link->query($query);
+    $base_path = $stmt->fetch(PDO::FETCH_ASSOC)['base_path'];
+  }
+  
+  $query = "SELECT id, filename FROM songs WHERE catalog_id = {$cat_id};";
+  $stmt  = $sql_link->query($query);
+  
+  for ($i = 0; $i < $stmt->rowCount(); ++$i)
+  {
+    $song_data = $stmt->fetch(PDO::FETCH_ASSOC);
+    add_status("checking file existence for '{$song_data['filename']}'...", $session_id);
+    if (file_exists(/* $base_path . */$song_data['filename']))
+    {
+      continue;
+    }
+    
+    $del_query  = "CALL delete_song({$song_data['id']}, @success);";
+    $sql_result = $sql_link->query($del_query);
+    
+    $query      = 'SELECT @success AS success;';
+    $sql_result = $sql_link->query($query);
+    $arr_result = $sql_result->fetch(PDO::FETCH_ASSOC);
+    
+    if ($arr_result['success'] === 1)
+    {
+      $arr_result = true;
+    }
+    else if ($arr_result['success'] === 0)
+    {
+      $arr_result = false;
+    }
+    
+    if (!$arr_result['success'])
+    {
+      add_status("failed to delete file '{$song_data['filename']}'.", $session_id);
+      add_status("query: {$del_query}", $session_id);
+    }
+  }
+}
+
 function insert_song($cat_id, $song_name, $filename, $year, $artist_names, $artist_joins, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id)
 {
   $joined_artists = '';

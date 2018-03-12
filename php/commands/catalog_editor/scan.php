@@ -28,6 +28,8 @@ function start($data, $sql_link, $session_id)
     return -1;
   }
   
+  $_SESSION['scan_status']['name'] = "id{$cat_id}";
+  $cat_id      = intval($cat_id);
   $query       = "SELECT id, name, base_path FROM catalogs WHERE id={$cat_id};";
   $sql_catalog = $sql_link->query($query);
   if ($sql_catalog === false)
@@ -38,7 +40,7 @@ function start($data, $sql_link, $session_id)
   
   if ($sql_catalog->rowCount() != 1)
   {
-    add_status("error: found {$sql_catalog->rowCount()} catalogs.");
+    add_status("error: found {$sql_catalog->rowCount()} catalogs.", $session_id);
     return -1;
   }
   
@@ -53,9 +55,11 @@ function start($data, $sql_link, $session_id)
   session_write_close();
   
   $artist_separators = explode('|', $data['artist_separators']);
+  $base_dir          = $sql_catalog['base_path'];
+  
+  delete_nonexistent_songs($cat_id, $sql_link, $session_id, $base_dir);
   
   add_status('attempting to start dir scan...', $session_id);
-  $base_dir = $sql_catalog['base_path'];
   scan_directory($base_dir, $cat_id, $cat_name, $artist_separators, $sql_link, $session_id);
   
   add_status('',      $session_id);
