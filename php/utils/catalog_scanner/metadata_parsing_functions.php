@@ -184,6 +184,17 @@ function get_tags($filename)
 
 function extract_tag($tags, $version, $name, $v1tags, $v2tags)
 {
+  if (!array_key_exists($name, $tags))
+  {
+    $tags[$name] = null;
+  }
+  
+  if ($v1tags === null)
+  {
+    $tags[$name]  = $v2tags[$name][0];
+    return $tags;
+  }
+  
   if ($version == 1 && array_key_exists($name, $v1tags))
     $tags[$name]  = $v1tags[$name][0];
   else if (array_key_exists($name, $v2tags))
