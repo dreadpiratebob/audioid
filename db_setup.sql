@@ -29,8 +29,8 @@ CREATE TABLE songs
     ON UPDATE CASCADE
 );
 
-GRANT SELECT ON audioid.songs    TO 'audioid_user'@'localhost';
-GRANT SELECT ON audioid.songs    TO 'audioid_admin'@'localhost';
+GRANT SELECT ON audioid.songs TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.songs TO 'audioid_admin'@'localhost';
 
 CREATE TABLE artists
 (
@@ -38,7 +38,7 @@ CREATE TABLE artists
   name varchar(128) not null default ""
 );
 
-GRANT SELECT ON audioid.artists  TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.artists TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs_artists
 (
@@ -57,7 +57,7 @@ CREATE TABLE songs_artists
     ON UPDATE CASCADE
 );
 
-GRANT SELECT ON audioid.songs_artists  TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.songs_artists TO 'audioid_user'@'localhost';
 
 CREATE TABLE albums
 (
@@ -70,7 +70,7 @@ CREATE TABLE albums
     ON UPDATE CASCADE
 );
 
-GRANT SELECT ON audioid.albums   TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.albums TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs_albums
 (
@@ -88,7 +88,7 @@ CREATE TABLE songs_albums
     ON UPDATE CASCADE
 );
 
-GRANT SELECT ON audioid.songs_albums   TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.songs_albums TO 'audioid_user'@'localhost';
 
 CREATE TABLE genres
 (
@@ -96,7 +96,7 @@ CREATE TABLE genres
   name varchar(64) not null default ""
 );
 
-GRANT SELECT ON audioid.genres   TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.genres TO 'audioid_user'@'localhost';
 
 CREATE TABLE songs_genres
 (
@@ -113,7 +113,7 @@ CREATE TABLE songs_genres
     ON UPDATE CASCADE
 );
 
-GRANT SELECT ON audioid.songs_genres   TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.songs_genres TO 'audioid_user'@'localhost';
 
 DELIMITER //
 
@@ -410,3 +410,67 @@ END//
 DELIMITER ;
 
 GRANT EXECUTE ON PROCEDURE audioid.delete_song TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE clean_unused_data()
+clean_unused_data:BEGIN
+  # i'm not wrapping this in a transaction because it's fine if one these queries fails but the others succeed.
+  
+  DECLARE var_id INT(64) UNSIGNED;
+  DECLARE var_loop_done BOOL DEFAULT FALSE;
+  DECLARE var_al_cur CURSOR FOR SELECT a.id FROM albums  AS a LEFT JOIN songs_albums  AS s_a ON s_a.album_id  = a.id GROUP BY a.id HAVING COUNT(s_a.song_id) = 0;
+  DECLARE var_ar_cur CURSOR FOR SELECT a.id FROM artists AS a LEFT JOIN songs_artists AS s_a ON s_a.artist_id = a.id GROUP BY a.id HAVING COUNT(s_a.song_id) = 0;
+  DECLARE var_g_cur  CURSOR FOR SELECT g.id FROM genres  AS g LEFT JOIN songs_genres  AS s_g ON s_g.genre_id  = g.id GROUP BY g.id HAVING COUNT(s_g.song_id) = 0;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET var_loop_done = TRUE;
+  # apparently, MySQL throws an error (well... warning 1329, which has a Level of "Error") if the SELECT statement used in a cursor returns an empty set, instead of just using the NOT FOUND handler.  \-:
+  DECLARE CONTINUE HANDLER FOR 1329 SET var_loop_done = TRUE;
+  
+  OPEN var_al_cur;
+  
+  album_loop:LOOP
+    FETCH var_al_cur INTO var_id;
+    IF var_loop_done THEN
+      LEAVE album_loop;
+    END IF;
+    
+    DELETE FROM albums WHERE id = var_id;
+    
+  END LOOP;
+  
+  CLOSE var_al_cur;
+  SET var_loop_done = FALSE;
+  OPEN var_ar_cur;
+  
+  artist_loop:LOOP
+    FETCH var_ar_cur INTO var_id;
+    
+    IF var_loop_done THEN
+      LEAVE artist_loop;
+    END IF;
+    
+    DELETE FROM artists WHERE id = var_id;
+    
+  END LOOP;
+  
+  CLOSE var_ar_cur;
+  SET var_loop_done = FALSE;
+  OPEN var_g_cur;
+  
+  genre_loop:LOOP
+    FETCH var_g_cur INTO var_id;
+    
+    IF var_loop_done THEN
+      LEAVE genre_loop;
+    END IF;
+    
+    DELETE FROM genres WHERE id = var_id;
+    
+  END LOOP;
+  
+  CLOSE var_g_cur;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.clean_unused_data TO 'audioid_admin'@'localhost';

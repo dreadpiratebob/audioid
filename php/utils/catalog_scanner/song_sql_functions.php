@@ -9,20 +9,24 @@ function delete_nonexistent_songs($cat_id, $sql_link, $session_id, $base_path = 
     $base_path = $stmt->fetch(PDO::FETCH_ASSOC)['base_path'];
   }
   
-  $query = "SELECT id, filename FROM songs WHERE catalog_id = {$cat_id};";
-  $stmt  = $sql_link->query($query);
+  $query          = "SELECT id, filename FROM songs WHERE catalog_id = {$cat_id};";
+  $stmt           = $sql_link->query($query);
+  $deleted_a_song = false;
   
   for ($i = 0; $i < $stmt->rowCount(); ++$i)
   {
     $song_data = $stmt->fetch(PDO::FETCH_ASSOC);
-    add_status("checking file existence for '{$song_data['filename']}'...", $session_id);
+    $message   = "checking file existence for '{$song_data['filename']}'; ";
     if (file_exists(/* $base_path . */$song_data['filename']))
     {
+      add_status("{$message}it exists...", $session_id);
       continue;
     }
     
-    $del_query  = "CALL delete_song({$song_data['id']}, @success);";
-    $sql_result = $sql_link->query($del_query);
+    add_status("{$message}file not found; deleting it...", $session_id);
+    $deleted_a_song = true;
+    $del_query      = "CALL delete_song({$song_data['id']}, @success);";
+    $sql_result     = $sql_link->query($del_query);
     
     $query      = 'SELECT @success AS success;';
     $sql_result = $sql_link->query($query);
@@ -40,9 +44,47 @@ function delete_nonexistent_songs($cat_id, $sql_link, $session_id, $base_path = 
     if (!$arr_result['success'])
     {
       add_status("failed to delete file '{$song_data['filename']}'.", $session_id);
-      add_status("query: {$del_query}", $session_id);
     }
   }
+  
+  if (!$deleted_a_song)
+  {
+    return;
+  }
+  
+  add_status('cleaning extra data...', $session_id);
+  
+  $query  = "CALL clean_unused_data();";
+  $result = $sql_link->query($query);
+  
+  if ($result === false)
+  {
+    add_status("query '{$query}' died with this error:\n{$sql_link->errorInfo()[2]}", $session_id);
+    return;
+  }
+  
+  $query  = 'SELECT @success AS success';
+  $stmt   = $sql_link->query($query);
+  $result = $stmt->fetch(PDO::FETCH_ASSOC);
+  
+  if ($result['success'] === 0)
+  {
+    $result['success'] = false;
+  }
+  else if ($result['success'] === 1)
+  {
+    $result['success'] = true;
+  }
+  
+  if ($result['success'])
+  {
+    add_status('cleaned extra data.', $session_id);
+  }
+  else
+  {
+    add_status('failed to clean extra data.', $session_id);
+  }
+  
 }
 
 function insert_song($cat_id, $song_name, $filename, $year, $artist_names, $artist_joins, $album_name, $album_artist, $track, $genre_name, $sql_link, $session_id)
