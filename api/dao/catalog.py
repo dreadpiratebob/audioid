@@ -2,7 +2,7 @@ import sys
 sys.path.insert(1, '../')
 
 from exceptions import CatalogNotFoundException
-from model.catalog import catalog
+from models.catalog import Catalog
 from dao.mysql_utils import get_cursor
 
 def get_catalog_by_id(id):
@@ -22,4 +22,4 @@ def get_catalog(field, identifier):
   sql_catalog = cur.fetchone()
   
   cur.close()
-  return catalog(sql_catalog['id'], sql_catalog['name'], sql_catalog['base_path'])
+  return Catalog(sql_catalog['id'], sql_catalog['name'], sql_catalog['base_path'])

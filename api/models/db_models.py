@@ -5,7 +5,7 @@ from exceptions import InvalidGenreDataException
 from exceptions import InvalidSongDataException
 
 class Song:
-  def __init__(self, id, title, year, filename, last_scanned, catalog):
+  def __init__(self, id, title, year, filename, last_scanned, file_last_modified, catalog):
     if id is not None and not isinstance(id, int):
       raise InvalidSongDataException('a song id must be an int.  (found "%s" of type %s instead.)' % (str(id), str(type(id))))
     
@@ -18,6 +18,12 @@ class Song:
     if not isinstance(filename, str):
       raise InvalidSongDataException('a filename must be a str.  (found "%s" of type %s instead.)' % (str(filename), str(type(filename))))
     
+    if last_scanned is not None and not isinstance(last_scanned, int):
+      raise InvalidSongDataException('the last_scanned timestamp must be an int.  (found "%s" of type %s instead.)' % (str(last_scanned), str(type(last_scanned))))
+    
+    if not isinstance(file_last_modified, int):
+      raise InvalidSongDataException('the file_last_modified timestamp must be an int.  (found "%s" of type %s instead.)' % (str(file_last_modified), str(type(file_last_modified))))
+    
     if not isinstance(catalog, Catalog):
       raise InvalidSongDataException('a catalog must be of type Catalog.  (found "%s" of type %s instead.)' % (str(catalog), str(type(catalog))))
     
@@ -25,6 +31,8 @@ class Song:
     self.title = title
     self.year = year
     self.filename = filename
+    self.last_scanned = last_scanned
+    self.file_last_modified = file_last_modified
     self.catalog = catalog
     
     self.artists = None
@@ -40,7 +48,7 @@ class Song:
     
     artists = ''
     for artist_join in self.artists:
-      artists += artist_join.artist.name + artist_join.conjunction
+      artists += artist_join.artist.name + ('' if artist_join.conjunction is None else artist_join.conjunction)
     
     albums = ''
     for album_join in self.albums:
