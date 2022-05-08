@@ -1,6 +1,7 @@
 <?php
 
 include_once('php/utils/catalog_scanner/status_functions.php');
+include_once('php/utils/id3.php');
 
 function parse_mp3($filename, $artist_separators, $session_id)
 {
@@ -99,6 +100,7 @@ function parse_mp3($filename, $artist_separators, $session_id)
     $tags['track'] = 0;
   }
   
+  /*
   if (isset($tags['genre']))
   {
     $tmp = substr($tags['genre'], 1, strlen($tags['genre']) - 2); // if $tags['genre'] is '(nnn)' where each n is a digit, just wanna use nnn as a genre id.
@@ -111,6 +113,7 @@ function parse_mp3($filename, $artist_separators, $session_id)
     else // assume $tags['genre'] is (s'posed to be) a valid genre name.
       $tags['genre'] = clean_extra_chars($tags['genre']);
   }
+  */
   
   $metadata = "\ntitle: \"{$tags['title']}\" (" . get_ascii($tags['title']) . ")\nartists:\n";
   
@@ -137,75 +140,21 @@ function parse_mp3($filename, $artist_separators, $session_id)
 
 function get_tags($filename)
 {
-  $detagger  = new getID3();
-  $file_info = $detagger->analyze($filename);
-  
-  $version   = intval($file_info['GETID3_VERSION']);
-  $v1tags    = $file_info['tags']['id3v1'];
-  $v2tags    = $file_info['tags']['id3v2'];
-  
-  $tags      = array();
-  $tags      = extract_tag($tags, $version, 'title',        $v1tags, $v2tags);
-  $tags      = extract_tag($tags, $version, 'artist',       $v1tags, $v2tags);
-  $tags      = extract_tag($tags, $version, 'album',        $v1tags, $v2tags);
-  $tags      = extract_tag($tags, $version, 'album_artist', $v1tags, $v2tags);
-  $tags      = extract_tag($tags, $version, 'band',         $v1tags, $v2tags);
-  $tags      = extract_tag($tags, $version, 'genre',        $v1tags, $v2tags);
-  $tags      = extract_tag($tags, $version, 'year',         $v1tags, $v2tags);
-  
-  if ($version == 1)
-    $tags['track']  = $v1tags['track'][0];
-  else
-    $tags['track']  = $v2tags['track_number'][0];
-  
-  if (!has_tag($tags, 'track'))
+  if ($id3_tag_reader === null)
   {
-    if ($version == 2)
-      $tags['track']  = $v1tags['track'][0];
-    else
-      $tags['track']  = $v2tags['track_number'][0];
+    $id3_tag_reader = new id3_tag_reader();
   }
+  
+  $tags = $id3_tag_reader->get_tag_info($filename);
+  
+  if (has_tag($tags, 'track_number') && !has_tag($tags, 'track'))
+    $tags['track']  = $v2tags['track_number'];
   
   if (!has_tag($tags, 'title'))
   {
     // got no title; pull from the filename
     $tmp           = explode('/', $filename);
     $tags['title'] = $tmp[count($tmp) - 1]; // leave the .mp3 on the end?  sure. why not?
-  }
-  
-  if (has_tag($tags, 'band') && !has_tag($tags, 'album_artist'))
-  { // dunno why the getID3 library calls this 'band' and not 'album artist' or 'album_artist'.
-    $tags['album_artist'] = $tags['band'];
-    unset($tags['band']);
-  }
-  
-  return $tags;
-}
-
-function extract_tag($tags, $version, $name, $v1tags, $v2tags)
-{
-  if (!array_key_exists($name, $tags))
-  {
-    $tags[$name] = null;
-  }
-  
-  if ($v1tags === null)
-  {
-    $tags[$name]  = $v2tags[$name][0];
-    return $tags;
-  }
-  
-  if ($version == 1 && array_key_exists($name, $v1tags))
-    $tags[$name]  = $v1tags[$name][0];
-  else if (array_key_exists($name, $v2tags))
-    $tags[$name]  = $v2tags[$name][0];
-  
-  if (!has_tag($tags, $name))
-  {
-    if ($version == 2 && array_key_exists($name, $v2tags))
-      $tags[$name]  = $v1tags[$name][0];
-    else if (array_key_exists($name, $v1tags))
-      $tags[$name]  = $v2tags[$name][0];
   }
   
   return $tags;

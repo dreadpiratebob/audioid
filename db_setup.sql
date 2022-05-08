@@ -206,7 +206,7 @@ get_song_id:BEGIN
   DECLARE var_rollback BOOL DEFAULT 0;
   DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
   
-  SELECT id INTO var_song_id FROM songs WHERE filename = in_filename;
+  SELECT id INTO var_song_id FROM songs WHERE filename = in_filename AND catalog_id = in_catalog_id;
   
   IF var_song_id IS NOT NULL THEN
     SET out_song_id           = var_song_id;
@@ -231,7 +231,7 @@ get_song_id:BEGIN
     ROLLBACK;
     SET out_song_id           = NULL;
     SET out_song_was_inserted = 0;
-   ELSE
+  ELSE
     COMMIT;
     SET out_song_id = var_song_id;
     SET out_song_was_inserted = 1;

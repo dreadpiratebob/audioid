@@ -13,20 +13,19 @@ $db_username = 'audioid';
 $db_password = 'useless_password';
 include_once('php/utils/startup_connections.php');
 
-$query  = 'SELECT name, filename FROM songs WHERE id=' . $id . ';';
-$result = $sql_link->query($query);
+$query    = "SELECT songs.name AS name, catalogs.base_path AS base_path, songs.filename AS rel_path FROM songs INNER JOIN catalogs ON catalogs.id = songs.catalog_id WHERE songs.id = {$id};";
+$sql_song = $sql_link->query($query);
 
-if ($result === false)
-  die('query "' . $query . '" died: <br />' . $sql_link->errorInfo()[2]);
+if ($sql_song === false)
+  die("query \"{$query}\" died: <br />\n{$sql_link->errorInfo()[2]}");
 
-if ($result->rowCount() != 1)
-  die('invalid id');
+if ($sql_song->rowCount() != 1)
+  die('invalid id.');
 
-$tmp      = $result->fetch(PDO::FETCH_ASSOC);
-$title    = $tmp['name'];
-$filename = $tmp['filename'];
+$arr_song = $sql_song->fetch(PDO::FETCH_ASSOC);
+$filename = $arr_song['base_path'] . $arr_song['rel_path'];
 
-header('Content-Disposition: attachment; filename="' . strtolower($title) . '.mp3"');
+header('Content-Disposition: attachment; filename="' . strtolower($arr_song['name']) . '.mp3"');
 header('Content-Length: ' . filesize($filename));
 header('Content-Transfer-Encoding: binary');
 header('Content-Type: audio/mpeg');

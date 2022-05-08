@@ -9,8 +9,6 @@ set_time_limit(0);
 
 gc_enable();
 
-include_once('php/utils/getid3/getid3.php');
-
 if (isset($_SESSION['scan_status']))
   unset($_SESSION['scan_status']);
 
@@ -60,7 +58,7 @@ function start($data, $sql_link, $session_id)
   delete_nonexistent_songs($cat_id, $sql_link, $session_id, $base_dir);
   
   add_status('attempting to start dir scan...', $session_id);
-  scan_directory($base_dir, $cat_id, $cat_name, $artist_separators, $sql_link, $session_id);
+  scan_directory($base_dir, $cat_id, $cat_name, $artist_separators, $base_dir, $sql_link, $session_id);
   
   add_status('',      $session_id);
   add_status('done.', $session_id);
@@ -70,7 +68,7 @@ function start($data, $sql_link, $session_id)
 
 //// scanning steps ////
 
-function scan_directory($dir_name, $cat_id, $cat_name, $artist_separators, $sql_link, $session_id)
+function scan_directory($dir_name, $cat_id, $cat_name, $artist_separators, $base_dir, $sql_link, $session_id)
 {
   add_status('', $session_id);
   
@@ -108,7 +106,7 @@ function scan_directory($dir_name, $cat_id, $cat_name, $artist_separators, $sql_
     
     if (is_dir($full_fn))
     {
-      scan_directory($full_fn, $cat_id, $cat_name, $artist_separators, $sql_link, $session_id);
+      scan_directory($full_fn, $cat_id, $cat_name, $artist_separators, $base_dir, $sql_link, $session_id);
       continue;
     }
     
@@ -120,8 +118,10 @@ function scan_directory($dir_name, $cat_id, $cat_name, $artist_separators, $sql_
     
     add_status("{$status}it's an mp3; parsing it...", $session_id);
     
-    $tags = parse_mp3($full_fn, $artist_separators, $session_id);
-    insert_song($cat_id, $tags['title'], $full_fn, $tags['year'], $tags['artists']['names'], $tags['artists']['joins'], $tags['album'], $tags['album_artist'], $tags['track'], $tags['genre'], $sql_link, $session_id);
+    $tags   = parse_mp3($full_fn, $artist_separators, $session_id);
+    $rel_fn = substr($full_fn, strlen($base_dir));
+    
+    insert_song($cat_id, $tags['title'], $rel_fn, $tags['year'], $tags['artists']['names'], $tags['artists']['joins'], $tags['album'], $tags['album_artist'], $tags['track'], $tags['genre'], $sql_link, $session_id);
   }
 }
 
