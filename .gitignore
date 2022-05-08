@@ -1,0 +1,11 @@
+.idea
+__pycache__/
+commandline/__pycache__/
+dao/__pycache__/
+logic/__pycache__/
+moduels/__pycache__/
+modules/factories/__pycache__/
+public/__pycache__/
+util/__pycache__/
+
+**/*.pyc
