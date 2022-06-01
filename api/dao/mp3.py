@@ -3,7 +3,6 @@ import subprocess
 
 from models.mp3 import MP3
 from models.mp3 import MP3Fields
-from util.logger import get_logger
 from util.file_operations import get_last_modified_timestamp
 
 def read_metadata(filename):

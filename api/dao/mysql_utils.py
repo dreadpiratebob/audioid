@@ -1,13 +1,18 @@
 import pymysql
 
+user_db_conn = pymysql.connect(host = 'localhost', user = 'audioid_user', password = 'not a good password', db = 'audioid', cursorclass = pymysql.cursors.DictCursor)
+admin_db_conn = pymysql.connect(host = 'localhost', user = 'audioid_admin', password = 'this is not a good password nor is this', db = 'audioid', cursorclass = pymysql.cursors.DictCursor)
+
 def get_cursor(admin = False):
-  username = 'audioid_user'
+  conn = user_db_conn
   if admin:
-    username = 'audioid_admin'
+    conn = admin_db_conn
+  
+  return conn.cursor()
 
-  password = 'not a good password'
+def commit(admin = False):
+  conn = user_db_conn
   if admin:
-    password = 'still not a good password'
-
-  db = pymysql.connect(host = 'localhost', user = username, password = password, db = 'audioid', cursorclass = pymysql.cursors.DictCursor)
-  return db.cursor()
+    conn = admin_db_conn
+  
+  conn.commit()
