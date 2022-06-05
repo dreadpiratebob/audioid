@@ -1,4 +1,5 @@
 import datetime
+import re
 
 from enum import Enum
 
@@ -28,6 +29,9 @@ class Logger:
   def log(self, log_level, message):
     if log_level.value[1] < self.log_level.value[1]:
       return
+    
+    bad_unicode_chars = u'[\udc00-\udfff]'
+    message = re.sub(bad_unicode_chars, '?', message)
     
     now = datetime.datetime.utcnow()
     fmt_msg = '%s [%s]: %s' % (str(now), log_level.value[0], str(message))

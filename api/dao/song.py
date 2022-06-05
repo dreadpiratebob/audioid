@@ -100,22 +100,27 @@ def save_song(song):
           query = 'SELECT id FROM artists WHERE name = %s;'
           cursor.execute(query, (album.album_artist.name,))
           if cursor.rowcount == 0:
-            query = 'INSERT INTO artists (name) VALUES %s;'
-            cursor.execute(query, (album.album_artist.name,))
-            album_artist.id = cursor.lastrowid
+            query = 'INSERT INTO artists (name) VALUES (%s);'
+            logger.debug('exeucting album query: "%s"' % (query % album.album_artist.name))
+            cursor.execute(query, (str(album.album_artist.name),))
+            album.album_artist.id = cursor.lastrowid
           else:
             sql_artist_data = cursor.fetchone()
             album.album_artist.id = sql_artist_data['id']
             if cursor.rowcount > 1:
               logger.warn('found multiple artists with the name "%s"; using the one with the id %s.' %
                           (album.album_artist.name, int(album.album_artist.id)))
-        
+
         query = 'SELECT id FROM albums WHERE name = %s AND album_artist = %s;'
         cursor.execute(query, (album.name, int(album.album_artist.id)))
       
       if cursor.rowcount == 0:
+        album_artist_id = None
+        if album.album_artist is not None:
+          album_artist_id = int(album.album_artist.id)
+
         query = 'INSERT INTO albums (name, album_artist) VALUES (%s, %s)'
-        cursor.execute(query, (album.name, int(album.album_artist.id)))
+        cursor.execute(query, (album.name, album_artist_id))
         album.id = cursor.lastrowid
       else:
         sql_album_data = cursor.fetchone()
@@ -173,18 +178,20 @@ def save_song(song):
         raise InvalidSongDataException('the given song id (%s) doesn\'t match the given filename(%s)' % (song.id, song.filename))
       
       song.last_scanned = sql_song_data['last_scanned']
-      logger.debug('found update data for the song #%s (%s)' % (song.id, song.filename))
       
       if song.last_scanned >= song.file_last_modified:
         logger.info('skipping file "%s" (id %s) because it was last scanned at %s after the file was last modified at %s.' %
                     (song.filename, song.id, str(song.last_scanned), str(song.file_last_modified)))
+        cursor.execute('INSERT INTO song_deletion_whitelist (id) VALUES (%s)' % (int(song.id),))
         return
       
       update_song(song, cursor)
     else:
       logger.debug('got insert data from the file "%s".' % song.filename)
       insert_song(song, cursor)
-  
+
+    cursor.execute('INSERT INTO song_deletion_whitelist (id) VALUES (%s)' % (int(song.id), ))
+
     add_artist_joins(song, cursor)
     add_albums(song, cursor)
     add_genres(song, cursor)

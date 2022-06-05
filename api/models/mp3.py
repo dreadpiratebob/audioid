@@ -1,3 +1,5 @@
+import re
+
 from enum import Enum
 
 from exceptions import InvalidMP3DataException
@@ -31,14 +33,42 @@ def get_track(data):
   track = str(data[MP3Fields.TRACK.value])
   message = 'found the track data "%s"; ' % track
   
-  if '/' in track:
+  num_with_ttl = re.compile('^\\d+\\/\\d+$')
+  just_num = re.compile('^\\d+(\\.\\d+)?$')
+  if isinstance(num_with_ttl.search(track), re.Match):
     track = int(track[0:track.index('/')])
-  else:
+  elif isinstance(num_with_ttl.search(track), re.Match):
     track = int(track)
+  else:
+    track = None
   
   message += 'setting the track to %s.' % str(track)
   get_logger().debug(message)
   return track
+
+def get_year(data):
+  if MP3Fields.YEAR.value not in data:
+    return None
+  
+  raw_value = data[MP3Fields.YEAR.value]
+  
+  if raw_value is None or isinstance(raw_value, int):
+    return raw_value
+  
+  if not isinstance(raw_value, str):
+    get_logger().warn('found an invalid year "%s" of type %s; not saving it.' % (str(raw_value), str(type(raw_value))))
+    return None
+  
+  pattern = re.compile('^\\d+(\\.\\d+)?$')
+  if isinstance(pattern.search(raw_value), re.Match):
+    return int(raw_value)
+
+  pattern = re.compile('^\\d{4}\\-\\d{2}\\-\\d{2}$')
+  if isinstance(pattern.search(raw_value), re.Match):
+    return int(raw_value[0:4])
+  
+  get_logger().warn('found an unparsed date format: %s' % (raw_value, ))
+  return None
 
 class MP3:
   def __init__(self, data):
@@ -67,7 +97,7 @@ class MP3:
     self.album = get_field(MP3Fields.ALBUM.value, data, str)
     self.track = get_track(data)
     self.genre = get_field(MP3Fields.GENRE.value, data, str)
-    self.year = get_field(MP3Fields.YEAR.value, data, int)
+    self.year = get_year(data)
     self.comment = get_field(MP3Fields.COMMENT.value, data, str)
   
   def __str__(self):

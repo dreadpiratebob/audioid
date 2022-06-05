@@ -4,10 +4,16 @@ import subprocess
 from models.mp3 import MP3
 from models.mp3 import MP3Fields
 from util.file_operations import get_last_modified_timestamp
+from util.logger import get_logger
 
 def read_metadata(filename):
+  # ffmpeg -i filename -f ffmetadata outputfile
   outputfile = '%s metadata.txt' % filename
   subprocess.run(['ffmpeg', '-i', filename, '-f', 'ffmetadata', outputfile], capture_output=True)
+  
+  if not os.path.exists(outputfile):
+    get_logger().error('ffmpeg failed for "%s".' % (str(filename), ))
+    return None
   
   lines = []
   with open(outputfile) as f:

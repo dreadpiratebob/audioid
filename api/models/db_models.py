@@ -101,7 +101,7 @@ class Album:
     if not isinstance(name, str):
       raise InvalidAlbumDataException('an album name must be of type str. (found "%s" of type %s instead.)' % (str(name), str(type(name))))
     
-    if not isinstance(album_artist, Artist):
+    if album_artist is not None and not isinstance(album_artist, Artist):
       raise InvalidAlbumDataException('an album artist must be of type Artist. (found "%s" of type %s instead.)' % (str(album_artist), str(type(album_artist))))
     
     self.id = id
