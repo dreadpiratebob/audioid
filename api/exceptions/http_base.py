@@ -49,6 +49,10 @@ class MethodNotAllowedException(BaseHTTPException):
     
     super().__init__('the request method "%s" isn\'t allowed for the endpoint %s.' % (method, endpoint), 405)
 
+class NotImplementedException(BaseHTTPException):
+  def __init__(self, message):
+    super().__init__(message)
+
 
 class AmbiguousPathException(Exception):
   def __init__(self, paths):

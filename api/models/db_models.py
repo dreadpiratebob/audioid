@@ -14,7 +14,7 @@ class Catalog:
     if not isinstance(name, str):
       grievances.append('a name must be a str.')
     
-    if not isinstance(base_path, str):
+    if base_path is not None and not isinstance(base_path, str):
       grievances.append('a base path must be a str.')
     
     if len(grievances) > 0:

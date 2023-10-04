@@ -1,6 +1,7 @@
 from api.dao.mysql_utils import commit, get_cursor
+from api.exceptions.http_base import NotImplementedException
 from api.exceptions.song_data import InvalidSongDataException
-from api.models.db_models import Album, Artist, Song, SongAlbum, SongArtist, SongGenre
+from api.models.db_models import Catalog, Album, Artist, Song, SongAlbum, SongArtist, SongGenre
 from api.util.logger import get_logger
 
 def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
@@ -33,7 +34,7 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
   if id is None:
     message = 'filename "' + filename + '"'
   
-  raise ValueError('multiple songs were found with ' + message + '!')
+  raise ValueError('multiple songs were found with %s!' % message)
 
 def get_songs(song_name:str, song_year:int, catalog_id:int, artist_id:int, album_id:int, genre_id:int, include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
   return _get_songs(catalog_id, None, None, song_name, song_year, artist_id, album_id, genre_id, include_artists, include_albums, include_genres)
@@ -106,6 +107,8 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
     for i in range(row_count):
       row = cursor.fetchone()
       
+      catalog = Catalog(row['catalog_id'], row['catalog_name'], None)
+      song = Song(row['song_id'], row['song_name'], row['song_year'], row['song_duration'], None, None, catalog)
   
   return songs
 
@@ -182,10 +185,7 @@ def save_song(song):
   commit(admin)
   logger.info('done saving %s' % song.get_filename())
 
-
 invalid_album_id_error = 'an album id must be a nonnegative int.'
-
-
 def get_album_by_id(album_id: int, include_tracks: bool = False):
   if not isinstance(album_id, int):
     raise TypeError(invalid_album_id_error)
@@ -215,6 +215,4 @@ def get_album_by_id(album_id: int, include_tracks: bool = False):
   if not include_tracks:
     return album
   
-  query = 'SELECT s.id AS id, s.name AS name, s.year AS year, s.duration AS duration'
-  
-  song = Song(db_song['id'], db_song['name'], db_song['year'], db_song['duration'], None, None, catalog)
+  raise NotImplementedException('getting an album\'s tracks isn\'t done yet.')

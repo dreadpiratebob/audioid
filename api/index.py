@@ -127,9 +127,6 @@ def application(environment, start_response):
   output = bytes(response.serialize(), bytes_encoding)
   status = str(response.get_status_code())
   
-  # TODO delete this
-  output += b'\n'
-  
   headers = \
   [
     ('Content-Type', str(accept_mime_type)),
