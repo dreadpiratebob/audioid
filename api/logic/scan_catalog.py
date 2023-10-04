@@ -1,44 +1,61 @@
+from api.dao.catalog import get_catalog
+from api.dao.mysql_utils import get_cursor
+from api.dao.mp3 import read_metadata
+from api.dao.load_db_models import save_song
+from api.util.logger import get_logger
+from api.models.factories.song_factory import build_song_from_mp3
+
+from api.util.file_operations import get_last_modified_timestamp
+from api.util.functions import is_iterable
+
 import os
 import traceback
 
-import dao.catalog
-import dao.mp3
-
-from dao.mysql_utils import get_cursor
-from dao.song import save_song
-from util.logger import get_logger
-from models.factories.song_factory import build_song_from_mp3
-
-def scan_catalog(catalog_name, is_id = False, artist_splitters = [' featuring ', ' feat ', ' feat. ', ' ft ', ' ft. ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']):
-  catalog = None
-  if is_id:
-    catalog_name = int(catalog_name)
-    catalog = dao.catalog.get_catalog_by_id(catalog_name)
-  else:
-    catalog_name = str(catalog_name)
-    catalog = dao.catalog.get_catalog_by_name(catalog_name)
+def scan_catalog(catalog_identifier, artist_splitters = None):
+  if artist_splitters is None:
+    artist_splitters = [' featuring ', ' feat ', ' feat. ', ' ft ', ' ft. ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']
+  elif not is_iterable(artist_splitters):
+    raise TypeError('artist splitters must be an iterable collection.')
   
   logger = get_logger()
+  catalog = get_catalog(catalog_identifier)
   
-  if not os.path.isdir(catalog.base_path):
-    logger.error('the catalog\'s base path was "%s", which isn\'t a directory.' % catalog.base_path)
+  if not os.path.isdir(catalog.get_base_path()):
+    logger.error('the catalog\'s base path was "%s", which isn\'t a directory.' % catalog.get_base_path())
   
   logger.info('scanning %s...' % str(catalog))
-
-  with get_cursor(True) as cursor:
-    cursor.execute('DELETE FROM song_deletion_whitelist WHERE id IN (SELECT id FROM songs WHERE catalog_id = %s);' % (int(catalog.id), ))
-
-  for (dirname, dirnames, filenames) in os.walk(catalog.base_path):
+  
+  for (dirname, dirnames, filenames) in os.walk(catalog.get_base_path()):
     logger.info('scanning directory "%s"...' % dirname)
     
     for filename in filenames:
       full_name = '%s/%s' % (dirname, filename)
       if filename[len(filename) - 4 : len(filename)] != '.mp3':
+        logger.debug("")
         logger.info('the file "%s" isn\'t an mp3; skipping it.' % full_name)
         continue
       
+      logger.debug("")
       logger.info('scanning file "%s"...' % full_name)
-      mp3_data = dao.mp3.read_metadata(full_name)
+      with get_cursor(False) as cursor:
+        sql_fn = full_name[len(catalog.get_base_path()):]
+        query = 'SELECT last_scanned FROM songs WHERE filename = "%s"' % sql_fn
+        cursor.execute(query)
+        
+        result = cursor.fetchone()
+        if result is None:
+          logger.error('got none for %s' % filename)
+        else:
+          last_scanned  = result['last_scanned']
+          last_modified = get_last_modified_timestamp(full_name)
+          
+          logger.debug('last modified: %s' % last_modified)
+          logger.debug('last scanned:  %s' % last_scanned)
+          if last_scanned > last_modified:
+            logger.info('the file was scanned since its last modification; skipping it.')
+            continue
+      
+      mp3_data = read_metadata(full_name)
       if mp3_data is None:
         logger.warn('got no metadata for "%s"; skipping it.' % (full_name, ))
         continue
@@ -52,6 +69,3 @@ def scan_catalog(catalog_name, is_id = False, artist_splitters = [' featuring ',
         raise e
       except Exception as e:
         logger.error('caught an exception of type %s: %s' % (str(type(e)), traceback.format_exc()))
-
-  with get_cursor(True) as cursor:
-    cursor.execute('CALL delete_songs_with_preset_whitelist(%s)' % (int(catalog.id),))

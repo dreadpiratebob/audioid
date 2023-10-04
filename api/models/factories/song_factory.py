@@ -1,14 +1,18 @@
-from models.db_models import Album
-from models.db_models import Artist
-from models.db_models import ArtistJoin
-from models.db_models import Genre
-from models.db_models import Song
-from models.db_models import SongAlbum
-from models.db_models import SongGenre
+from api.models.db_models import \
+  Album, \
+  Artist, \
+  SongArtist, \
+  Catalog, \
+  Genre, \
+  Song, \
+  SongAlbum
 
-from util.logger import get_logger
+from api.util.logger import get_logger
 
-def build_song_from_mp3(mp3, catalog, artist_splitters = [' feat ', ' feat. ', ' featuring ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']):
+def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None):
+  if artist_splitters is None:
+    artist_splitters = [' feat ', ' feat. ', ' featuring ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']
+  
   song_name = mp3.title
   if song_name is None:
     song_name = mp3.filename
@@ -21,13 +25,15 @@ def build_song_from_mp3(mp3, catalog, artist_splitters = [' feat ', ' feat. ', '
   if song_year is not None:
     song_year = int(song_year)
   
-  song_fn = mp3.filename[len(catalog.base_path):]
+  song_fn = mp3.filename[len(catalog.get_base_path()):]
+  
+  song_duration = mp3.duration
   
   get_logger().debug('rel path: %s' % song_fn)
-  song = Song(None, song_name, song_year, song_fn, None, int(mp3.date_modified), catalog)
+  song = Song(None, song_name, song_year, song_duration, song_fn, int(mp3.date_modified), catalog, None, None, None, None, None)
   
   if mp3.artist is not None and mp3.artist != '':
-    song.artists = get_artist_joins(song, str(mp3.artist), artist_splitters)
+    song.set_songs_artists(get_artist_joins(song, str(mp3.artist), artist_splitters))
   
   if mp3.album is not None and mp3.album != '':
     album_artist = None
@@ -35,12 +41,11 @@ def build_song_from_mp3(mp3, catalog, artist_splitters = [' feat ', ' feat. ', '
       album_artist = Artist(None, mp3.album_artist)
     album = Album(None, mp3.album, album_artist)
     album_join = SongAlbum(song, album, None if mp3.track is None else int(mp3.track))
-    song.albums = [album_join]
+    song.set_songs_albums([album_join])
   
   if mp3.genre is not None and mp3.genre != '':
     genre = Genre(None, mp3.genre)
-    song_genre = SongGenre(song, genre)
-    song.genres = [song_genre]
+    song.set_genres({genre})
   
   return song
 
@@ -51,7 +56,7 @@ def get_artist_joins(song, artist_str, artist_splitters):
   result = []
   beginning = 0
   end = len(artist_str)
-
+  
   i = 0
   while i < end:
     for splitter in artist_splitters:
@@ -59,20 +64,22 @@ def get_artist_joins(song, artist_str, artist_splitters):
         continue
 
       chunk = artist_str[i:i + len(splitter)]
-      if chunk == splitter:
-        artist = Artist(None, artist_str[beginning:i])
-        artist_join = ArtistJoin(song, artist, len(result), splitter)
-        result.append(artist_join)
-        
-        i += len(splitter) - 1
-        beginning = i + 1
-        
-        break
+      if chunk != splitter:
+        continue
+      
+      artist = Artist(None, artist_str[beginning:i])
+      artist_join = SongArtist(song, artist, len(result), splitter)
+      result.append(artist_join)
+      
+      i += len(splitter) - 1
+      beginning = i + 1
+      
+      break
     
     i += 1
   
   artist = Artist(None, artist_str[beginning:])
-  artist_join = ArtistJoin(song, artist, len(result))
+  artist_join = SongArtist(song, artist, len(result))
   result.append(artist_join)
   
   return result

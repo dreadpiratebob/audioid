@@ -9,7 +9,9 @@ CREATE TABLE catalogs
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(64) not null COLLATE utf8mb4_bin,
-  base_path varchar(1024) COLLATE utf8mb4_bin
+  base_path varchar(1024) COLLATE utf8mb4_bin,
+  unique(name),
+  unique(base_path)
 );
 
 GRANT SELECT ON audioid.catalogs TO 'audioid_user'@'localhost';
@@ -23,9 +25,11 @@ CREATE TABLE songs
   id int(64) unsigned not null primary key auto_increment,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   year int(16) unsigned,
+  duration real(15, 10) unsigned,
   filename varchar(1024) not null COLLATE utf8mb4_bin,
   catalog_id int(64) unsigned not null,
   last_scanned int(64) unsigned not null default 0,
+  UNIQUE(id),
   FOREIGN KEY (catalog_id)
     REFERENCES catalogs(id)
     ON DELETE CASCADE
@@ -41,7 +45,14 @@ GRANT DELETE ON audioid.songs TO 'audioid_admin'@'localhost';
 CREATE TABLE artists
 (
   id int(64) unsigned not null primary key auto_increment,
-  name varchar(1024) not null default "" COLLATE utf8mb4_bin
+  catalog_id int(64) unsigned not null,
+  name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  UNIQUE(id),
+  UNIQUE(catalog_id, name),
+  FOREIGN KEY (catalog_id)
+    REFERENCES catalogs(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 );
 
 GRANT SELECT ON audioid.artists TO 'audioid_user'@'localhost';
@@ -57,6 +68,7 @@ CREATE TABLE songs_artists
   list_order int(4) unsigned not null,
   conjunction varchar(64) not null default ", " COLLATE utf8mb4_bin,
   CONSTRAINT s_ar_pkey PRIMARY KEY (song_id, artist_id),
+  UNIQUE(song_id, artist_id),
   FOREIGN KEY (song_id)
     REFERENCES songs(id)
     ON DELETE CASCADE
@@ -76,8 +88,15 @@ GRANT DELETE ON audioid.songs_artists TO 'audioid_admin'@'localhost';
 CREATE TABLE albums
 (
   id int(64) unsigned not null primary key auto_increment,
+  catalog_id int(64) unsigned not null,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   album_artist int(64) unsigned,
+  UNIQUE(id),
+  UNIQUE(catalog_id, name),
+  FOREIGN KEY (catalog_id)
+    REFERENCES catalogs(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
   FOREIGN KEY (album_artist)
     REFERENCES artists(id)
     ON DELETE SET NULL
@@ -96,6 +115,7 @@ CREATE TABLE songs_albums
   album_id int(64) unsigned not null,
   track_number int(64) unsigned default null,
   CONSTRAINT s_al_pkey PRIMARY KEY (song_id, album_id),
+  UNIQUE(song_id, album_id),
   FOREIGN KEY (song_id)
     REFERENCES songs(id)
     ON DELETE CASCADE
@@ -115,7 +135,14 @@ GRANT DELETE ON audioid.songs_albums TO 'audioid_admin'@'localhost';
 CREATE TABLE genres
 (
   id int(64) unsigned not null primary key auto_increment,
-  name varchar(1024) not null default "" COLLATE utf8mb4_bin
+  catalog_id int(64) unsigned not null,
+  name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  UNIQUE(id),
+  UNIQUE(catalog_id, name),
+  FOREIGN KEY (catalog_id)
+    REFERENCES catalogs(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 );
 
 GRANT SELECT ON audioid.genres TO 'audioid_user'@'localhost';
@@ -129,6 +156,7 @@ CREATE TABLE songs_genres
   song_id int(64) unsigned not null,
   genre_id int(64) unsigned not null,
   CONSTRAINT s_g_pkey PRIMARY KEY (song_id, genre_id),
+  UNIQUE (song_id, genre_id),
   FOREIGN KEY (song_id)
     REFERENCES songs(id)
     ON DELETE CASCADE
@@ -150,6 +178,8 @@ CREATE TABLE song_deletion_whitelist (id int(64) unsigned not null);
 GRANT INSERT ON audioid.song_deletion_whitelist TO 'audioid_admin'@'localhost';
 GRANT SELECT ON audioid.song_deletion_whitelist TO 'audioid_admin'@'localhost';
 GRANT DELETE ON audioid.song_deletion_whitelist TO 'audioid_admin'@'localhost';
+
+
 
 DELIMITER //
 

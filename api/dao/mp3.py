@@ -1,10 +1,11 @@
+from api.models.mp3 import MP3
+from api.models.mp3 import MP3Fields
+from api.util.file_operations import get_last_modified_timestamp
+from api.util.logger import get_logger
+
 import os
 import subprocess
-
-from models.mp3 import MP3
-from models.mp3 import MP3Fields
-from util.file_operations import get_last_modified_timestamp
-from util.logger import get_logger
+import mutagen.mp3
 
 def read_metadata(filename):
   # ffmpeg -i filename -f ffmetadata outputfile
@@ -21,10 +22,12 @@ def read_metadata(filename):
   
   os.remove(outputfile)
   
+  audio = mutagen.mp3.MP3(filename)
   data = \
   {
     MP3Fields.DATE_MODIFIED.value: get_last_modified_timestamp(filename),
-    MP3Fields.FILENAME.value: filename
+    MP3Fields.FILENAME.value: filename,
+    MP3Fields.DURATION.value: audio.info.length
   }
   
   for line in lines:

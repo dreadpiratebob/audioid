@@ -1,21 +1,18 @@
-import sys
-sys.path.insert(1, '../')
+from api.exceptions.song_data import CatalogNotFoundException
+from api.models.db_models import Catalog
+from api.dao.mysql_utils import get_cursor
 
-from exceptions import CatalogNotFoundException
-from models.catalog import Catalog
-from dao.mysql_utils import get_cursor
-
-def get_catalog_by_id(id):
-  return get_catalog('id', id)
-
-def get_catalog_by_name(name):
-  return get_catalog('name', name)
-
-def get_catalog(field, identifier):
+def get_catalog(identifier):
+  field = 'id'
+  if isinstance(identifier, str):
+    field = 'name'
+  elif not isinstance(identifier, int):
+    raise TypeError('a catalog identifier must be either an id (an int) or a name (a str).  (found "' + str(identifier) + '", a ' + str(type(identifier))[8:-2] + ' instead.)')
+  
   sql_catalog = {'id': None, 'name': None, 'base_path': None}
   
   with get_cursor() as cur:
-    query = 'SELECT id, name, base_path FROM catalogs WHERE ' + str(field) + ' = %s;'
+    query = 'SELECT id, name, base_path FROM catalogs WHERE ' + field + ' = %s;'
     result = cur.execute(query, (identifier, ))
     if cur.rowcount == 0:
       raise CatalogNotFoundException('no catalog with id %s was found.' % id)
