@@ -1,3 +1,7 @@
+DROP DATABASE audioid;
+DROP USER 'audioid_user'@'localhost';
+DROP USER 'audioid_admin'@'localhost';
+
 CREATE DATABASE audioid CHARACTER SET UTF8mb4 COLLATE utf8mb4_bin;
 USE audioid;
 
@@ -45,14 +49,8 @@ GRANT DELETE ON audioid.songs TO 'audioid_admin'@'localhost';
 CREATE TABLE artists
 (
   id int(64) unsigned not null primary key auto_increment,
-  catalog_id int(64) unsigned not null,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
-  UNIQUE(id),
-  UNIQUE(catalog_id, name),
-  FOREIGN KEY (catalog_id)
-    REFERENCES catalogs(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
+  UNIQUE(id)
 );
 
 GRANT SELECT ON audioid.artists TO 'audioid_user'@'localhost';
@@ -66,7 +64,7 @@ CREATE TABLE songs_artists
   song_id int(64) unsigned not null,
   artist_id int(64) unsigned not null,
   list_order int(4) unsigned not null,
-  conjunction varchar(64) not null default ", " COLLATE utf8mb4_bin,
+  conjunction varchar(64) not null default "" COLLATE utf8mb4_bin,
   CONSTRAINT s_ar_pkey PRIMARY KEY (song_id, artist_id),
   UNIQUE(song_id, artist_id),
   FOREIGN KEY (song_id)
@@ -88,15 +86,9 @@ GRANT DELETE ON audioid.songs_artists TO 'audioid_admin'@'localhost';
 CREATE TABLE albums
 (
   id int(64) unsigned not null primary key auto_increment,
-  catalog_id int(64) unsigned not null,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   album_artist int(64) unsigned,
   UNIQUE(id),
-  UNIQUE(catalog_id, name),
-  FOREIGN KEY (catalog_id)
-    REFERENCES catalogs(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
   FOREIGN KEY (album_artist)
     REFERENCES artists(id)
     ON DELETE SET NULL
@@ -135,14 +127,8 @@ GRANT DELETE ON audioid.songs_albums TO 'audioid_admin'@'localhost';
 CREATE TABLE genres
 (
   id int(64) unsigned not null primary key auto_increment,
-  catalog_id int(64) unsigned not null,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
-  UNIQUE(id),
-  UNIQUE(catalog_id, name),
-  FOREIGN KEY (catalog_id)
-    REFERENCES catalogs(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
+  UNIQUE(id)
 );
 
 GRANT SELECT ON audioid.genres TO 'audioid_user'@'localhost';
@@ -173,13 +159,323 @@ GRANT SELECT ON audioid.songs_genres TO 'audioid_admin'@'localhost';
 GRANT UPDATE ON audioid.songs_genres TO 'audioid_admin'@'localhost';
 GRANT DELETE ON audioid.songs_genres TO 'audioid_admin'@'localhost';
 
-CREATE TABLE song_deletion_whitelist (id int(64) unsigned not null);
+CREATE TABLE log_levels
+(
+  id INT(2) unsigned not null primary key,
+  log_level VARCHAR(7) not null
+);
 
-GRANT INSERT ON audioid.song_deletion_whitelist TO 'audioid_admin'@'localhost';
-GRANT SELECT ON audioid.song_deletion_whitelist TO 'audioid_admin'@'localhost';
-GRANT DELETE ON audioid.song_deletion_whitelist TO 'audioid_admin'@'localhost';
+INSERT INTO log_levels
+      (id, log_level)
+VALUES (0, "debug"),
+       (1, "info"),
+       (2, "warning"),
+       (3, "error");
 
+GRANT SELECT ON audioid.log_levels TO 'audioid_admin'@'localhost';
 
+CREATE TABLE logging
+(
+  message TEXT not null,
+  log_level INT(2) unsigned not null,
+  log_time INT(64) unsigned not null,
+  FOREIGN KEY (log_level)
+    REFERENCES log_levels(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
+
+GRANT SELECT ON audioid.logging TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE log_message(IN in_message TEXT, IN in_log_level INT(2) unsigned)
+log_message:BEGIN
+  INSERT INTO logging (message, log_level, log_time) VALUES(in_message, in_log_level, unix_timestamp());
+END//
+
+CREATE PROCEDURE log_debug(IN in_message TEXT)
+log_debug:BEGIN
+  CALL log_message(in_message, 0);
+END//
+GRANT EXECUTE ON PROCEDURE audioid.log_debug TO 'audioid_user'@'localhost'//
+GRANT EXECUTE ON PROCEDURE audioid.log_debug TO 'audioid_admin'@'localhost'//
+
+CREATE PROCEDURE log_info(IN in_message TEXT)
+log_info:BEGIN
+  CALL log_message(in_message, 1);
+END//
+GRANT EXECUTE ON PROCEDURE audioid.log_info TO 'audioid_user'@'localhost'//
+GRANT EXECUTE ON PROCEDURE audioid.log_info TO 'audioid_admin'@'localhost'//
+
+CREATE PROCEDURE log_warning(IN in_message TEXT)
+log_warning:BEGIN
+  CALL log_message(in_message, 2);
+END//
+GRANT EXECUTE ON PROCEDURE audioid.log_warning TO 'audioid_user'@'localhost'//
+GRANT EXECUTE ON PROCEDURE audioid.log_warning TO 'audioid_admin'@'localhost'//
+
+CREATE PROCEDURE log_error(IN in_message TEXT)
+log_error:BEGIN
+  CALL log_message(in_message, 3);
+END//
+GRANT EXECUTE ON PROCEDURE audioid.log_error TO 'audioid_user'@'localhost'//
+GRANT EXECUTE ON PROCEDURE audioid.log_error TO 'audioid_admin'@'localhost'//
+
+DELIMITER ;
+
+CREATE TABLE song_similarity
+(
+  song1 int(64) unsigned not null,
+  song2 int(64) unsigned not null,
+  similarity int(8) unsigned not null,
+  FOREIGN KEY (song1)
+    REFERENCES songs(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  FOREIGN KEY (song2)
+    REFERENCES songs(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
+
+DELIMITER //
+
+CREATE PROCEDURE upsert_song(IN in_song_name VARCHAR(128), IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
+                             IN in_catalog_id INT(64) unsigned, IN in_genre_name VARCHAR(64), IN in_album_name VARCHAR(128),
+                             IN in_album_artist_name VARCHAR(128), IN in_track_number INT(64) unsigned, in_last_modified INT(64) unsigned)
+upsert_song:BEGIN
+  DECLARE var_song_id      INT(64) unsigned DEFAULT NULL;
+  DECLARE var_genre_id     INT(64) unsigned DEFAULT NULL;
+  DECLARE var_album_id     INT(64) unsigned DEFAULT NULL;
+  DECLARE var_last_scanned INT(64) unsigned default NULL;
+  DECLARE var_rollback     BOOL DEFAULT 0;
+  -- DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
+  
+  -- START TRANSACTION;
+  
+  SELECT id, last_scanned INTO var_song_id, var_last_scanned FROM songs WHERE filename = in_filename AND catalog_id = in_catalog_id;
+  
+  -- CALL log_debug("existing id:");
+  -- CALL log_debug(var_song_id);
+  
+  IF var_song_id IS NULL THEN
+    -- CALL log_debug(CONCAT("inserting ", in_song_name, "..."));
+    INSERT INTO songs (name, filename, `year`, duration, catalog_id, last_scanned)
+      VALUES(in_song_name, in_filename, in_year, in_duration, in_catalog_id, unix_timestamp());
+    SELECT LAST_INSERT_ID() INTO var_song_id;
+  ELSE
+    IF var_last_scanned > in_last_modified THEN
+      -- CALL log_debug(CONCAT("song id ", var_song_id, " was last scanned after it was last modified.",
+      --  " (last_scanned=", var_last_scanned, "; last_modified=", in_last_modified, ")"));
+      LEAVE upsert_song;
+    END IF;
+    
+    -- CALL log_debug(CONCAT("updating ", in_song_name, "..."));
+    UPDATE songs SET name=in_song_name, year=in_year, duration=in_duration, last_scanned=unix_timestamp() WHERE id=var_song_id;
+  END IF;
+  
+  -- CALL log_debug(CONCAT("this song's new id is ", var_song_id));
+  
+  DELETE FROM songs_genres WHERE song_id = var_song_id;
+  IF in_genre_name IS NOT NULL THEN
+    SELECT get_genre_id(in_genre_name) INTO var_genre_id;
+    INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
+  END IF;
+  
+  DELETE FROM songs_albums WHERE song_id = var_song_id;
+  IF in_album_name IS NOT NULL THEN
+    SELECT get_album_id(in_album_name, in_album_artist_name) INTO var_album_id;
+    INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
+  END IF;
+  
+  DELETE FROM songs_artists WHERE song_id = var_song_id;
+  
+  INSERT INTO song_similarity (song1, song2, similarity) VALUES(var_song_id, var_song_id, 255);
+  
+  -- IF var_rollback = 1 THEN
+  --   ROLLBACK;
+  -- ELSE
+  --   COMMIT;
+  -- END IF;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.upsert_song TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE FUNCTION get_genre_id(in_genre_name VARCHAR(64))
+RETURNS INT(64) unsigned
+BEGIN
+  DECLARE var_gernre_id INT(64) unsigned DEFAULT NULL;
+  
+  SELECT id INTO var_gernre_id FROM genres WHERE name = in_genre_name;
+  
+  IF var_gernre_id IS NOT NULL THEN
+    RETURN var_gernre_id;
+  END IF;
+  
+  INSERT INTO genres (name) VALUES(in_genre_name);
+  
+  SELECT LAST_INSERT_ID() INTO var_gernre_id;
+  
+  RETURN var_gernre_id;
+END//
+
+CREATE FUNCTION get_album_id(in_album_name VARCHAR(128), in_album_artist_name VARCHAR(128))
+RETURNS INT(64) unsigned
+BEGIN
+  DECLARE var_album_id  INT(64) unsigned DEFAULT NULL;
+  DECLARE var_artist_id INT(64) unsigned DEFAULT NULL;
+  
+  IF in_album_artist_name IS NULL THEN
+    SELECT id INTO var_album_id FROM albums WHERE name = in_album_name AND album_artist IS NULL;
+  ELSE
+    SELECT id INTO var_artist_id FROM artists WHERE name = in_album_artist_name;
+    IF var_artist_id IS NOT NULL THEN
+      SELECT id INTO var_album_id FROM albums WHERE name = in_album_name AND album_artist = var_artist_id;
+    END IF;
+  END IF;
+  
+  IF var_album_id IS NOT NULL THEN
+    RETURN var_album_id;
+  END IF;
+  
+  IF in_album_artist_name IS NOT NULL AND var_artist_id IS NULL THEN
+    INSERT INTO artists (name) VALUES(in_album_artist_name);
+    SELECT LAST_INSERT_ID() INTO var_artist_id;
+  END IF;
+  
+  INSERT INTO albums (name, album_artist) VALUES(in_album_name, var_artist_id);
+  SELECT LAST_INSERT_ID() INTO var_album_id;
+  
+  RETURN var_album_id;
+END//
+
+CREATE PROCEDURE link_song_to_artist(in_artist_name VARCHAR(128), in_song_id INT(64) unsigned, in_list_order INT(4) unsigned, in_conjunction VARCHAR(24), OUT out_success BOOL)
+link_song_to_artist:BEGIN
+  DECLARE var_artist_id     INT(64) unsigned DEFAULT NULL;
+  DECLARE var_error_message VARCHAR(64) DEFAULT NULL;
+  DECLARE var_rollback      BOOL DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
+  
+  IF in_song_id IS NULL OR in_list_order IS NULL OR in_conjunction IS NULL THEN
+    SET out_success = 0;
+    LEAVE link_song_to_artist;
+  END IF;
+  
+  START TRANSACTION;
+  
+  SELECT id INTO var_artist_id FROM artists WHERE name = in_artist_name;
+  
+  IF var_artist_id IS NULL THEN
+    INSERT INTO artists (name) VALUES(in_artist_name);
+    SELECT LAST_INSERT_ID() INTO var_artist_id;
+  END IF;
+  
+  IF var_artist_id IS NULL THEN
+    SET var_error_message = CONCATENATE("artist insertion failed for name ", in_artist_name, ".");
+    SIGNAL SQLSTATE '45001' SET MESSAGE_TEXT = var_error_message;
+  END IF;
+  
+  INSERT INTO songs_artists (song_id, artist_id, list_order, conjunction) VALUES(in_song_id, var_artist_id, in_list_order, in_conjunction);
+  
+  IF var_rollback THEN
+    ROLLBACK;
+    SET out_success = 0;
+  ELSE
+    COMMIT;
+    SET out_success = 1;
+  END IF;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.link_song_to_artist TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE delete_catalog(IN in_catalog_id INT(64) UNSIGNED)
+BEGIN
+  DECLARE var_rollback BOOL DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
+  
+  START TRANSACTION;
+  
+  DELETE FROM songs_artists
+  WHERE song_id IN
+  (
+    SELECT id
+    FROM songs
+    WHERE songs.catalog_id = in_catalog_id
+  );
+  
+  DELETE FROM artists WHERE id NOT IN
+  (
+    SELECT DISTINCT artist_id
+    FROM songs_artists
+  );
+  
+  DELETE FROM songs_albums
+  WHERE song_id IN
+  (
+    SELECT id
+    FROM songs
+    WHERE songs.catalog_id = in_catalog_id
+  );
+  
+  DELETE FROM albums WHERE id NOT IN
+  (
+    SELECT DISTINCT album_id
+    FROM songs_albums
+  );
+  
+  DELETE FROM songs_genres
+  WHERE song_id IN
+  (
+    SELECT id
+    FROM songs
+    WHERE songs.catalog_id = in_catalog_id
+  );
+  
+  DELETE FROM genres
+  WHERE id NOT IN
+  (
+    SELECT DISTINCT genre_id
+    FROM songs_genres
+  );
+  
+  DELETE FROM song_similarity
+  WHERE song1 IN
+  (
+    SELECT id
+    FROM songs
+    WHERE catalog_id = in_catalog_id
+  )
+  OR
+  song2 IN
+  (
+    SELECT id
+    FROM songs
+    WHERE catalog_id = in_catalog_id
+  );
+  
+  DELETE FROM songs WHERE catalog_id = in_catalog_id;
+  
+  DELETE FROM catalogs WHERE id = in_catalog_id;
+  
+  IF var_rollback THEN
+    ROLLBACK;
+  ELSE
+    COMMIT;
+  END IF;
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.delete_catalog TO 'audioid_admin'@'localhost';
 
 DELIMITER //
 
@@ -193,7 +489,7 @@ delete_song:BEGIN
   DELETE FROM songs_albums    WHERE song_id = in_song_id;
   DELETE FROM songs_artists   WHERE song_id = in_song_id;
   DELETE FROM songs_genres    WHERE song_id = in_song_id;
-  DELETE FROM song_similarity WHERE song_id = song1 OR song_id = song2;
+  DELETE FROM song_similarity WHERE song1 = in_song_id OR song2 = in_song_id;
   DELETE FROM songs           WHERE id      = in_song_id;
   
   IF var_rollback THEN
@@ -206,80 +502,6 @@ END//
 DELIMITER ;
 
 GRANT EXECUTE ON PROCEDURE audioid.delete_song TO 'audioid_admin'@'localhost';
-
-DELIMITER //
-
-CREATE PROCEDURE delete_songs_with_filename_whitelist(IN in_catalog_id INT(64) unsigned, IN in_filenames text COLLATE utf8mb4_bin)
-delete_song:BEGIN
-  DECLARE var_rollback BOOL DEFAULT 0;
-  DECLARE delimiter VARCHAR(3) DEFAULT ',';
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
-  
-  START TRANSACTION;
-  
-  DROP TEMPORARY TABLE IF EXISTS song_deletion_filename_whitelist;
-  CREATE TEMPORARY TABLE song_deletion_filename_whitelist(id INT(64) unsigned);
-  WHILE LOCATE(delimiter, in_filenames) > 1 DO
-    INSERT INTO song_deletion_filename_whitelist SELECT id FROM songs WHERE filename=SUBSTRING_INDEX(in_filenames, delimiter, 1);
-    SET in_filenames = REPLACE(in_filenames, (SELECT LEFT(in_filenames, LOCATE(delimiter, in_filenames))), '');
-  END WHILE;
-  INSERT INTO song_deletion_filename_whitelist SELECT id FROM songs WHERE filename=SUBSTRING_INDEX(in_filenames, delimiter, 1);
-  
-  DELETE FROM songs_albums  WHERE song_id NOT IN (SELECT id FROM song_deletion_filename_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  DELETE FROM songs_artists WHERE song_id NOT IN (SELECT id FROM song_deletion_filename_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  DELETE FROM songs_genres  WHERE song_id NOT IN (SELECT id FROM song_deletion_filename_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  DELETE FROM songs         WHERE id      NOT IN (SELECT id FROM song_deletion_filename_whitelist) AND catalog_id = in_catalog_id;
-  
-#  DELETE FROM song_similarity
-#  WHERE song1 NOT IN (SELECT fd.id FROM song_deletion_filename_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id)
-#     OR song2 NOT IN (SELECT fd.id FROM song_deletion_filename_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  
-  IF var_rollback THEN
-    ROLLBACK;
-  ELSE
-    COMMIT;
-  END IF;
-END//
-
-DELIMITER ;
-
-GRANT EXECUTE ON PROCEDURE audioid.delete_songs_with_filename_whitelist TO 'audioid_admin'@'localhost';
-
-DELIMITER //
-
-CREATE PROCEDURE delete_songs_with_preset_whitelist(IN in_catalog_id INT(64) unsigned)
-delete_song:BEGIN
-  DECLARE var_rollback BOOL DEFAULT 0;
-  DECLARE delimiter VARCHAR(3) DEFAULT ',';
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
-  
-  START TRANSACTION;
-  
-  DELETE FROM songs_albums  WHERE song_id NOT IN (SELECT id FROM song_deletion_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  DELETE FROM songs_artists WHERE song_id NOT IN (SELECT id FROM song_deletion_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  DELETE FROM songs_genres  WHERE song_id NOT IN (SELECT id FROM song_deletion_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  DELETE FROM songs         WHERE id      NOT IN (SELECT id FROM song_deletion_whitelist) AND catalog_id = in_catalog_id;
-  
-#  DELETE FROM song_similarity
-#  WHERE song1 NOT IN (SELECT fd.id FROM song_deletion_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id)
-#     OR song2 NOT IN (SELECT fd.id FROM song_deletion_whitelist UNION SELECT id FROM songs WHERE catalog_id != in_catalog_id);
-  
-  IF var_rollback THEN
-    ROLLBACK;
-  ELSE
-    COMMIT;
-  END IF;
-END//
-
-DELIMITER ;
-
-GRANT EXECUTE ON PROCEDURE audioid.delete_songs_with_preset_whitelist TO 'audioid_admin'@'localhost';
-
-
-CREATE FULLTEXT INDEX song_titles ON songs (name);
-CREATE FULLTEXT INDEX artist_names ON artists (name);
-CREATE FULLTEXT INDEX album_names ON albums (name);
-CREATE FULLTEXT INDEX genre_names ON genres (name);
 
 DELIMITER //
 
@@ -321,3 +543,42 @@ END//
 DELIMITER ;
 
 GRANT EXECUTE ON PROCEDURE audioid.clean_unused_data TO 'audioid_admin'@'localhost';
+
+DELIMITER //
+
+CREATE PROCEDURE upsert_song_similarity(IN in_song1 INT(64) UNSIGNED, IN in_song2 INT(64) UNSIGNED, IN in_similarity INT(8) UNSIGNED)
+upsert_song_similarity:BEGIN
+  DECLARE var_id INT(64) UNSIGNED;
+  
+  SELECT id INTO var_id FROM songs WHERE id = in_song1;
+  
+  IF var_id IS NULL THEN
+    LEAVE upsert_song_similarity;
+  END IF;
+  
+  SELECT id INTO var_id FROM songs WHERE id = in_song2;
+  
+  IF var_id IS NULL THEN
+    LEAVE upsert_song_similarity;
+  END IF;
+  
+  SELECT song1 INTO var_id FROM song_similarity WHERE song1 = in_song1 AND song2 = in_song2;
+  
+  IF var_id IS NOT NULL THEN
+    UPDATE song_similarity SET similarity = in_similarity WHERE (song1 = in_song1 AND song2 = in_song2) OR (song1 = in_song2 AND song2 = in_song1);
+    LEAVE upsert_song_similarity;
+  END IF;
+  
+  INSERT INTO song_similarity
+  (song1,    song2,    similarity)
+  VALUES (in_song1, in_song2, in_similarity);
+  
+  INSERT INTO song_similarity
+  (song1,    song2,    similarity)
+  VALUES (in_song2, in_song1, in_similarity);
+  
+END//
+
+DELIMITER ;
+
+GRANT EXECUTE ON PROCEDURE audioid.upsert_song_similarity TO 'audioid_user'@'localhost';
