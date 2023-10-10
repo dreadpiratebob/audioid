@@ -281,7 +281,6 @@ upsert_song:BEGIN
   DECLARE var_list_order   INT(4) unsigned;
   DECLARE var_conjunction  VARCHAR(64) DEFAULT "";
   DECLARE cursor_done      INT(1) DEFAULT 0;
-  DECLARE i                INT(64) unsigned DEFAULT 1;
   DECLARE artist_join_cursor CURSOR FOR SELECT artist_name, conjunction, list_order FROM upsert_song_artist_info ORDER BY list_order;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET cursor_done = 1;
 
@@ -318,7 +317,6 @@ upsert_song:BEGIN
     INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
   END IF;
 
-  INSERT INTO logging (message, log_level, log_time) VALUES (CONCAT("0. starting artists for ", COALESCE(in_song_name, "NULL"), " with cursor_done=", cursor_done), 0, unix_timestamp());
   DELETE FROM songs_artists WHERE song_id = var_song_id;
   SET cursor_done = 0;
   OPEN artist_join_cursor;
@@ -328,9 +326,6 @@ upsert_song:BEGIN
       LEAVE artist_join_loop;
     END IF;
 
-    INSERT INTO logging (message, log_level, log_time) VALUES (CONCAT("0.", i, ". artist name: ", COALESCE(var_artist_name, "NULL"), " / conjunction: ", COALESCE(var_conjunction, "NULL"), " / list order: ", COALESCE(var_list_order, "NULL")), 0, unix_timestamp());
-    SET i = i + 1;
-
     SELECT get_artist_id(in_catalog_id, var_artist_name) INTO var_artist_id;
     -- not sure if it's faster to do this or set the artist_id in upsert_song_artist_info and do a bulk update.
     INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order)
@@ -338,15 +333,12 @@ upsert_song:BEGIN
   END LOOP artist_join_loop;
   CLOSE artist_join_cursor;
   DELETE FROM upsert_song_artist_info WHERE artist_name IS NULL OR artist_name IS NOT NULL;
-  SELECT COUNT(*) INTO i FROM upsert_song_artist_info;
   
-  INSERT INTO logging (message, log_level, log_time) VALUES (CONCAT("1. starting albums for ", COALESCE(in_song_name, "NULL"), "; ", i, " artist info rows are left."), 0, unix_timestamp());
   DELETE FROM songs_albums WHERE song_id = var_song_id;
   IF in_album_name IS NOT NULL THEN
     SELECT get_album_id(in_catalog_id, in_album_name, in_album_artist_name) INTO var_album_id;
     INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
   END IF;
-  INSERT INTO logging (message, log_level, log_time) VALUES (CONCAT("2. done with albums for ", COALESCE(in_song_name, "NULL")), 0, unix_timestamp());
   INSERT INTO song_similarity (song1, song2, similarity) VALUES(var_song_id, var_song_id, 255);
 
   -- IF var_rollback = 1 THEN
@@ -435,8 +427,6 @@ BEGIN
         AND s.catalog_id = in_catalog_id
   WHERE a.name = in_artist_name
   GROUP BY a.id;
-
-  INSERT INTO logging (message, log_level, log_time) VALUES (CONCAT("new artist id: ", COALESCE(var_artist_id, "NULL"), " / new artist name: ", COALESCE(in_artist_name, "NULL")), 0, unix_timestamp());
 
   IF var_artist_id IS NULL THEN
     INSERT INTO artists (name) VALUES(in_artist_name);

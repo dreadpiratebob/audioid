@@ -196,18 +196,11 @@ def save_song(song):
   admin = True
   with get_cursor(admin) as cursor:
     artist_joins = ',\n    '.join({str((s_a.get_artist().get_name(), s_a.get_conjunction(), s_a.get_list_order())) for s_a in song.get_songs_artists()})
-    query = 'INSERT INTO upsert_song_artist_info (artist_name, conjunction, list_order)\nVALUES\n    %s;' % artist_joins
-    logger.debug('running query:\n%s' % (query, ))
-    result = cursor.execute(query)
-    logger.debug('got result "%s"' % (result, ))
-    
-    query = 'SELECT COUNT(*) AS ct FROM upsert_song_artist_info;'
+    # for safety
+    query = 'DELETE FROM upsert_song_artist_info WHERE 1=1;\n'
     cursor.execute(query)
-    result = cursor.fetchone()
-    if result is None:
-      logger.debug('got None for a count.')
-    else:
-      logger.debug('inserted %s rows.' % (result['ct']))
+    query = 'INSERT INTO upsert_song_artist_info (artist_name, conjunction, list_order)\nVALUES\n    %s;' % artist_joins
+    cursor.execute(query)
     
     in_genre_name = None
     in_album_name = None
