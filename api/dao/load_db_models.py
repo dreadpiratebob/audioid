@@ -4,6 +4,11 @@ from api.exceptions.song_data import InvalidCountException, InvalidSongDataExcep
 from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
 from api.util.logger import get_logger
 
+invalid_catalog_id_error = 'a catalog id must be a nonnegative int.'
+invalid_artist_id_error = 'an artist id must be a nonnegative int.'
+invalid_album_id_error = 'an album id must be a nonnegative int.'
+invalid_album_artist_id_error = 'an album artist id must be a nonnegative int.'
+
 genres = dict()
 
 def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
@@ -250,7 +255,6 @@ def save_song(song):
   commit(admin)
   logger.info('done saving %s' % song.get_filename())
 
-invalid_album_id_error = 'an album id must be a nonnegative int.'
 def get_album_by_id(album_id:int, include_tracks:bool = False):
   result = _get_albums(None, album_id, None, include_tracks)
   
@@ -265,18 +269,44 @@ def get_album_by_id(album_id:int, include_tracks:bool = False):
 def get_album_by_name(album_name:str, include_tracks:bool = False):
   raise NotImplementedException('')
 
-def _get_albums(catalog_id:int, album_id:int, album_name:str, song_id:int, include_tracks:bool = True):
-  if not isinstance(album_id, int):
-    raise TypeError(invalid_album_id_error)
+def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:int, album_artist_name:str, include_tracks:bool = True):
+  grievances = []
+  
+  if catalog_id is not None and not isinstance(catalog_id, int):
+    grievances.append(invalid_catalog_id_error)
+  
+  if album_id is not None and not isinstance(album_id, int):
+    grievances.append(invalid_album_id_error)
+  
+  if album_name is not None and not isinstance(album_name, str):
+    grievances.append('an album name must be a string.')
+  
+  if album_artist_id is not None and not isinstance(album_artist_id, int):
+    grievances.append(invalid_album_artist_id_error)
+  
+  if album_artist_name is not None and not isinstance(album_artist_name, str):
+    grievances.append('an album artist name must be a string.')
+  
+  if len(grievances) > 0:
+    raise TypeError('\n'.join(grievances))
+  
+  if catalog_id < 0:
+    grievances.append(invalid_catalog_id_error)
   
   if album_id < 0:
-    raise ValueError(invalid_album_id_error)
+    grievances.append(invalid_album_id_error)
   
-  query = 'SELECT al.id AS id, al.name AS name,\n' \
+  if album_artist_id < 0:
+    grievances.append(invalid_album_artist_id_error)
+  
+  if len(grievances) > 0:
+    raise ValueError('\n'.join(grievances))
+  
+  query = 'SELECT al.id AS album_id, al.name AS album_name,\n' \
           '  ar.id AS album_artist_id, ar.name AS album_artist_name\n' \
           'FROM albums AS al\n' \
           '  LEFT JOIN artists AS ar ON ar.id = al.artist_id\n' \
-          'WHERE id = %s' % (str(album_id),)
+          'WHERE id = %s' % (str(album_id), )
   
   albums = []
   with get_cursor(False) as cursor:
@@ -290,12 +320,20 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, song_id:int, inclu
       album = Album(db_album['id'], db_album['name'], album_artist)
       albums.append(album)
   
-  if not include_tracks:
-    return albums
+      if not include_tracks:
+        continue
+      
+      album.set_songs_albums([])
+      songs = _get_songs(catalog_id, None, None, None, None, None, album.get_id(), None, include_albums=False)
+      for song in songs:
+        sa_query = 'SELECT track_number FROM songs_albums WHERE song_id=%s AND album_id=%s;' % (song.get_id(), album.get_id())
+        cursor.execute(sa_query)
+        song_album = SongAlbum(song, album, cursor.fetchone()['track_number'])
+        album.get_songs_albums().append(song_album)
+      
+      album.get_songs_albums().sort(key=lambda s_a: s_a.get_track_number())
   
-  songs = _get_songs()
-  
-  raise NotImplementedException('getting an album\'s tracks isn\'t done yet.')
+  return albums
 
 def get_artist_by_id(artist_id:str, include_songs:bool = False, include_albums:bool = False):
   raise NotImplementedException('')

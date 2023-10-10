@@ -333,7 +333,7 @@ upsert_song:BEGIN
   END LOOP artist_join_loop;
   CLOSE artist_join_cursor;
   DELETE FROM upsert_song_artist_info WHERE artist_name IS NULL OR artist_name IS NOT NULL;
-  
+
   DELETE FROM songs_albums WHERE song_id = var_song_id;
   IF in_album_name IS NOT NULL THEN
     SELECT get_album_id(in_catalog_id, in_album_name, in_album_artist_name) INTO var_album_id;
