@@ -1,8 +1,10 @@
 from api.dao.mysql_utils import commit, get_cursor
 from api.exceptions.http_base import NotImplementedException
-from api.exceptions.song_data import InvalidSongDataException
-from api.models.db_models import Catalog, Album, Artist, Song, SongAlbum, SongArtist, SongGenre
+from api.exceptions.song_data import InvalidCountException, InvalidSongDataException
+from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
 from api.util.logger import get_logger
+
+genres = dict()
 
 def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
   grievances = []
@@ -34,25 +36,21 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
   if id is None:
     message = 'filename "' + filename + '"'
   
-  raise ValueError('multiple songs were found with %s!' % message)
+  raise InvalidCountException('found %s songs were found with %s.' % (str(len(result)), message))
 
 def get_songs(song_name:str, song_year:int, catalog_id:int, artist_id:int, album_id:int, genre_id:int, include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
   return _get_songs(catalog_id, None, None, song_name, song_year, artist_id, album_id, genre_id, include_artists, include_albums, include_genres)
 
 def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, song_year:int, artist_id:int, album_id:int, genre_id:int, include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
-  songs_select = 'SELECT s.id, s.name, s.year, s.duration, s.filename, s.last_scanned, c.id as catalog_id, c.name as catalog_name,\n' + \
-                 '  GROUP_CONCAT(DISTINCT CONCAT("-\\n  id: ", ar.id, "\n  name: \\"", ar.name, "\\"\\n  list_order: ", s_ar.list_order, "\\n  conjunction: \\"", s_ar.conjunction, "\\"") ORDER BY s_ar.list_order SEPARATOR "\\n") as artists,\n' + \
-                 '  GROUP_CONCAT(DISTINCT CONCAT("-\\n  id: ", al.id, "\n  name: \\"", al.name, "\\"\\n  track_number: ", s_al.track_number) ORDER BY al.name, s_al.track_number SEPARATOR "\\n") AS albums'
+  songs_select = 'SELECT s.id AS song_id,\n' \
+                 '  s.name AS song_name,\n' \
+                 '  s.year AS song_year,\n' \
+                 '  s.duration AS song_duration,\n' \
+                 '  c.id as catalog_id,\n' \
+                 '  c.name as catalog_name\n'
   songs_from = 'FROM songs AS s\n' + \
-               '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n' + \
-               '  LEFT JOIN songs_artists AS s_ar ON s_ar.song_id = s.id\n' + \
-               '    LEFT JOIN artists AS ar ON ar.id = s_ar.artist_id\n' + \
-               '  LEFT JOIN songs_albums AS s_al ON s_al.song_id = s.id\n' + \
-               '    LEFT JOIN albums AS al ON al.id = s_al.album_id\n' + \
-               '  LEFT JOIN songs_genres AS s_g ON s_g.song_id = s.id\n' + \
-               '    LEFT JOIN genres AS g ON g.id = s_g.genre_id\n'
+               '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n'
   songs_where = 'WHERE c.id = (catalog_id)s\n'
-  songs_group_by = 'GROUP BY s.id'
   
   songs_args = \
   {
@@ -97,18 +95,93 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
                  ('    AND s_g_filter.genre_id = (%s)s\n' % key)
     songs_args[key] = genre_id
   
-  songs_query = songs_select + songs_from + songs_where + songs_group_by
+  songs_query = songs_select + songs_from + songs_where
   
-  print(songs_query)
+  get_logger().debug('get songs query: %s' % (songs_query, ))
   
   songs = []
-  with get_cursor(True) as cursor:
-    row_count = cursor.execute(songs_query, songs_args)
-    for i in range(row_count):
-      row = cursor.fetchone()
+  artists = dict()
+  albums = dict()
+  with get_cursor(False) as songs_cursor:
+    song_count = songs_cursor.execute(songs_query, songs_args)
+    for i in range(song_count):
+      db_song = songs_cursor.fetchone()
       
-      catalog = Catalog(row['catalog_id'], row['catalog_name'], None)
-      song = Song(row['song_id'], row['song_name'], row['song_year'], row['song_duration'], None, None, catalog)
+      catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], None)
+      song = Song(db_song['song_id'], db_song['song_name'], db_song['song_year'], db_song['song_duration'], None, None, catalog, genres=[], songs_artists=[], songs_albums=[])
+      
+      if include_artists:
+        query = 'SELECT a.id as id, a.name as name, s_a.conjunction as conjunction, s_a.list_order as list_order\n' \
+                'FROM artists AS a' \
+                '  INNER JOIN songs_artists AS s_a ON s_a.artist_id = a.id\n' \
+                '    AND s_a.song_id = %s;' % (song.get_id(), ) + \
+                'ORDER BY s_a.list_order'
+        with get_cursor(False) as artists_cursor:
+          artist_count = artists_cursor.execute(query)
+          for ar in range(artist_count):
+            db_artist = artists_cursor.fetchone()
+            artist_id = db_artist['id']
+            artist = None
+            if artist_id in artists:
+              artist = artists[artist_id]
+            else:
+              artist = Artist(artist_id, db_artist['name'])
+              artists[artist_id] = artist
+            song_artist = SongArtist(song, artist, db_artist['list_order'], db_artist['list_order'])
+            song.get_songs_artists().append(song_artist)
+      
+      if include_albums:
+        query = 'SELECT a.id AS id,\n' \
+                '  a.name AS name,\n' \
+                '  s_a.track_number AS track_number,\n' \
+                '  ar.id AS album_artist_id,\n' \
+                '  ar.name AS album_artist_name\n' \
+                'FROM albums AS a' \
+                '  INNER JOIN songs_albums AS s_a ON s_a.album_id = a.id\n' \
+                '    AND s_a.song_id = %s;' % (song.get_id(), ) + \
+                '  LEFT JOIN artists AS ar ON a.album_artist_id = ar.id\n' \
+                'ORDER BY a.name'
+        with get_cursor(False) as albums_cursor:
+          album_count = albums_cursor.execute(query)
+          for al in range(album_count):
+            db_album = albums_cursor.fetchone()
+            album_id = db_album['id']
+            album = None
+            if album_id in albums:
+              album = albums[album_id]
+            else:
+              album_artist_id = db_album['album_artist_id']
+              album_artist = None
+              if album_artist_id in artists:
+                album_artist = artists[album_artist_id]
+              else:
+                album_artist = Artist(album_artist_id, db_album['album_artist_name'])
+                artists[album_artist_id] = artist
+              album = Album(album_id, db_album['name'], album_artist)
+              albums[album_id] = album
+            song_album = SongAlbum(song, album, db_album['track_number'])
+            song.get_songs_albums().append(song_album)
+      
+      if include_genres:
+        query = 'SELECT g.id AS id, g.name AS name\n' \
+                'FROM genres AS g' \
+                '  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n' \
+                '    AND s_g.song_id = %s;' % (song.get_id(), ) + \
+                'ORDER BY g.name'
+        with get_cursor(False) as genres_cursor:
+          genre_count = genres_cursor.execute(query)
+          for g in range(genre_count):
+            db_genre = genres_cursor.fetchone()
+            genre_id = db_genre['id']
+            genre = None
+            if genre_id in genres:
+              genre = genres[genre_id]
+            else:
+              genre = Genre(genre_id, db_genre['name'])
+              genres[genre_id] = genre
+            song.get_genres().append(genre)
+      
+      songs.append(song)
   
   return songs
 
@@ -122,6 +195,20 @@ def save_song(song):
   
   admin = True
   with get_cursor(admin) as cursor:
+    artist_joins = ',\n    '.join({str((s_a.get_artist().get_name(), s_a.get_conjunction(), s_a.get_list_order())) for s_a in song.get_songs_artists()})
+    query = 'INSERT INTO upsert_song_artist_info (artist_name, conjunction, list_order)\nVALUES\n    %s;' % artist_joins
+    logger.debug('running query:\n%s' % (query, ))
+    result = cursor.execute(query)
+    logger.debug('got result "%s"' % (result, ))
+    
+    query = 'SELECT COUNT(*) AS ct FROM upsert_song_artist_info;'
+    cursor.execute(query)
+    result = cursor.fetchone()
+    if result is None:
+      logger.debug('got None for a count.')
+    else:
+      logger.debug('inserted %s rows.' % (result['ct']))
+    
     in_genre_name = None
     in_album_name = None
     in_album_artist_name = None
@@ -166,27 +253,26 @@ def save_song(song):
     song_id = cursor.fetchone()['id']
     logger.debug('last insert id was ' + str(song_id))
     song.set_id(song_id)
-    
-    cursor.execute('DELETE FROM songs_artists WHERE song_id = %s' % song.get_id())
-    
-    for song_artist in song.get_songs_artists():
-      proc_args = \
-      (
-        song_artist.get_artist().get_name(),
-        song.get_id(),
-        song_artist.get_list_order(),
-        song_artist.get_conjunction(),
-        False # out_success
-      )
-      
-      logger.info('associating ' + str(song) + ' with ' + str(song_artist.get_artist()) + '...')
-      cursor.callproc('link_song_to_artist', proc_args)
   
   commit(admin)
   logger.info('done saving %s' % song.get_filename())
 
 invalid_album_id_error = 'an album id must be a nonnegative int.'
-def get_album_by_id(album_id: int, include_tracks: bool = False):
+def get_album_by_id(album_id:int, include_tracks:bool = False):
+  result = _get_albums(None, album_id, None, include_tracks)
+  
+  if len(result) == 0:
+    return None
+  
+  if len(result) == 1:
+    return result[0]
+  
+  raise InvalidCountException('found %s albums with the id %s.' % (str(len(result)), str(album_id)))
+
+def get_album_by_name(album_name:str, include_tracks:bool = False):
+  raise NotImplementedException('')
+
+def _get_albums(catalog_id:int, album_id:int, album_name:str, song_id:int, include_tracks:bool = True):
   if not isinstance(album_id, int):
     raise TypeError(invalid_album_id_error)
   
@@ -199,20 +285,39 @@ def get_album_by_id(album_id: int, include_tracks: bool = False):
           '  LEFT JOIN artists AS ar ON ar.id = al.artist_id\n' \
           'WHERE id = %s' % (str(album_id),)
   
-  db_album = None
+  albums = []
   with get_cursor(False) as cursor:
     num_rows = cursor.execute(query)
     
-    if num_rows == 0:
-      return None
-    
-    db_album = cursor.fetchone
-  
-  album_artist = Artist(db_album['album_artist_id'], db_album['album_artist_name'])
-  
-  album = Album(db_album['id'], db_album['name'], album_artist)
+    for i in range(num_rows):
+      db_album = cursor.fetchone()
+      
+      album_artist = Artist(db_album['album_artist_id'], db_album['album_artist_name'])
+      
+      album = Album(db_album['id'], db_album['name'], album_artist)
+      albums.append(album)
   
   if not include_tracks:
-    return album
+    return albums
+  
+  songs = _get_songs()
   
   raise NotImplementedException('getting an album\'s tracks isn\'t done yet.')
+
+def get_artist_by_id(artist_id:str, include_songs:bool = False, include_albums:bool = False):
+  raise NotImplementedException('')
+
+def get_artist_by_name(artist_name:str, include_songs:bool = False, include_albums:bool = False):
+  raise NotImplementedException('')
+
+def get_artists_by_song_id(song_id:str):
+  raise NotImplementedException('')
+
+def get_genre_by_id(genre_id:str):
+  raise NotImplementedException('')
+
+def get_genre_by_name(genre_name:str):
+  raise NotImplementedException('')
+
+def get_genres_by_song_id(song_id:str):
+  raise NotImplementedException('')

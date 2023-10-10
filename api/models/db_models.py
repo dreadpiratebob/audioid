@@ -287,10 +287,10 @@ class Artist:
   
     self._name = name
   
-  def get_songs_artists_from_artist_id(self):
+  def get_songs_artists(self):
     return self._songs_artists
   
-  def set_songs_artists_from_artist_id(self, songs_artists_from_artist_id):
+  def set_songs_artists(self, songs_artists_from_artist_id):
     self._songs_artists = songs_artists_from_artist_id
   
   def get_albums_from_album_artist(self):

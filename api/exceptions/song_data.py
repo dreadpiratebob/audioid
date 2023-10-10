@@ -4,6 +4,9 @@ class CatalogNotFoundException(Exception):
 class InvalidCatalogDataException(Exception):
   pass
 
+class InvalidCountException(Exception):
+  pass
+
 class InvalidMP3DataException(Exception):
   pass
 

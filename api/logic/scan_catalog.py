@@ -8,6 +8,7 @@ from api.models.factories.song_factory import build_song_from_mp3
 from api.util.file_operations import get_last_modified_timestamp
 from api.util.functions import is_iterable
 
+from pymysql.err import OperationalError
 import os
 import traceback
 
@@ -25,23 +26,25 @@ def scan_catalog(catalog_identifier, artist_splitters = None):
   
   logger.info('scanning %s...' % str(catalog))
   
+  with get_cursor(True) as cursor:
+    cursor.execute('UPDATE songs SET mp3_exists=0 WHERE catalog_id=%s' % (str(catalog.get_id()), ))
+  
   for (dirname, dirnames, filenames) in os.walk(catalog.get_base_path()):
     logger.info('scanning directory "%s"...' % dirname)
     
     for filename in filenames:
       full_name = '%s/%s' % (dirname, filename)
       if filename[len(filename) - 4 : len(filename)] != '.mp3':
-        logger.debug("")
+        logger.debug('')
         logger.info('the file "%s" isn\'t an mp3; skipping it.' % full_name)
         continue
       
-      logger.debug("")
+      logger.debug('')
       logger.info('scanning file "%s"...' % full_name)
-      with get_cursor(False) as cursor:
+      with get_cursor(True) as cursor:
         sql_fn = full_name[len(catalog.get_base_path()):]
-        query = 'SELECT last_scanned FROM songs WHERE filename = "%s"' % sql_fn
+        query = 'SELECT begin_scan_get_last_updated(%s, "%s") AS last_scanned;' % (catalog.get_id(), sql_fn)
         cursor.execute(query)
-        
         result = cursor.fetchone()
         if result is None:
           logger.error('got none for %s' % filename)
@@ -51,7 +54,7 @@ def scan_catalog(catalog_identifier, artist_splitters = None):
           
           logger.debug('last modified: %s' % last_modified)
           logger.debug('last scanned:  %s' % last_scanned)
-          if last_scanned > last_modified:
+          if last_scanned is not None and last_scanned > last_modified:
             logger.info('the file was scanned since its last modification; skipping it.')
             continue
       
@@ -67,5 +70,10 @@ def scan_catalog(catalog_identifier, artist_splitters = None):
         save_song(song)
       except UnicodeEncodeError as e:
         raise e
+      except OperationalError as e:
+        logger.error('caught a mysql error: %s' % (str(e), ))
       except Exception as e:
         logger.error('caught an exception of type %s: %s' % (str(type(e)), traceback.format_exc()))
+  
+  with get_cursor(True) as cursor:
+    cursor.execute('CALL delete_songs_without_mp3s(%s);' % (str(catalog.get_id(), )))

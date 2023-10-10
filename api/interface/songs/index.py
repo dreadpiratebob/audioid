@@ -10,17 +10,38 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   if error is not None:
     grievances.append(str(error))
   
-  album, error = get_param(ParamKeys.ALBUM.value, query_params, str, 'a string', return_error_message=True)
+  album_id, error = get_param(ParamKeys.ALBUM_ID.value, query_params, int, 'an int', return_error_message=True)
   if error is not None:
     grievances.append(str(error))
   
-  artist, error = get_param(ParamKeys.ARTIST.value, query_params, str, 'a string', return_error_message=True)
+  album_name, error = get_param(ParamKeys.ALBUM_NAME.value, query_params, str, 'a string', return_error_message=True)
   if error is not None:
     grievances.append(str(error))
   
-  genre, error = get_param(ParamKeys.GENRE.value, query_params, int, 'an int', return_error_message=True)
+  if album_id is not None and album_name is not None:
+    grievances.append('only one query parameter of "album", "album_id" and "album_name" per request can be set.')
+  
+  artist_id, error = get_param(ParamKeys.ARTIST_ID.value, query_params, int, 'an int', return_error_message=True)
   if error is not None:
     grievances.append(str(error))
+  
+  artist_name, error = get_param(ParamKeys.ARTIST_NAME.value, query_params, str, 'a string', return_error_message=True)
+  if error is not None:
+    grievances.append(str(error))
+  
+  if artist_id is not None and artist_name is not None:
+    grievances.append('only one query parameter of "artist_id" and "artist_name" can be set.')
+  
+  genre_id, error = get_param(ParamKeys.GENRE.value, query_params, int, 'an int', return_error_message=True)
+  if error is not None:
+    grievances.append(str(error))
+  
+  genre_name, error = get_param(ParamKeys.GENRE.value, query_params, str, 'a string', return_error_message=True)
+  if error is not None:
+    grievances.append(str(error))
+  
+  if genre_id is not None and genre_name is not None:
+    grievances.append('only one query parameter of "genre_id" and "genre_name" can be set.')
   
   song_name, error = get_param(ParamKeys.SONG_NAME.value, query_params, str, 'a string', return_error_message=True)
   if error is not None:
@@ -36,6 +57,6 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  content = get_songs(catalog_id, song_name, song_year, artist, album, genre)
+  content = get_songs(catalog_id, song_name, song_year, artist_id, artist_name, album_id, album_name, genre_id, genre_name)
   
   return content

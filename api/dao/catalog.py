@@ -15,7 +15,7 @@ def get_catalog(identifier):
     query = 'SELECT id, name, base_path FROM catalogs WHERE ' + field + ' = %s;'
     result = cur.execute(query, (identifier, ))
     if cur.rowcount == 0:
-      raise CatalogNotFoundException('no catalog with id %s was found.' % id)
+      raise CatalogNotFoundException('no catalog with id %s was found.' % identifier)
     
     sql_catalog = cur.fetchone()
   
