@@ -266,26 +266,59 @@ def get_album_by_id(album_id:int, include_tracks:bool = False):
   
   raise InvalidCountException('found %s albums with the id %s.' % (str(len(result)), str(album_id)))
 
-def get_album_by_name(album_name:str, include_tracks:bool = False):
-  raise NotImplementedException('')
+def get_album_by_name(catalog_id:int, album_name:str, album_artist:(int, str) = None, include_tracks:bool = False):
+  album_artist_id = None
+  album_artist_name = None
+  
+  if album_artist is not None:
+    if isinstance(album_artist, int):
+      album_artist_id = album_artist
+    elif isinstance(album_artist, str):
+      album_artist_name = album_artist
+    else:
+      raise TypeError('an album artist must be None, a string (an artist name) or an int (an artist id).')
+  
+  return _get_albums(catalog_id, None, album_name, album_artist_id, album_artist_name, include_tracks)
 
 def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:int, album_artist_name:str, include_tracks:bool = True):
+  query_select = 'SELECT al.id AS album_id, al.name AS album_name,\n' \
+                 '  ar.id AS album_artist_id, ar.name AS album_artist_name\n'
+  query_from   = 'FROM albums AS al\n' \
+                 '  LEFT JOIN artists AS ar ON ar.id = al.album_artist_id\n'
+  query_where  = 'WHERE 1=1'
+  
+  params = dict()
+  
   grievances = []
   
   if catalog_id is not None and not isinstance(catalog_id, int):
     grievances.append(invalid_catalog_id_error)
   
-  if album_id is not None and not isinstance(album_id, int):
-    grievances.append(invalid_album_id_error)
+  if album_id is not None:
+    if isinstance(album_id, int):
+      query_where += '\n  AND al.id = %s' % (album_id, )
+    else:
+      grievances.append(invalid_album_id_error)
   
-  if album_name is not None and not isinstance(album_name, str):
-    grievances.append('an album name must be a string.')
+  if album_name is not None:
+    if isinstance(album_name, str):
+      query_where += '\n  AND al.name LIKE "%(album_name)s%"'
+      params['album_name'] = album_name
+    else:
+      grievances.append('an album name must be a string.')
   
-  if album_artist_id is not None and not isinstance(album_artist_id, int):
-    grievances.append(invalid_album_artist_id_error)
+  if album_artist_id is not None:
+    if isinstance(album_artist_id, int):
+      query_where += '\n  AND al.album_artist_id = %s' % (album_artist_id, )
+    else:
+      grievances.append(invalid_album_artist_id_error)
   
-  if album_artist_name is not None and not isinstance(album_artist_name, str):
-    grievances.append('an album artist name must be a string.')
+  if album_artist_name is not None:
+    if isinstance(album_artist_name, str):
+      query_where += '\n  AND ar.name LIKE "%(album_artist_name)s%"'
+      params['album_artist_name'] = album_artist_name
+    else:
+      grievances.append('an album artist name must be a string.')
   
   if len(grievances) > 0:
     raise TypeError('\n'.join(grievances))
@@ -302,12 +335,7 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
   if len(grievances) > 0:
     raise ValueError('\n'.join(grievances))
   
-  query = 'SELECT al.id AS album_id, al.name AS album_name,\n' \
-          '  ar.id AS album_artist_id, ar.name AS album_artist_name\n' \
-          'FROM albums AS al\n' \
-          '  LEFT JOIN artists AS ar ON ar.id = al.artist_id\n' \
-          'WHERE id = %s' % (str(album_id), )
-  
+  query = query_select + query_from + query_where
   albums = []
   with get_cursor(False) as cursor:
     num_rows = cursor.execute(query)
