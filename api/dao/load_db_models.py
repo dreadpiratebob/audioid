@@ -46,6 +46,7 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
 def get_songs(catalog_id:int, song_name:str, song_year:int, artist_id:int,
               artist_name:str, artist_name_is_an_exact_match:bool,
               album_id:int, album_name:str, album_name_is_an_exact_match:bool,
+              album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
               genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
   return _get_songs(catalog_id, None, None, song_name, song_year,
@@ -57,6 +58,7 @@ def get_songs(catalog_id:int, song_name:str, song_year:int, artist_id:int,
 def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, song_year:int,
                artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
                album_id:int, album_name:str, album_name_is_an_exact_match:bool,
+               album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
                genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
                include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
   songs_select = 'SELECT s.id AS song_id,\n' \
@@ -103,14 +105,45 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
     songs_args.append(artist_name)
   
   if album_id is not None:
-    songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' + \
-                  '    AND s_ar_filter.album_id = (%s)s\n'
+    songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
+                  '    AND s_al_filter.album_id = %s\n'
     songs_args.append(album_id)
+  elif album_name is not None:
+    if album_name_is_an_exact_match:
+      songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
+                    '    INNER JOIN albums AS al_filter ON al_filter.id = s_al_filter.album_id\n' \
+                    '      AND al_filter.name = %s\n'
+    else:
+      songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
+                    '    INNER JOIN albums AS al_filter ON al_filter.id = s_al_filter.album_id\n' \
+                    '      AND al_filter.name LIKE %s\n'
+    songs_args.append(album_name)
+    
+    if album_artist_id is None and album_artist_name is None:
+      songs_from += '    AND al_filter.album_artist IS NULL\n'
+    elif album_artist_id is not None:
+      songs_from += '    AND al_filter.album_artist = %s\n'
+      songs_args.append(album_artist_id)
+    elif album_artist_name is not None:
+      songs_from += '    INNER JOIN artists AS al_ar_filter ON al_ar_filter.id = al_filter.album_artist\n'
+      if album_artist_name_is_an_exact_match:
+        songs_from += '      AND al_ar_filter.name = %s\n'
+      else:
+        songs_from += '      AND al_ar_filter.name LIKE %s\n'
+      songs_args.append(album_artist_name)
   
   if genre_id is not None:
-    songs_from += '  INNER JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n' + \
-                 '    AND s_g_filter.genre_id = (%s)s\n'
+    songs_from += '  INNER JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n' \
+                  '    AND s_g_filter.genre_id = %s\n'
     songs_args.append(genre_id)
+  elif genre_name is not None:
+    songs_from += '  INNER JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n' \
+                  '    INNER JOIN genres AS g_filter ON g_filter.id = s_g_filter.genre_id\n'
+    if genre_name_is_an_exact_match:
+      songs_from += '      AND g_filter.name = %s\n'
+    else:
+      songs_from += '      AND g_filter.name LIKE %s\n'
+    songs_args.append(genre_name)
   
   songs_query = songs_select + songs_from + songs_where
   
