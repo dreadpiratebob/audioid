@@ -39,7 +39,7 @@ def log_exception(exception:Exception):
   
   exception_traceback = exception.__traceback__
   while exception_traceback is not None:
-    filename = str(path.split(exception_traceback.tb_frame.f_code.co_filename)[1])
+    filename = str(exception_traceback.tb_frame.f_code.co_filename)
     exception_line_number = str(exception_traceback.tb_lineno)
     message += '--from file ' + filename + ', line number ' + exception_line_number + '\n'
     
