@@ -256,7 +256,7 @@ class Response:
       return serialize_by_field_to_plain_text(self.payload, self._use_public_fields_only)
     
     return None
-  
+
 def serialize_by_field_to_json(obj, public_only:bool = True):
   if isinstance(obj, str):
     return '"' + quote_plus(obj) + '"'
@@ -417,11 +417,35 @@ def build_http_response_from_exception(exception:Exception, mime_type:HTTPMIMETy
   
   return Response(ResponseMessage(exception.get_message()), HTTPStatusCodes_by_code[exception.get_status()], mime_type)
 
-def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = False, param_type:str = 'query', default_value = None, return_error_message:bool = False):
+class QueryParam(Enum):
+  def __new__(self, *args, **kwds):
+    value = len(self.__members__) + 1
+    obj = object.__new__(self)
+    obj._value_ = value
+    return obj
+  
+  def __init__(self, param_name:str, required:bool, parse_func, param_type_name:str, default_value, description:str):
+    self.param_name = param_name
+    self.is_required = required
+    self.parse_func = parse_func
+    self.param_type_name = param_type_name
+    self.default_value = default_value
+    self.description = description
+  
+  def __str__(self):
+    return self.param_name + ' (' + ('required' if self.is_required else 'optional') + '): ' + self.description
+  
+  def get_value(self, query_params:dict, return_error_message:bool = True):
+    return get_param(self.param_name, query_params, self.parse_func, self.param_type_name, self.is_required, 'query',
+                     self.default_value, return_error_message)
+
+def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = False, param_type:str = 'query',
+              default_value=None, return_error_message:bool = False):
   if key not in params:
     if required:
       if return_error_message:
-        return default_value, BadRequestException('the %s parameter called "%s" is required and was missing.' % (param_type, key))
+        return default_value, BadRequestException(
+          'the %s parameter called "%s" is required and was missing.' % (param_type, key))
       else:
         raise BadRequestException('the %s parameter called "%s" is required and was missing.' % (param_type, key))
     
