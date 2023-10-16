@@ -10,16 +10,25 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   
   album_id = params[GetSongsQueryParams.ALBUM_ID.param_name]
   album_name = params[GetSongsQueryParams.ALBUM_NAME.param_name]
+  album_name_is_an_exact_match = params[GetSongsQueryParams.ALBUM_NAME_IS_AN_EXACT_MATCH.param_name]
   if album_id is not None and album_name is not None:
     grievances.append('only one query parameter of "album_id" and "album_name" per request can be set.')
+
+  album_artist_id = params[GetSongsQueryParams.ALBUM_ARTIST_ID.param_name]
+  album_artist_name = params[GetSongsQueryParams.ALBUM_ARTIST_NAME.param_name]
+  album_artist_name_is_an_exact_match = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_IS_AN_EXACT_MATCH.param_name]
+  if album_artist_id is not None and album_artist_name is not None:
+    grievances.append('only one query parameter of "album_artist_id" and "album_artist_name" can be set.')
   
   artist_id = params[GetSongsQueryParams.ARTIST_ID.param_name]
-  artist_name = params[GetSongsQueryParams.ALBUM_NAME.param_name]
+  artist_name = params[GetSongsQueryParams.ARTIST_NAME.param_name]
+  artist_name_is_an_exact_match = params[GetSongsQueryParams.ARTIST_NAME_IS_AN_EXACT_MATCH.param_name]
   if artist_id is not None and artist_name is not None:
     grievances.append('only one query parameter of "artist_id" and "artist_name" can be set.')
   
   genre_id = params[GetSongsQueryParams.GENRE_ID.param_name]
   genre_name = params[GetSongsQueryParams.GENRE_NAME.param_name]
+  genre_name_is_an_exact_match = params[GetSongsQueryParams.GENRE_NAME_IS_AN_EXACT_MATCH.param_name]
   if genre_id is not None and genre_name is not None:
     grievances.append('only one query parameter of "genre_id" and "genre_name" can be set.')
   
@@ -30,15 +39,14 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   song_name = params[GetSongsQueryParams.SONG_NAME.param_name]
   song_year = params[GetSongsQueryParams.SONG_YEAR.param_name]
   
-  album_artist_id   = params[GetSongsQueryParams.ALBUM_ARTIST_ID.param_name]
-  album_artist_name = params[GetSongsQueryParams.ALBUM_ARTIST_NAME.param_name]
-  if album_artist_id is not None and album_artist_name is not None:
-    grievances.append('only one query parameter of "album_artist_id" and "album_artist_name" can be set.')
-  
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  return get_songs(catalog_id, song_name, song_year, artist_id, artist_name, album_id, album_name, album_artist_id, album_artist_name, genre_id, genre_name)
+  return get_songs(catalog_id, song_name, song_year,
+                   artist_id, artist_name, artist_name_is_an_exact_match,
+                   album_id, album_name, album_name_is_an_exact_match,
+                   album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
+                   genre_id, genre_name, genre_name_is_an_exact_match)
 
 def get_query_params():
   return GetSongsQueryParams
