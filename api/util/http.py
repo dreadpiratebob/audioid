@@ -458,3 +458,18 @@ def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = F
       return None, BadRequestException('the %s "%s" couldn\'t be parsed as %s.' % (key, params[key], type_name))
     else:
       raise BadRequestException('the %s "%s" couldn\'t be parsed as %s.' % (key, params[key], type_name))
+
+class PathParam(Enum):
+  def __new__(self, *args, **kwds):
+    value = len(self.__members__) + 1
+    obj = object.__new__(self)
+    obj._value_ = value
+    return obj
+  
+  def __init__(self, param_name:str, type_name:str, description:str):
+    self.param_name = param_name
+    self.type_name = type_name
+    self.description = description
+  
+  def __str__(self):
+    return self.param_name + ' (' + self.type_name + ')'

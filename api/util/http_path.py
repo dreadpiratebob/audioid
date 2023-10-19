@@ -1,14 +1,16 @@
 from api.exceptions.http_base import \
   BadRequestException, \
+  MethodNotAllowedException, \
   NotFoundException, \
   AmbiguousPathException, \
   InternalServerError
-from api.util.functions import hash_dict
+from api.util.functions import get_type_name, hash_dict
 from api.util.logger import get_logger
-from api.util.http import HTTPRequestMethods
+from api.util.http import HTTPRequestMethods, QueryParam, PathParam
 
 import re
 
+from inspect import signature
 from os import listdir, path
 
 base_path = path.dirname(__file__).replace('\\', '/')
@@ -25,6 +27,70 @@ def path_param_bool_func(not_a_bool_yet: str):
     return False
   
   raise ValueError('%s couldn\'t be converted to a bool.' % not_a_bool_yet)
+
+
+class AvailablePath:
+  def __init__(self, request_method:str = None, path:str = None,
+               query_params:(list, tuple) = None, path_params:(list, tuple) = None,
+               expected_body:str = None, description:str = None):
+    grievances = []
+    
+    if query_params is not None:
+      if not isinstance(query_params, (list, tuple)):
+        grievances.append('query_params must be a list or tuple of QueryParams.')
+      
+      for param in query_params:
+        if not isinstance(param, QueryParam):
+          grievances.append('found a %s in the list of query_params, each of which must be a QueryParam.' % (get_type_name(param), ))
+    
+    if path_params is not None:
+      if not isinstance(query_params, (list, tuple)):
+        grievances.append('path_params must be a list or tuple of PathParams.')
+      
+      for param in path_params:
+        if not isinstance(param, PathParam):
+          grievances.append('found a %s in the list of path_params, each of which must be a PathParam.' % (get_type_name(param), ))
+    
+    # gonna trust that i'm the only one using this class and i'm gonna do it right.
+    self.request_method = None if request_method is None else request_method.upper()
+    self.path = path
+    self.query_params = [] if query_params is None else query_params
+    self.path_params = [] if path_params is None else path_params
+    self.expected_body = expected_body
+    self.description = description
+  
+  def __eq__(self, other):
+    if not isinstance(other, type(self)):
+      return False
+    
+    for key in other.__dict__:
+      if key not in self.__dict__:
+        return False
+    
+    for key in self.__dict__:
+      if not key in other.__dict__:
+        return False
+      
+      if self.__dict__[key] != other.__dict__[key]:
+        return False
+    
+    return True
+  
+  def __hash__(self):
+    result = 0
+    
+    for val in self.__dict__.values():
+      result = result * 397 ^ hash(val)
+    
+    return result
+  
+  def __str__(self):
+    result = '%s %s' % (self.request_method, self.path)
+    
+    if len(self.description) > 0:
+      result = '%s\n%s' % (result, self.description)
+    
+    return result
 
 path_var_type_funcs = {'bool': path_param_bool_func, 'float': float, 'int': int, 'str': str}
 path_param_folder_name_re = re.compile('^__[a-zA-Z_][a-zA-Z0-9_]*__(bool|float|int|str)__$')
@@ -66,6 +132,7 @@ class PathNode:
     self._var_type_name = None
     self._var_parse_func = None
     self._request_method_funcs = {rm: None for rm in HTTPRequestMethods}
+    self._request_method_help = {rm: None for rm in HTTPRequestMethods}
     
     if self._is_path_param:
       var_parts = self._folder_name.split('__')[1:-1]
@@ -94,16 +161,46 @@ class PathNode:
         'get_func()'
       exec(code)
       self._request_method_funcs[request_method] = rm_func
+      
+      code = \
+        'def get_func():\n' + \
+        '  global rm_func\n' + \
+        '  try:\n' + \
+        '    from %s import %s_help as the_func\n' % (index_path, str(request_method)) + \
+        '  except ImportError as e:\n' + \
+        '    rm_func = None\n' + \
+        '    return\n' + \
+        '  rm_func = the_func\n' + \
+        'get_func()'
+      exec(code)
+      
+      if rm_func is not None:
+        if not callable(rm_func):
+          get_logger().warn('found an uncallable help function of type %s in the path "%s"; ignoring it.' % (get_type_name(rm_func), self.get_raw_path()))
+        elif len(signature(rm_func).parameters) > 0:
+          get_logger().warn('the help function for "%s" takes too many parameters.  (0 were expected.)' % (self.get_pretty_path(), ))
+        else:
+          path_help = rm_func()
+          if not isinstance(path_help, AvailablePath):
+            get_logger().warn('the help for %s %s was a(n) %s instead of an AvailablePath.' % (str(request_method).upper(), self.get_pretty_path(), get_type_name(path_help)))
+          else:
+            self._request_method_help[request_method] = path_help
     
     if parent is not None:
       parent.add_child(self)
   
-  def __eq__(self, other):
+  def __eq__(self, other) -> bool:
     return isinstance(other, PathNode) and \
       self._parent == other._parent and \
       self._folder_name == other._folder_name
   
-  def __getitem__(self, key:str):
+  def __getitem__(self, key:(str, HTTPRequestMethods)):
+    if isinstance(key, HTTPRequestMethods):
+      if key in self._request_method_funcs:
+        return self._request_method_funcs[key], self._request_method_help.get(key, None)
+      
+      raise MethodNotAllowedException(str(key).upper(), self.get_pretty_path())
+    
     if key in self._dir_children and key in self._var_children:
       raise KeyError('ambiguous key; a dir and a path var are both named "%s".' % (key, ))
     
@@ -115,7 +212,7 @@ class PathNode:
     
     raise KeyError('no dir or var named "%s" exists as a child of this node.' % (key,))
   
-  def __hash__(self):
+  def __hash__(self) -> int:
     return (hash(self._parent)*397) ^ hash(self._folder_name)
   
   def __iadd__(self, other):
@@ -128,7 +225,7 @@ class PathNode:
   def __iter__(self):
     return self.get_children().__iter__()
   
-  def __str__(self):
+  def __str__(self) -> str:
     return self.get_pretty_path()
   
   def get_parent(self):
@@ -190,6 +287,9 @@ class PathNode:
   
   def get_request_method_func(self, request_method:HTTPRequestMethods):
     return self._request_method_funcs.get(request_method, None)
+  
+  def get_request_method_help(self, request_method:HTTPRequestMethods):
+    return self._request_method_help.get(request_method, None)
   
   def is_path_param(self):
     return self._is_path_param

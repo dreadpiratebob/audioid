@@ -1,10 +1,10 @@
 from api.exceptions.http_base import BadRequestException
 from api.logic.songs import get_songs
 from api.util.audioid import GetSongsQueryParams
-from api.util.http import HTTPStatusCodes, Response
+from api.util.http_path import AvailablePath
 
 def get(environment:dict, path_params:dict, query_params:dict, body):
-  param_val_errors = {param.param_name: param.get_value(query_params) for param in GetSongsQueryParams}
+  param_val_errors = {param.param_name: param.get_value(query_params, return_error_message=False) for param in GetSongsQueryParams}
   params = {param_name: param_val_errors[param_name][0] for param_name in param_val_errors}
   grievances = [pve[1] for pve in param_val_errors.values()]
   
@@ -48,5 +48,5 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
                    album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
                    genre_id, genre_name, genre_name_is_an_exact_match)
 
-def get_query_params():
-  return GetSongsQueryParams
+def get_help():
+  return AvailablePath(query_params=(param for param in GetSongsQueryParams), description='this endpoint lists available songs, filtered and sorted as requested.  [note: sorting hasn\'t been implemented yet.]  no auth necessary.')

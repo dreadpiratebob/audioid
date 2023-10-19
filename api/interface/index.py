@@ -1,27 +1,5 @@
 from api.util.http import HTTPRequestMethods, HTTPStatusCodes, Response
 
-class AvailablePath:
-  def __init__(self, request_method:str, path:str, additional_information:str = ''):
-    self.request_method = request_method.upper()
-    self.path = path
-    self.additional_information = additional_information
-  
-  def __eq__(self, other):
-    return isinstance(other, AvailablePath) and \
-      self.request_method == other.request_method and \
-      self.path == other.path
-  
-  def __hash__(self):
-    return (hash(self.request_method) * 397) ^ hash(self.path)
-  
-  def __str__(self):
-    result = '%s %s' % (self.request_method, self.path)
-    
-    if len(self.additional_information) > 0:
-      result += '\n%s' % (self.additional_information,)
-    
-    return result
-
 def get(environment:dict, path_params:dict, query_params:dict, body):
   paths = set()
   
@@ -34,8 +12,15 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
       if current_node.get_request_method_func(request_method) is None:
         continue
       
-      pretty_path = current_node.get_pretty_path()[len(start_path):]
-      paths.add(AvailablePath(str(request_method), pretty_path))
+      path_help = current_node.get_request_method_help(request_method)
+      
+      if path_help.request_method is None:
+        path_help.request_method = str(request_method).upper()
+      
+      if path_help.path is None:
+        path_help.path = current_node.get_pretty_path()[len(start_path):]
+      
+      paths.add(path_help)
     
     for child in current_node.get_children():
       nodes_to_process.append(child)
