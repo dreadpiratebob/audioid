@@ -1,9 +1,8 @@
 from api.util.logger import get_logger
 
 from enum import Enum
-from os import path
 
-def get_type_name(value, class_only=False):
+def get_type_name(value:any, class_only:bool = False) -> str:
   start_index = 8
   if isinstance(value, Enum):
     start_index = 7
@@ -15,7 +14,7 @@ def get_type_name(value, class_only=False):
   
   return result[result.rfind('.')+1:]
 
-def hash_dict(d:dict):
+def hash_dict(d:dict) -> int:
   result = 0
   
   sorted_keys = [key for key in d]
@@ -25,10 +24,10 @@ def hash_dict(d:dict):
   
   return result
 
-def is_iterable(value):
-  return hasattr(value, '__iter__')
+def is_iterable(obj:any) -> bool:
+  return hasattr(obj, '__iter__')
 
-def is_primitive(obj):
+def is_primitive(obj:any) -> bool:
   return not hasattr(obj, '__dict__')
 
 def log_exception(exception:Exception):

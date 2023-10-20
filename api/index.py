@@ -22,6 +22,7 @@ from api.util.http_path import \
   get_and_validate_rel_path, \
   default_interface_dir, \
   path_tries
+from api.util.functions import get_type_name
 
 from inspect import signature
 from urllib.parse import parse_qs
@@ -119,6 +120,15 @@ def application(environment, start_response):
     else:
       response = Response(obj, HTTPStatusCodes.HTTP200, accept_mime_type)
   except Exception as e:
+    get_logger().debug('caught a(n) %s: %s' % (get_type_name(e), str(e)))
+    exception_traceback = e.__traceback__
+    while exception_traceback is not None:
+      filename = str(exception_traceback.tb_frame.f_code.co_filename)
+      exception_line_number = str(exception_traceback.tb_lineno)
+      get_logger().debug('  --from file ' + filename + ', line number ' + exception_line_number + '\n')
+      
+      exception_traceback = exception_traceback.tb_next
+    
     response = build_http_response_from_exception(e)
   
   if response.get_mime_type() is None:

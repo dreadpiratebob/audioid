@@ -2,18 +2,23 @@ from api.exceptions.http_base import BadRequestException
 from api.logic.songs import get_songs
 from api.util.audioid import GetSongsQueryParams
 from api.util.http_path import AvailablePath
+from api.util.functions import get_type_name
+from api.util.logger import get_logger
 
 def get(environment:dict, path_params:dict, query_params:dict, body):
-  param_val_errors = {param.param_name: param.get_value(query_params, return_error_message=False) for param in GetSongsQueryParams}
+  param_val_errors = {param.param_name: param.get_value(query_params) for param in GetSongsQueryParams}
   params = {param_name: param_val_errors[param_name][0] for param_name in param_val_errors}
-  grievances = [pve[1] for pve in param_val_errors.values()]
+  grievances = []
+  for pve in param_val_errors.values():
+    if pve[1] is not None:
+      grievances.append(str(pve[1]))
   
   album_id = params[GetSongsQueryParams.ALBUM_ID.param_name]
   album_name = params[GetSongsQueryParams.ALBUM_NAME.param_name]
   album_name_is_an_exact_match = params[GetSongsQueryParams.ALBUM_NAME_IS_AN_EXACT_MATCH.param_name]
   if album_id is not None and album_name is not None:
     grievances.append('only one query parameter of "album_id" and "album_name" per request can be set.')
-
+  
   album_artist_id = params[GetSongsQueryParams.ALBUM_ARTIST_ID.param_name]
   album_artist_name = params[GetSongsQueryParams.ALBUM_ARTIST_NAME.param_name]
   album_artist_name_is_an_exact_match = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_IS_AN_EXACT_MATCH.param_name]

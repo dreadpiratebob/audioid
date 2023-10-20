@@ -91,32 +91,32 @@ class Song:
       grievances.append('a last_modified timestamp must be an int.')
     
     if genres is None:
-      genres = set()
+      genres = list()
     elif not is_iterable(genres):
       grievances.append('a collection of genres must be iterable.')
     
     if songs_artists is None:
-      songs_artists = set()
+      songs_artists = list()
     elif not is_iterable(songs_artists):
       grievances.append('a collection of songs_artists must be iterable.')
     
     if songs_albums is None:
-      songs_albums = set()
+      songs_albums = list()
     elif not is_iterable(songs_albums):
       grievances.append('a collection of songs_albums must be iterable.')
     
     if song_similarities_from_song1 is None:
-      song_similarities_from_song1 = set()
+      song_similarities_from_song1 = list()
     
     if song_similarities_from_song2 is None:
-      song_similarities_from_song2 = set()
+      song_similarities_from_song2 = list()
     
     if len(grievances) > 0:
       raise InvalidSongDataException('\n'.join(grievances))
-
+    
     songs_albums = list(songs_albums)
     songs_albums.sort(key=song_album_key)
-
+    
     songs_artists = list(songs_artists)
     songs_artists.sort(key=song_artist_key)
     
@@ -128,11 +128,11 @@ class Song:
     self._catalog = catalog
     self._last_scanned = last_scanned
     self._file_last_modified = file_last_modified
-    self._genres = set(genres)
+    self._genres = list(genres)
     self._songs_albums = songs_albums
     self._songs_artists = songs_artists
-    self._song_similarities_from_song2 = set(song_similarities_from_song2)
-    self._song_similarities_from_song1 = set(song_similarities_from_song1)
+    self._song_similarities_from_song2 = list(song_similarities_from_song2)
+    self._song_similarities_from_song1 = list(song_similarities_from_song1)
   
   def __str__(self):
     return '"' + self.get_name() + '" by ' + ''.join([s_a.get_artist().get_name() + ('' if s_a.get_conjunction() is None else s_a.get_conjunction()) for s_a in self.get_songs_artists()])

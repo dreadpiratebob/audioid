@@ -28,7 +28,6 @@ def path_param_bool_func(not_a_bool_yet: str):
   
   raise ValueError('%s couldn\'t be converted to a bool.' % not_a_bool_yet)
 
-
 class AvailablePath:
   def __init__(self, request_method:str = None, path:str = None,
                query_params:(list, tuple) = None, path_params:(list, tuple) = None,
