@@ -1,9 +1,21 @@
 from api.exceptions.http_base import BadRequestException
 from api.logic.songs import get_songs
+from api.models.db_models import Song
 from api.util.audioid import GetSongsQueryParams
+from api.util.http import HTTPStatusCodes, Response
 from api.util.http_path import AvailablePath
-from api.util.functions import get_type_name
-from api.util.logger import get_logger
+
+class Songs:
+  def __init__(self, songs:(list, tuple)):
+    songs_type_error = 'songs must be a list or tuple of songs.'
+    if not isinstance(songs, (list, tuple)):
+      raise TypeError(songs_type_error)
+    
+    for song in songs:
+      if not isinstance(song, Song):
+        raise TypeError(songs_type_error)
+    
+    self._songs = songs
 
 def get(environment:dict, path_params:dict, query_params:dict, body):
   param_val_errors = {param.param_name: param.get_value(query_params) for param in GetSongsQueryParams}
@@ -47,11 +59,16 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  return get_songs(catalog_id, song_name, song_year,
-                   artist_id, artist_name, artist_name_is_an_exact_match,
-                   album_id, album_name, album_name_is_an_exact_match,
-                   album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
-                   genre_id, genre_name, genre_name_is_an_exact_match)
+  songs = get_songs(catalog_id, song_name, song_year,
+                    artist_id, artist_name, artist_name_is_an_exact_match,
+                    album_id, album_name, album_name_is_an_exact_match,
+                    album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
+                    genre_id, genre_name, genre_name_is_an_exact_match)
+  
+  if len(songs) == 0:
+    return Response(None, HTTPStatusCodes.HTTP204)
+  
+  return Response(Songs(songs), HTTPStatusCodes.HTTP200, use_public_fields_only=False)
 
 def get_help():
   return AvailablePath(query_params=(param for param in GetSongsQueryParams), description='this endpoint lists available songs, filtered and sorted as requested.  [note: sorting hasn\'t been implemented yet.]  no auth necessary.')
