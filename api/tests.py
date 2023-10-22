@@ -1,3 +1,6 @@
+from api.util.config import load_config, get_config_value, set_config_value
+load_config('test')
+
 from api.exceptions.http_base import BadRequestException, NotFoundException
 from api.index import base_path
 from api.util.http_path import \
@@ -28,6 +31,46 @@ class Dummy:
     self.name = name
     self.public_data = public_data
     self._private_data = private_data
+
+class Joiner:
+  def __init__(self, thing1, thing2):
+    self._thing1 = thing1
+    self._thing2 = thing2
+  
+  def __eq__(self, other):
+    return isinstance(other, Joiner) and \
+      self._thing1 == other._thing1 and \
+      self._thing2 == other._thing2
+  
+  def __hash__(self):
+    return (hash(self._thing1)*397) ^ hash(self._thing2)
+  
+  def __str__(self):
+    return 'thing1: %s\nthing2: %s' % (str(self._thing1), str(self._thing2))
+
+recursively_joined_object_1 = Dummy('recursive_test_1.', [], 1)
+recursively_joined_object_2 = Dummy('recursive_test_2.', [], 2)
+joiner = Joiner(recursively_joined_object_1, recursively_joined_object_2)
+
+recursively_joined_object_1.public_data.append(joiner)
+recursively_joined_object_2.public_data.append(joiner)
+
+class ConfigTests(unittest.TestCase):
+  def test_get_value(self):
+    expected = 'some_val'
+    actual   = get_config_value('some_key')
+    
+    self.assertEqual(expected, actual)
+  
+  def test_set_value(self):
+    key = 'set_key'
+    val = 2
+    
+    set_config_value(key, val)
+    
+    expected = val
+    actual   = get_config_value(key)
+    self.assertEqual(expected, actual)
 
 class SerToJSONTests(unittest.TestCase):
   def test_primitive(self):
