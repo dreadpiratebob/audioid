@@ -222,6 +222,9 @@ class Response:
     self._mime_type = mime_type
   
   def serialize(self):
+    if self.payload is None:
+      return ''
+    
     if self._mime_type is None:
       raise ValueError('no mime type was given.')
     
@@ -257,7 +260,7 @@ class Response:
     
     return None
 
-def serialize_by_field_to_json(obj, public_only:bool = True):
+def serialize_by_field_to_json(obj:any, public_only:bool = True, skip_null_values:bool = True):
   if isinstance(obj, str):
     return '"' + quote_plus(obj) + '"'
   
@@ -270,6 +273,9 @@ def serialize_by_field_to_json(obj, public_only:bool = True):
   json_fields = []
   fields = obj.__dict__
   for field_name in fields:
+    if skip_null_values and fields[field_name] is None:
+      continue
+    
     new_name = str(field_name)
     if new_name[0] == '_':
       if public_only:
@@ -283,7 +289,7 @@ def serialize_by_field_to_json(obj, public_only:bool = True):
   
   return '{' + ', '.join(json_fields) + '}'
 
-def serialize_by_field_to_xml(obj, public_only:bool = True, use_base_field:bool = False):
+def serialize_by_field_to_xml(obj:any, public_only:bool = True, use_base_field:bool = False, skip_null_values:bool = True) -> str:
   if isinstance(obj, (list, set, tuple)):
     return ''.join(['<item>' + serialize_by_field_to_xml(item, public_only, True) + '</item>' for item in obj])
   
@@ -297,6 +303,9 @@ def serialize_by_field_to_xml(obj, public_only:bool = True, use_base_field:bool 
   
   fields = obj.__dict__
   for field_name in fields:
+    if skip_null_values and fields[field_name] is None:
+      continue
+    
     new_name = str(field_name)
     if new_name[0] == '_':
       if public_only:
@@ -313,35 +322,52 @@ def serialize_by_field_to_xml(obj, public_only:bool = True, use_base_field:bool 
   return result
 
 yaml_indent = '  '
-def serialize_by_field_to_yaml(obj, public_only:bool = True, use_base_field:bool = False, indent:int = 0):
-  if isinstance(obj, str):
-    return '"' + quote_plus(obj) + '"'
-  
-  if isinstance(obj, (list, set, tuple)):
-    result = ''
-    for item in obj:
-      result += '\n' + yaml_indent*indent + '- ' + serialize_by_field_to_yaml(item, public_only, True, indent+1)
-    return result
-  
-  if is_primitive(obj):
-    return quote_plus(str(obj))
-  
+circular_reference_text = '<circular reference>'
+def serialize_by_field_to_yaml(obj:any, public_only:bool = True, use_base_field:bool = False, initial_indent:int = 0, skip_null_values:bool = True) -> str:
+  objs_to_ser = [obj, initial_indent, '']
+  seen_objs = []
   result = ''
-  if use_base_field:
-    result += get_type_name(obj, True) + ':'
-    indent += 1
   
-  fields = obj.__dict__
-  for field_name in fields:
-    new_name = str(field_name)
-    if new_name[0] == '_':
-      if public_only:
+  while len(objs_to_ser) > 0:
+    obj_data = objs_to_ser.pop(-1)
+    current  = obj_data[0]
+    indent   = obj_data[1]
+    prefix   = obj_data[2]
+    
+    if isinstance(current, str):
+      result += '%s"%s"' % (prefix, quote_plus(current))
+      continue
+    
+    if isinstance(current, (list, set, tuple)):
+      result = ''
+      for item in current:
+        if item in [thing[0] for thing in seen_objs]:
+          result += '\n%s- %s' % (yaml_indent*indent, circular_reference_text)
+        else:
+          objs_to_ser.append((item, indent + 1, '- '))
+    
+    if is_primitive(current):
+      result += quote_plus(str(current))
+      continue
+    
+    if use_base_field:
+      result += get_type_name(current, True) + ':'
+      indent += 1
+    
+    fields = current.__dict__
+    for field_name in fields:
+      if skip_null_values and fields[field_name] is None:
         continue
       
-      new_name = new_name[1:]
-    
-    new_name = quote_plus(new_name)
-    result += '\n' + yaml_indent*indent + new_name + ': ' + serialize_by_field_to_yaml(fields[field_name], public_only, False, indent+1)
+      new_name = str(field_name)
+      if new_name[0] == '_':
+        if public_only:
+          continue
+        
+        new_name = new_name[1:]
+      
+      new_name = quote_plus(new_name)
+      result += '\n' + yaml_indent*indent + new_name + ': ' + serialize_by_field_to_yaml(fields[field_name], public_only, False, indent+1)
   
   if not use_base_field and len(result) > 0 and result[0] == '\n':
     result = result[1:]
@@ -349,7 +375,7 @@ def serialize_by_field_to_yaml(obj, public_only:bool = True, use_base_field:bool
   return result.replace(' \n', '\n')
 
 plain_text_indent = '  '
-def serialize_by_field_to_plain_text(obj, public_only:bool = True, use_base_field:bool = True, indent:int = 0):
+def serialize_by_field_to_plain_text(obj:any, public_only:bool = True, use_base_field:bool = True, indent:int = 0, skip_null_values:bool = True) -> str:
   if isinstance(obj, str):
     return '"' + quote_plus(str(obj)) + '"'
   
@@ -377,6 +403,9 @@ def serialize_by_field_to_plain_text(obj, public_only:bool = True, use_base_fiel
   
   fields = obj.__dict__
   for field_name in fields:
+    if skip_null_values and fields[field_name] is None:
+      continue
+    
     new_name = str(field_name)
     if new_name[0] == '_':
       if public_only:

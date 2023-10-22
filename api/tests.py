@@ -3,6 +3,7 @@ load_config('test')
 
 from api.exceptions.http_base import BadRequestException, NotFoundException
 from api.index import base_path
+from api.util.functions import hash_dict
 from api.util.http_path import \
   PathData, \
   PathNode, \
@@ -31,6 +32,40 @@ class Dummy:
     self.name = name
     self.public_data = public_data
     self._private_data = private_data
+  
+  def __eq__(self, other):
+    if type(self) != type(other):
+      return False
+    
+    for key in other.__dict__:
+      if key not in self.__dict__:
+        return False
+    
+    for key in self.__dict__:
+      if key not in other.__dict__:
+        return False
+      
+      if self.__dict__[key] != other.__dict__[key]:
+        return False
+    
+    return True
+  
+  def __hash__(self):
+    result = 0
+    
+    for value in self.__dict__.values():
+      hash_val = 0
+      if isinstance(value, dict):
+        hash_val = hash_dict(value)
+      else:
+        hash_val = hash(value)
+      
+      result = (result*397) ^ hash_val
+    
+    return result
+  
+  def __str__(self):
+    return 'Dummy "%s": %s' % (self.name, str(self.public_data))
 
 class Joiner:
   def __init__(self, thing1, thing2):
@@ -204,6 +239,18 @@ class SerToYAMLTests(unittest.TestCase):
     
     expected = 'message: "%s"' % (message, )
     actual = serialize_by_field_to_yaml(rm)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference(self):
+    expected = """Dummy:
+                 name: "recursive_test_1."
+                 public_data:
+                   thing1: <circular reference>
+                   thing2:
+                     name: "recursive_test_2."
+                     public_data: <circular reference>"""
+    actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=True)
     
     self.assertEqual(expected, actual)
 
