@@ -22,7 +22,6 @@ from api.util.http import \
   serialize_by_field_to_yaml, \
   serialize_by_field_to_plain_text
 
-from os import path
 from urllib.parse import quote_plus
 
 import unittest
