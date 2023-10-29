@@ -68,8 +68,8 @@ class Dummy:
 
 class Joiner:
   def __init__(self, thing1, thing2):
-    self._thing1 = thing1
-    self._thing2 = thing2
+    self.thing1 = thing1
+    self.thing2 = thing2
   
   def __eq__(self, other):
     return isinstance(other, Joiner) and \
@@ -221,9 +221,35 @@ class SerToYAMLTests(unittest.TestCase):
     
     self.assertEqual(expected, actual)
   
-  def test_object_with_list(self):
+  def test_object_with_list_of_primitives(self):
     name = 'dummy.'
     public = ['a', 'b', 'c', 'd']
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = 'Dummy:\n  name: "%s"\n  public_data:\n    - "a"\n    - "b"\n    - "c"\n    - "d"' % (name, )
+    actual = serialize_by_field_to_yaml(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_list_of_objects(self):
+    name = 'dummy.'
+    public = [Dummy('a', 'pub_a', None), Dummy('b', 'pub_b', None), Dummy('c', 'pub_c', None), Dummy('d', 'pub_d', None)]
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = 'Dummy:\n  name: "%s"\n  public_data:\n'\
+               '    - Dummy:\n        name: "a"\n        public_data: "pub_a"\n' \
+               '    - Dummy:\n        name: "b"\n        public_data: "pub_b"\n'\
+               '    - Dummy:\n        name: "c"\n        public_data: "pub_c"\n'\
+               '    - Dummy:\n        name: "d"\n        public_data: "pub_d"' % (name, )
+    actual = serialize_by_field_to_yaml(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_tuple(self):
+    name = 'dummy.'
+    public = ('a', 'b', 'c', 'd')
     private = 'jkl;'
     value = Dummy(name, public, private)
     
@@ -243,13 +269,16 @@ class SerToYAMLTests(unittest.TestCase):
   
   def test_object_with_recursive_reference(self):
     expected = """Dummy:
-                 name: "recursive_test_1."
-                 public_data:
-                   thing1: <circular reference>
-                   thing2:
-                     name: "recursive_test_2."
-                     public_data: <circular reference>"""
-    actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=True)
+  name: "recursive_test_1."
+  public_data:
+    - Joiner:
+        thing1: "%3Ccircular+reference%3E"
+        thing2:
+          Dummy:
+            name: "recursive_test_2."
+            public_data:
+              - "%3Ccircular+reference%3E\""""
+    actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=True, skip_circular_references=False)
     
     self.assertEqual(expected, actual)
 

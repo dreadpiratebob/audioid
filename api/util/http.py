@@ -1,5 +1,5 @@
 from api.exceptions.http_base import BaseHTTPException, BadRequestException
-from api.util.functions import get_type_name, is_primitive, log_exception
+from api.util.functions import get_type_name, is_iterable, is_primitive, log_exception
 
 from enum import Enum
 from inspect import signature
@@ -322,57 +322,81 @@ def serialize_by_field_to_xml(obj:any, public_only:bool = True, use_base_field:b
   return result
 
 yaml_indent = '  '
-circular_reference_text = '<circular reference>'
-def serialize_by_field_to_yaml(obj:any, public_only:bool = True, use_base_field:bool = False, initial_indent:int = 0, skip_null_values:bool = True) -> str:
-  objs_to_ser = [obj, initial_indent, '']
-  seen_objs = []
+circular_reference_text = quote_plus('<circular reference>')
+def serialize_by_field_to_yaml(obj:any, public_only:bool = True, use_base_field:bool = False, initial_indent:int = 0, skip_null_values:bool = True, skip_circular_references:bool = True) -> str:
+  return _serialize_by_field_to_yaml(obj, public_only, use_base_field, initial_indent, skip_null_values, skip_circular_references)
+
+def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, indent:int, skip_null_values:bool, skip_circular_references:bool, seen_objs:list = None) -> str:
   result = ''
+  if seen_objs is None:
+    seen_objs = []
   
-  while len(objs_to_ser) > 0:
-    obj_data = objs_to_ser.pop(-1)
-    current  = obj_data[0]
-    indent   = obj_data[1]
-    prefix   = obj_data[2]
-    
-    if isinstance(current, str):
-      result += '%s"%s"' % (prefix, quote_plus(current))
-      continue
-    
-    if isinstance(current, (list, set, tuple)):
-      result = ''
-      for item in current:
-        if item in [thing[0] for thing in seen_objs]:
-          result += '\n%s- %s' % (yaml_indent*indent, circular_reference_text)
-        else:
-          objs_to_ser.append((item, indent + 1, '- '))
-    
-    if is_primitive(current):
-      result += quote_plus(str(current))
-      continue
-    
-    if use_base_field:
-      result += get_type_name(current, True) + ':'
-      indent += 1
-    
-    fields = current.__dict__
-    for field_name in fields:
-      if skip_null_values and fields[field_name] is None:
-        continue
-      
-      new_name = str(field_name)
-      if new_name[0] == '_':
-        if public_only:
+  if isinstance(obj, str):
+    return '"%s"' % (quote_plus(obj))
+  
+  if isinstance(obj, (list, set, tuple)):
+    result = ''
+    for item in obj:
+      result += '\n%s- ' % (yaml_indent * indent,)
+      if item in seen_objs:
+        if not skip_circular_references:
+          result += '"%s"' % (circular_reference_text, )
+      else:
+        serd = _serialize_by_field_to_yaml(item, public_only, use_base_field, indent + 1, skip_null_values, skip_circular_references, seen_objs)
+        if serd is None:
           continue
         
-        new_name = new_name[1:]
-      
-      new_name = quote_plus(new_name)
-      result += '\n' + yaml_indent*indent + new_name + ': ' + serialize_by_field_to_yaml(fields[field_name], public_only, False, indent+1)
+        while serd[0] == ' ':
+          serd = serd[1:]
+        result += serd
+    return result
   
-  if not use_base_field and len(result) > 0 and result[0] == '\n':
+  if is_primitive(obj):
+    return quote_plus(str(obj))
+  
+  if obj in seen_objs:
+    if skip_circular_references:
+      return None
+    else:
+      return '"%s"' % (circular_reference_text, )
+  
+  seen_objs.append(obj)
+  
+  if use_base_field:
+    result += '\n%s%s:' % (yaml_indent*indent, get_type_name(obj, True))
+    indent += 1
+  
+  fields = obj.__dict__
+  for field_name in fields:
+    if skip_null_values and fields[field_name] is None:
+      continue
+    
+    field_value = _serialize_by_field_to_yaml(fields[field_name], public_only, use_base_field, indent + 1, skip_null_values, skip_circular_references, seen_objs)
+    if field_value is None:
+      continue
+    elif len(field_value) > 0:
+      if field_value == '"%s"' % (circular_reference_text, ) or (is_primitive(fields[field_name]) and not isinstance(fields[field_name], (dict, list, set, tuple))):
+        while field_value[0] == '\n':
+          field_value = field_value[1:]
+        field_value = ' ' + field_value
+      elif field_value[0] != '\n':
+        field_value = '\n%s' % (field_value, )
+    
+    new_name = str(field_name)
+    if new_name[0] == '_':
+      if public_only:
+        continue
+      
+      new_name = new_name[1:]
+    
+    new_name = quote_plus(new_name)
+    
+    result += '\n%s%s:%s' % (yaml_indent*indent, new_name, field_value)
+  
+  while result[0] == '\n':
     result = result[1:]
   
-  return result.replace(' \n', '\n')
+  return result
 
 plain_text_indent = '  '
 def serialize_by_field_to_plain_text(obj:any, public_only:bool = True, use_base_field:bool = True, indent:int = 0, skip_null_values:bool = True) -> str:
