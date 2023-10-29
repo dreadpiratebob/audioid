@@ -289,7 +289,7 @@ def serialize_by_field_to_json(obj:any, public_only:bool = True, skip_null_value
   
   return '{' + ', '.join(json_fields) + '}'
 
-def serialize_by_field_to_xml(obj:any, public_only:bool = True, use_base_field:bool = False, skip_null_values:bool = True) -> str:
+def serialize_by_field_to_xml(obj:any, public_only:bool = True, use_base_field:bool = False, skip_null_values:bool = True, skip_circular_references:bool = True) -> str:
   if isinstance(obj, (list, set, tuple)):
     return ''.join(['<item>' + serialize_by_field_to_xml(item, public_only, True) + '</item>' for item in obj])
   

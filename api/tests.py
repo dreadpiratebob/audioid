@@ -227,41 +227,59 @@ class SerToXMLTests(unittest.TestCase):
     self.assertEqual(expected, actual)
   
   def test_object_with_recursive_reference(self):
-    expected = """Dummy:
-  name: "recursive_test_1."
-  public_data:
-    - Joiner:
-        thing1: "%3Ccircular+reference%3E"
-        thing2:
-          Dummy:
-            name: "recursive_test_2."
-            public_data:
-              - "%21"
-              - "%3Ccircular+reference%3E\""""
+    expected = '<Dummy>' \
+                 '<name>recursive_test_1.</name>' \
+                 '<public_data>' \
+                   '<item>' \
+                     '<Joiner>' \
+                       '<thing1>%3Ccircular+reference%3E</thing1>' \
+                       '<thing2>' \
+                         '<Dummy>' \
+                           '<name>recursive_test_2.</name>' \
+                           '<public_data>' \
+                             '<item>%21</item>' \
+                             '<item>%3Ccircular+reference%3E</item>' \
+                           '</public_data>' \
+                         '</Dummy>' \
+                       '</thing2>' \
+                     '</Joiner>' \
+                   '</item>' \
+                '</public_data>' \
+              '</Dummy>'
     actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=True, skip_circular_references=False)
     
     self.assertEqual(expected, actual)
   
   def test_object_with_recursive_reference_without_base_field(self):
-    expected = """name: "recursive_test_1."
-public_data:
-  - thing1: "%3Ccircular+reference%3E"
-    thing2:
-      name: "recursive_test_2."
-      public_data:
-        - "%21"
-        - "%3Ccircular+reference%3E\""""
+    expected = '<name>recursive_test_1.</name>' \
+               '<public_data>' \
+                 '<item>' \
+                   '<thing1>%3Ccircular+reference%3E</thing1>' \
+                   '<thing2>' \
+                     '<name>recursive_test_2.</name>' \
+                     '<public_data>' \
+                       '<item>%21</item>' \
+                       '<item>%3Ccircular+reference%3E</item>' \
+                     '</public_data>' \
+                   '</thing2>' \
+                 '</item>' \
+               '</public_data>'
     actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=False, skip_circular_references=False)
     
     self.assertEqual(expected, actual)
   
   def test_object_with_recursive_reference_without_base_field_excluding_circular_references(self):
-    expected = """name: "recursive_test_1."
-public_data:
-  - thing2:
-      name: "recursive_test_2."
-      public_data:
-        - "%21\""""
+    expected = '<name>recursive_test_1.</name>' \
+               '<public_data>' \
+                 '<item>' \
+                   '<thing2>' \
+                     '<name>recursive_test_2.</name>' \
+                     '<public_data>' \
+                       '<item>%21</item>' \
+                     '</public_data>' \
+                   '</thing2>' \
+                 '</item>' \
+               '</public_data>'
     actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
