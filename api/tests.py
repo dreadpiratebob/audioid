@@ -179,7 +179,7 @@ class SerToXMLTests(unittest.TestCase):
     
     self.assertEqual(expected, actual)
   
-  def test_object_with_list(self):
+  def test_object_with_list_of_primitives(self):
     name = 'dummy.'
     public = ['a', 'b', 'c', 'd']
     private = 'jkl;'
@@ -187,6 +187,82 @@ class SerToXMLTests(unittest.TestCase):
     
     expected = '<Dummy><name>%s</name><public_data>%s</public_data></Dummy>' % (name, ''.join(['<item>' + item + '</item>' for item in public]))
     actual = serialize_by_field_to_xml(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_list_of_objects(self):
+    name = 'dummy.'
+    public = [Dummy('a', 'pub_a', None), Dummy('b', 'pub_b', None), Dummy('c', 'pub_c', None), Dummy('d', 'pub_d', None)]
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = '<Dummy><name>%s</name><public_data>' \
+               '<item><Dummy><name>a</name><public_data>pub_a</public_data></Dummy></item>' \
+               '<item><Dummy><name>b</name><public_data>pub_b</public_data></Dummy></item>' \
+               '<item><Dummy><name>c</name><public_data>pub_c</public_data></Dummy></item>' \
+               '<item><Dummy><name>d</name><public_data>pub_d</public_data></Dummy></item>' \
+               '</public_data></Dummy>'% (name,)
+    actual = serialize_by_field_to_xml(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_tuple(self):
+    name = 'dummy.'
+    public = ('a', 'b', 'c', 'd')
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = '<Dummy><name>%s</name><public_data><item>a</item><item>b</item><item>c</item><item>d</item></public_data></Dummy>' % (name, )
+    actual = serialize_by_field_to_xml(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_simple_message(self):
+    message = 'thing'
+    rm = ResponseMessage(message)
+    
+    expected = '<message>%s</message>' % (message, )
+    actual = serialize_by_field_to_xml(rm)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference(self):
+    expected = """Dummy:
+  name: "recursive_test_1."
+  public_data:
+    - Joiner:
+        thing1: "%3Ccircular+reference%3E"
+        thing2:
+          Dummy:
+            name: "recursive_test_2."
+            public_data:
+              - "%21"
+              - "%3Ccircular+reference%3E\""""
+    actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=True, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference_without_base_field(self):
+    expected = """name: "recursive_test_1."
+public_data:
+  - thing1: "%3Ccircular+reference%3E"
+    thing2:
+      name: "recursive_test_2."
+      public_data:
+        - "%21"
+        - "%3Ccircular+reference%3E\""""
+    actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=False, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference_without_base_field_excluding_circular_references(self):
+    expected = """name: "recursive_test_1."
+public_data:
+  - thing2:
+      name: "recursive_test_2."
+      public_data:
+        - "%21\""""
+    actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
 
