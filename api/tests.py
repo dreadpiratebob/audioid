@@ -73,17 +73,17 @@ class Joiner:
   
   def __eq__(self, other):
     return isinstance(other, Joiner) and \
-      self._thing1 == other._thing1 and \
-      self._thing2 == other._thing2
+      self.thing1 == other.thing1 and \
+      self.thing2 == other.thing2
   
   def __hash__(self):
-    return (hash(self._thing1)*397) ^ hash(self._thing2)
+    return (hash(self.thing1)*397) ^ hash(self.thing2)
   
   def __str__(self):
-    return 'thing1: %s\nthing2: %s' % (str(self._thing1), str(self._thing2))
+    return 'thing1: %s\nthing2: %s' % (str(self.thing1), str(self.thing2))
 
 recursively_joined_object_1 = Dummy('recursive_test_1.', [], 1)
-recursively_joined_object_2 = Dummy('recursive_test_2.', [], 2)
+recursively_joined_object_2 = Dummy('recursive_test_2.', ["!"], 2)
 joiner = Joiner(recursively_joined_object_1, recursively_joined_object_2)
 
 recursively_joined_object_1.public_data.append(joiner)
@@ -277,8 +277,33 @@ class SerToYAMLTests(unittest.TestCase):
           Dummy:
             name: "recursive_test_2."
             public_data:
+              - "%21"
               - "%3Ccircular+reference%3E\""""
     actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=True, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference_without_base_field(self):
+    expected = """name: "recursive_test_1."
+public_data:
+  - thing1: "%3Ccircular+reference%3E"
+    thing2:
+      name: "recursive_test_2."
+      public_data:
+        - "%21"
+        - "%3Ccircular+reference%3E\""""
+    actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=False, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference_without_base_field_excluding_circular_references(self):
+    expected = """name: "recursive_test_1."
+public_data:
+  - thing2:
+      name: "recursive_test_2."
+      public_data:
+        - "%21\""""
+    actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
 

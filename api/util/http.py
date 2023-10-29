@@ -336,11 +336,11 @@ def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, 
   
   if isinstance(obj, (list, set, tuple)):
     result = ''
+    serd_start = '\n%s- ' % (yaml_indent * indent,)
     for item in obj:
-      result += '\n%s- ' % (yaml_indent * indent,)
       if item in seen_objs:
         if not skip_circular_references:
-          result += '"%s"' % (circular_reference_text, )
+          result += '%s"%s"' % (serd_start, circular_reference_text)
       else:
         serd = _serialize_by_field_to_yaml(item, public_only, use_base_field, indent + 1, skip_null_values, skip_circular_references, seen_objs)
         if serd is None:
@@ -348,7 +348,8 @@ def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, 
         
         while serd[0] == ' ':
           serd = serd[1:]
-        result += serd
+        
+        result += serd_start + serd
     return result
   
   if is_primitive(obj):
