@@ -137,7 +137,7 @@ class SerToJSONTests(unittest.TestCase):
     
     self.assertEqual(expected, actual)
   
-  def test_object_with_list(self):
+  def test_object_with_list_of_primitives(self):
     name = 'dummy.'
     public = ['a', 'b', 'c', 'd']
     private = 'jkl;'
@@ -146,6 +146,72 @@ class SerToJSONTests(unittest.TestCase):
     expected = '{"name": "%s", "public_data": ["a", "b", "c", "d"]}' % (name, )
     actual = serialize_by_field_to_json(value)
 
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_list_of_objects(self):
+    name = 'dummy.'
+    public = [Dummy('a', 'pub_a', None), Dummy('b', 'pub_b', None), Dummy('c', 'pub_c', None), Dummy('d', 'pub_d', None)]
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected_public = '[%s]' % (', '.join(['{"name": "%s", "public_data": "%s"}' % (item.name, item.public_data) for item in public]), )
+    
+    expected = '{"name": "%s", "public_data": %s}' % (name, expected_public)
+    actual = serialize_by_field_to_json(value)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_tuple(self):
+    name = 'dummy.'
+    public = ('a', 'b', 'c', 'd')
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = '{"name": "%s", "public_data": [%s]}' \
+                % (name, ', '.join('"%s"' % (item, ) for item in public))
+    actual = serialize_by_field_to_json(value)
+    
+    self.assertEqual(expected, actual)
+
+  def test_dict_of_primitives(self):
+    obj = {'a': 1, 'b': 2, 'c': 3}
+    
+    expected = '{%s}' % (', '.join(['"%s": %s' % (key, str(obj[key])) for key in obj]), )
+    actual = serialize_by_field_to_json(obj)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_simple_message(self):
+    message = 'thing'
+    rm = ResponseMessage(message)
+    
+    expected = '{"message": "%s"}' % (message, )
+    actual = serialize_by_field_to_json(rm)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference(self):
+    expected = \
+      '{' \
+        '"name": "recursive_test_1.", ' \
+        '"public_data": ' \
+        '[' \
+          '{' \
+            '"thing1": "%3Ccircular+reference%3E", ' \
+            '"thing2": ' \
+            '{' \
+              '"name": "recursive_test_2.", ' \
+              '"public_data": ' \
+              '[' \
+                '"%21", ' \
+                '"%3Ccircular+reference%3E"' \
+              ']' \
+            '}' \
+          '}' \
+        ']' \
+      '}'
+    actual = serialize_by_field_to_json(recursively_joined_object_1, skip_circular_references=False)
+    
     self.assertEqual(expected, actual)
 
 class SerToXMLTests(unittest.TestCase):
@@ -215,6 +281,14 @@ class SerToXMLTests(unittest.TestCase):
     expected = '<Dummy><name>%s</name><public_data><item>a</item><item>b</item><item>c</item><item>d</item></public_data></Dummy>' % (name, )
     actual = serialize_by_field_to_xml(value, use_base_field=True)
     
+    self.assertEqual(expected, actual)
+
+  def test_dict_of_primitives(self):
+    obj = {'a': 1, 'b': 2, 'c': 3}
+  
+    expected = ''.join(['<%s>%s</%s>' % (key, str(obj[key]), key) for key in obj])
+    actual = serialize_by_field_to_xml(obj)
+  
     self.assertEqual(expected, actual)
   
   def test_simple_message(self):
@@ -352,6 +426,14 @@ class SerToYAMLTests(unittest.TestCase):
     
     self.assertEqual(expected, actual)
   
+  def test_dict_of_primitives(self):
+    obj = {'a': 1, 'b': 2, 'c': 3}
+    
+    expected = '\n'.join(['%s: %s' % (key, str(obj[key])) for key in obj])
+    actual = serialize_by_field_to_yaml(obj)
+    
+    self.assertEqual(expected, actual)
+  
   def test_simple_message(self):
     message = 'thing'
     rm = ResponseMessage(message)
@@ -432,14 +514,97 @@ class SerToTextTests(unittest.TestCase):
     
     self.assertEqual(expected, actual)
   
-  def test_object_with_list(self):
+  def test_object_with_list_of_primitives(self):
     name = 'dummy.'
     public = ['a', 'b', 'c', 'd']
     private = 'jkl;'
     value = Dummy(name, public, private)
     
-    expected = 'Dummy:\n  name: "%s"\n  public_data: "%s"' % (name, quote_plus(str(public)))
+    expected = 'Dummy:\n  name: "%s"\n  public_data:\n  [\n    %s\n  ]' % (name, '\n    '.join(['"%s",' % (item, ) for item in public])[:-1])
     actual = serialize_by_field_to_plain_text(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_list_of_objects(self):
+    name = 'dummy.'
+    public = [Dummy('a', 'pub_a', None), Dummy('b', 'pub_b', None), Dummy('c', 'pub_c', None), Dummy('d', 'pub_d', None)]
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = 'Dummy:\n  name: "%s"\n  public_data:\n'\
+               '    - Dummy:\n        name: "a"\n        public_data: "pub_a"\n' \
+               '    - Dummy:\n        name: "b"\n        public_data: "pub_b"\n'\
+               '    - Dummy:\n        name: "c"\n        public_data: "pub_c"\n'\
+               '    - Dummy:\n        name: "d"\n        public_data: "pub_d"' % (name, )
+    actual = serialize_by_field_to_plain_text(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_tuple(self):
+    name = 'dummy.'
+    public = ('a', 'b', 'c', 'd')
+    private = 'jkl;'
+    value = Dummy(name, public, private)
+    
+    expected = 'Dummy:\n  name: "%s"\n  public_data:\n    - "a"\n    - "b"\n    - "c"\n    - "d"' % (name, )
+    actual = serialize_by_field_to_plain_text(value, use_base_field=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_dict_of_primitives(self):
+    obj = {'a': 1, 'b': 2, 'c': 3}
+    
+    expected = '\n'.join(['%s: %s' % (key, str(obj[key])) for key in obj])
+    actual = serialize_by_field_to_plain_text(obj)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_simple_message(self):
+    message = 'thing'
+    rm = ResponseMessage(message)
+    
+    expected = 'message: "%s"' % (message, )
+    actual = serialize_by_field_to_plain_text(rm)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference(self):
+    expected = """Dummy:
+  name: "recursive_test_1."
+  public_data:
+    - Joiner:
+        thing1: "%3Ccircular+reference%3E"
+        thing2:
+          Dummy:
+            name: "recursive_test_2."
+            public_data:
+              - "%21"
+              - "%3Ccircular+reference%3E\""""
+    actual = serialize_by_field_to_plain_text(recursively_joined_object_1, use_base_field=True, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference_without_base_field(self):
+    expected = """name: "recursive_test_1."
+public_data:
+  - thing1: "%3Ccircular+reference%3E"
+    thing2:
+      name: "recursive_test_2."
+      public_data:
+        - "%21"
+        - "%3Ccircular+reference%3E\""""
+    actual = serialize_by_field_to_plain_text(recursively_joined_object_1, use_base_field=False, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_recursive_reference_without_base_field_excluding_circular_references(self):
+    expected = """name: "recursive_test_1."
+public_data:
+  - thing2:
+      name: "recursive_test_2."
+      public_data:
+        - "%21\""""
+    actual = serialize_by_field_to_plain_text(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
 
