@@ -443,6 +443,23 @@ class SerToYAMLTests(unittest.TestCase):
     
     self.assertEqual(expected, actual)
   
+  def test_object_with_object(self):
+    child_name = 'child.'
+    child = Dummy(child_name, None, None)
+    
+    parent_name = 'parent.'
+    parent = Dummy(parent_name, child, None)
+    
+    expected = """Dummy:
+  name: "%s"
+  public_data:
+    Dummy:
+      name: "%s"
+      public_data: null""" % (parent_name, child_name)
+    actual = serialize_by_field_to_yaml(parent, use_base_field=True, skip_null_values=False)
+    
+    self.assertEqual(expected, actual)
+  
   def test_object_with_recursive_reference(self):
     expected = """Dummy:
   name: "recursive_test_1."
