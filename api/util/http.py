@@ -416,7 +416,12 @@ def _serialize_by_field_to_xml(obj:any, public_only:bool = True, use_base_field:
 
 yaml_indent = '  '
 def serialize_by_field_to_yaml(obj:any, public_only:bool = True, use_base_field:bool = False, initial_indent:int = 0, skip_null_values:bool = True, skip_circular_references:bool = True) -> str:
-  return _serialize_by_field_to_yaml(obj, public_only, use_base_field, initial_indent, skip_null_values, skip_circular_references)
+  result = _serialize_by_field_to_yaml(obj, public_only, use_base_field, initial_indent, skip_null_values, skip_circular_references)
+  
+  if result[0] == '\n':
+    result = result[1:]
+  
+  return result
 
 def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, indent:int, skip_null_values:bool, skip_circular_references:bool, seen_objs:list = None) -> str:
   result = ''
@@ -513,7 +518,12 @@ def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, 
 
 plain_text_indent = '  '
 def serialize_by_field_to_plain_text(obj:any, public_only:bool = True, use_base_field:bool = True, indent:int = 0, skip_null_values:bool = True, skip_circular_references:bool = True) -> str:
-  return _serialize_by_field_to_plain_text(obj, public_only, use_base_field, indent, skip_null_values, skip_circular_references)
+  result = _serialize_by_field_to_plain_text(obj, public_only, use_base_field, indent, skip_null_values, skip_circular_references)
+  
+  if result[0] == '\n':
+    result = result[1:]
+  
+  return result
 
 def _serialize_by_field_to_plain_text(obj:any, public_only:bool, use_base_field:bool, indent:int, skip_null_values:bool, skip_circular_references:bool, seen_objs:list = None) -> str:
   if obj is None:
@@ -525,28 +535,67 @@ def _serialize_by_field_to_plain_text(obj:any, public_only:bool, use_base_field:
   if isinstance(obj, str):
     return '"' + quote_plus(str(obj)) + '"'
   
-  if isinstance(obj, (list, set)):
-    indent -= 1
-    start = '[' if isinstance(obj, list) else '{'
-    end = ']' if isinstance(obj, list) else '}'
+  last_indent = plain_text_indent*(indent - 1)
+  this_indent = plain_text_indent*indent
+  next_indent = plain_text_indent*(indent + 1)
+  if isinstance(obj, (list, set, tuple)):
+    if indent == 0:
+      indent = 1
+      last_indent = plain_text_indent * (indent - 1)
+      this_indent = plain_text_indent * indent
+      next_indent = plain_text_indent * (indent + 1)
     
-    result = '\n%s%s' % (plain_text_indent*indent, start)
+    start = '['
+    end   = ']'
+    
+    if isinstance(obj, set):
+      start = '{'
+      end   = '}'
+    
+    if isinstance(obj, tuple):
+      start = '('
+      end   = ')'
+    
+    result = '%s(%s)\n%s%s' % (last_indent, get_type_name(obj), last_indent, start)
     
     for item in obj:
-      text_val = _serialize_by_field_to_plain_text(item, public_only, use_base_field, indent + 1, skip_null_values, skip_circular_references, seen_objs)
+      text_val = _serialize_by_field_to_plain_text(item, public_only, use_base_field, indent, skip_null_values, skip_circular_references, seen_objs)
       if text_val is None:
         continue
       
       while text_val[0] in ('\n', ' '):
         text_val = text_val[1:]
       
-      result += '\n%s%s,' % (plain_text_indent*(indent + 1), text_val)
+      result += '\n%s%s,' % (this_indent, text_val)
     
-    return '%s\n%s%s' % (result[:-1], plain_text_indent*indent, end)
+    return '%s\n%s%s' % (result[:-1], last_indent, end)
   
   if isinstance(obj, dict):
-    list_str = ('\n' + plain_text_indent*(indent+1)).join([str(key) + ': ' + serialize_by_field_to_plain_text(obj[key], public_only, use_base_field, indent + 2) for key in obj])
-    return plain_text_indent*indent + '{\n' + list_str + '\n' + plain_text_indent*indent + '}'
+    if indent == 0:
+      indent = 1
+      last_indent = plain_text_indent * (indent - 1)
+      this_indent = plain_text_indent * indent
+      next_indent = plain_text_indent * (indent + 1)
+    
+    result = '%s(dict)\n%s{' % (last_indent, last_indent)
+    
+    for key in obj:
+      text_val = _serialize_by_field_to_plain_text(obj[key], public_only, use_base_field, indent + 1, skip_null_values, skip_circular_references, seen_objs)
+      if text_val is None:
+        continue
+      
+      first_idx = 0
+      while text_val[first_idx] == '\n' or text_val[first_idx] == ' ':
+        first_idx += 1
+      text_val = text_val[first_idx:]
+      
+      text_key = str(key)
+      if isinstance(key, str):
+        text_key = '"%s"' % text_key
+      
+      result += '\n%s%s: %s,' % (this_indent, text_key, text_val)
+    
+    return '%s\n%s%s' % (result[:-1], last_indent, '}')
   
   if is_primitive(obj):
     return quote_plus(str(obj))
@@ -562,12 +611,12 @@ def _serialize_by_field_to_plain_text(obj:any, public_only:bool, use_base_field:
   
   seen_objs.append(obj)
   
-  outer = get_type_name(obj, True)
-  
   result = ''
+  field_indent = this_indent
   if use_base_field:
-    result += outer + ':'
+    result += '\n%s%s:' % (this_indent, get_type_name(obj, True))
     indent += 1
+    field_indent = next_indent
   
   fields = obj.__dict__
   for field_name in fields:
@@ -586,10 +635,15 @@ def _serialize_by_field_to_plain_text(obj:any, public_only:bool, use_base_field:
       continue
     
     if text_val[0] != '\n':
+      first_idx = 0
+      while text_val[first_idx] == ' ':
+        first_idx += 1
+      text_val = text_val[first_idx:]
+      
       text_val = ' %s' % (text_val, )
     
     new_name = quote_plus(new_name)
-    result += '\n%s%s:%s' % (plain_text_indent * indent, new_name, text_val)
+    result += '\n%s%s:%s' % (field_indent, new_name, text_val)
   
   return result
 
