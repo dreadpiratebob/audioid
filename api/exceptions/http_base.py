@@ -34,15 +34,15 @@ class NotFoundException(BaseHTTPException):
 
 # 405
 allowed_methods = {'get', 'post', 'put', 'patch', 'delete'}
-invalid_http_method_error_message = 'an http method must be one of ' + str(allowed_methods)[1:-1] + '.'
+invalid_http_method_error_message = 'an http method must be one of ' + str(allowed_methods)[1:-1] + ', but %s was given.'
 class MethodNotAllowedException(BaseHTTPException):
   def __init__(self, method:str, endpoint:str):
     if not isinstance(method, str):
-      raise TypeError(invalid_http_method_error_message)
+      raise TypeError(invalid_http_method_error_message % ('a ' + str(type(method))[8:-2], ))
     
     method = method.lower()
-    if not method in allowed_methods:
-      raise ValueError(invalid_http_method_error_message)
+    if method not in allowed_methods:
+      raise ValueError(invalid_http_method_error_message % (method, ))
     
     if not isinstance(endpoint, str):
       raise TypeError('an endpoint must be a string.')

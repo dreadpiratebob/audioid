@@ -14,6 +14,9 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
       
       path_help = current_node.get_request_method_help(request_method)
       
+      if path_help is None:
+        continue
+      
       if path_help.request_method is None:
         path_help.request_method = str(request_method).upper()
       

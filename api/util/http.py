@@ -164,9 +164,6 @@ class Response:
   def __init__(self, payload, status_code:HTTPStatusCodes, mime_type:HTTPMIMETypes = None, serialization_falls_back_to_fields:bool = True, use_public_fields_only:bool = True, use_base_field_in_xml = False, use_base_field_in_yaml:bool = False):
     grievances = []
     
-    if payload is None:
-      grievances.append('a response payload must not be None.')
-    
     if not isinstance(status_code, HTTPStatusCodes):
       grievances.append('a status_code must be an HTTPStatusCode.')
     
