@@ -4,7 +4,7 @@ from api.exceptions.http_base import \
   NotFoundException, \
   AmbiguousPathException, \
   InternalServerError
-from api.util.functions import get_type_name, hash_dict
+from api.util.functions import get_type_name, hash_dict, hash_list_or_tuple
 from api.util.logger import get_logger
 from api.util.http import HTTPRequestMethods, QueryParam, PathParam
 
@@ -17,7 +17,7 @@ base_path = path.dirname(__file__).replace('\\', '/')
 if len(base_path) > 0 and base_path.rfind('/') > -1:
   base_path = base_path[:base_path.rfind('/')]
 
-def path_param_bool_func(not_a_bool_yet: str):
+def path_param_bool_func(not_a_bool_yet: str) -> bool:
   not_a_bool_yet = not_a_bool_yet.lower()
   
   if not_a_bool_yet == 'true':
@@ -79,7 +79,15 @@ class AvailablePath:
     result = 0
     
     for val in self.__dict__.values():
-      result = result * 397 ^ hash(val)
+      new_hash = 0
+      if isinstance(val, dict):
+        new_hash = hash_dict(val)
+      elif isinstance(val, list):
+        new_hash = hash_list_or_tuple(val)
+      else:
+        new_hash = hash(val)
+      
+      result = result * 397 ^ new_hash
     
     return result
   
@@ -353,7 +361,6 @@ def get_path_trie(start_path:str = default_interface_dir):
       nodes_to_process.append(child_node)
   
   return root_node
-
 
 class PathData:
   def __init__(self, path_node:PathNode, path_parameters:dict, error_message:str):

@@ -24,6 +24,25 @@ def hash_dict(d:dict) -> int:
   
   return result
 
+def hash_list_or_tuple(obj:(list, tuple)) -> int:
+  if not isinstance(obj, (list, tuple)):
+    raise TypeError('to hash a list or tuple, you have to start with a list or tuple.')
+  
+  result = 0
+  
+  for item in obj:
+    new_hash = 0
+    if isinstance(item, (list, tuple)):
+      new_hash = hash_list_or_tuple(item)
+    elif isinstance(item, dict):
+      new_hash = hash_dict(item)
+    else:
+      new_hash = hash(item)
+    
+    result = result * 397 ^ new_hash
+  
+  return result
+
 def is_iterable(obj:any) -> bool:
   return hasattr(obj, '__iter__')
 
