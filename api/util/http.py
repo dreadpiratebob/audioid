@@ -362,7 +362,8 @@ def _serialize_by_field_to_xml(obj:any, public_only:bool = True, use_base_field:
       if xml_val is None:
         continue
       
-      result += '<%s>%s</%s>' % (quote_plus(str(key)), xml_val, quote_plus(str(key)))
+      xml_key = quote_plus(str(key))
+      result += '<%s>%s</%s>' % (xml_key, xml_val, xml_key)
     
     return result
   
@@ -457,7 +458,7 @@ def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, 
       if yaml_val is None:
         continue
       
-      yaml_key = quote_plus(key)
+      yaml_key = quote_plus(str(key))
       result += '\n%s%s: %s' % (yaml_indent*indent, yaml_key, yaml_val)
     
     return result[1:]
@@ -502,7 +503,7 @@ def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, 
     
     result += '\n%s%s:%s' % (yaml_indent*indent, new_name, field_value)
   
-  while result[0] == '\n':
+  while len(result) > 0 and result[0] == '\n':
     result = result[1:]
   
   return result
@@ -629,7 +630,7 @@ def _serialize_by_field_to_plain_text(obj:any, public_only:bool, use_base_field:
     if text_val is None:
       continue
     
-    if text_val[0] != '\n':
+    if len(text_val) > 0 and text_val[0] != '\n':
       first_idx = 0
       while text_val[first_idx] == ' ':
         first_idx += 1
@@ -680,7 +681,7 @@ class QueryParam(Enum):
   def __init__(self, param_name:str, required:bool, parse_func, param_type_name:str, default_value, description:str):
     self.param_name = param_name
     self.is_required = required
-    self.parse_func = parse_func
+    self._parse_func = parse_func
     self.param_type_name = param_type_name
     self.default_value = default_value
     self.description = description
@@ -689,7 +690,7 @@ class QueryParam(Enum):
     return self.param_name + ' (' + ('required' if self.is_required else 'optional') + '): ' + self.description
   
   def get_value(self, query_params:dict, return_error_message:bool = True):
-    return get_param(self.param_name, query_params, self.parse_func, self.param_type_name, self.is_required, 'query',
+    return get_param(self.param_name, query_params, self._parse_func, self.param_type_name, self.is_required, 'query',
                      self.default_value, return_error_message)
 
 def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = False, param_type:str = 'query',

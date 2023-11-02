@@ -1,5 +1,12 @@
 from api.util.http import HTTPRequestMethods, HTTPStatusCodes, Response
 
+class AvailablePaths:
+  def __init__(self, paths:set):
+    self.paths = paths
+  
+  def __str__(self):
+    return str(self.paths)
+
 def get(environment:dict, path_params:dict, query_params:dict, body):
   paths = set()
   
@@ -28,4 +35,4 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
     for child in current_node.get_children():
       nodes_to_process.append(child)
   
-  return Response(paths, HTTPStatusCodes.HTTP200, use_base_field_in_xml=True, use_base_field_in_yaml=True)
+  return Response(AvailablePaths(paths), HTTPStatusCodes.HTTP200)

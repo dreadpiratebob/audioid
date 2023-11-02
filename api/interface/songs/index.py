@@ -71,4 +71,4 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   return Response(Songs(songs), HTTPStatusCodes.HTTP200, use_public_fields_only=False)
 
 def get_help():
-  return AvailablePath(query_params=(param for param in GetSongsQueryParams), description='this endpoint lists available songs, filtered and sorted as requested.  [note: sorting hasn\'t been implemented yet.]  no auth necessary.')
+  return AvailablePath(query_params=tuple(param for param in GetSongsQueryParams), description='this endpoint lists available songs, filtered and sorted as requested.  [note: sorting hasn\'t been implemented yet.]  no auth necessary.')
