@@ -171,8 +171,10 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
                 '  INNER JOIN songs_artists AS s_a ON s_a.artist_id = a.id\n' \
                 '    AND s_a.song_id = %s\n' % (song.get_id(), ) + \
                 'ORDER BY s_a.list_order;'
+        
         with get_cursor(False) as artists_cursor:
           artist_count = artists_cursor.execute(query)
+          
           for ar in range(artist_count):
             db_artist = artists_cursor.fetchone()
             artist_id = db_artist['id']
@@ -182,7 +184,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
             else:
               artist = Artist(artist_id, db_artist['name'])
               artists[artist_id] = artist
-            song_artist = SongArtist(song, artist, db_artist['list_order'], db_artist['list_order'])
+            song_artist = SongArtist(song, artist, db_artist['list_order'], db_artist['conjunction'])
             song.get_songs_artists().append(song_artist)
       
       if include_albums:
@@ -196,8 +198,10 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
                 '    AND s_a.song_id = %s\n' % (song.get_id(), ) + \
                 '  LEFT JOIN artists AS ar ON ar.id = a.album_artist\n' \
                 'ORDER BY a.name;'
+        
         with get_cursor(False) as albums_cursor:
           album_count = albums_cursor.execute(query)
+          
           for al in range(album_count):
             db_album = albums_cursor.fetchone()
             album_id = db_album['id']
@@ -223,8 +227,10 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
                 '  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n' \
                 '    AND s_g.song_id = %s\n' % (song.get_id(), ) + \
                 'ORDER BY g.name;'
+        
         with get_cursor(False) as genres_cursor:
           genre_count = genres_cursor.execute(query)
+          
           for g in range(genre_count):
             db_genre = genres_cursor.fetchone()
             genre_id = db_genre['id']

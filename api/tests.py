@@ -89,6 +89,10 @@ joiner = Joiner(recursively_joined_object_1, recursively_joined_object_2)
 recursively_joined_object_1.public_data.append(joiner)
 recursively_joined_object_2.public_data.append(joiner)
 
+primitive_dummy = Dummy('primitive dummy.', 'a', 'b')
+
+two_same_level_references = Dummy('two same-level references.', primitive_dummy, primitive_dummy)
+
 class ConfigTests(unittest.TestCase):
   def test_get_value(self):
     expected = 'some_val'
@@ -211,6 +215,32 @@ class SerToJSONTests(unittest.TestCase):
         ']' \
       '}'
     actual = serialize_by_field_to_json(recursively_joined_object_1, skip_circular_references=False)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_two_references_without_base_field_excluding_circular_references(self):
+    expected = \
+    '{' \
+      '"name": "%s", ' \
+      '"public_data": ' \
+      '{' \
+        '"name": "%s", ' \
+        '"public_data": "%s", ' \
+        '"private_data": "%s"' \
+      '}, ' \
+      '"private_data": ' \
+      '{' \
+        '"name": "%s", ' \
+        '"public_data": "%s", ' \
+        '"private_data": "%s"'\
+      '}' \
+    '}' % \
+      (
+        quote_plus(two_same_level_references.name),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data)
+      )
+    actual = serialize_by_field_to_json(two_same_level_references, public_only=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
 
@@ -357,6 +387,27 @@ class SerToXMLTests(unittest.TestCase):
     actual = serialize_by_field_to_xml(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
+  
+  def test_object_with_two_references_without_base_field_excluding_circular_references(self):
+    expected = '<name>%s</name>' \
+               '<public_data>' \
+                 '<name>%s</name>' \
+                 '<public_data>%s</public_data>' \
+                 '<private_data>%s</private_data>' \
+               '</public_data>' \
+               '<private_data>' \
+                 '<name>%s</name>' \
+                 '<public_data>%s</public_data>' \
+                 '<private_data>%s</private_data>' \
+               '</private_data>' % \
+      (
+        quote_plus(two_same_level_references.name),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data)
+      )
+    actual = serialize_by_field_to_xml(two_same_level_references, public_only=False, use_base_field=False, skip_circular_references=True)
+    
+    self.assertEqual(expected, actual)
 
 class SerToYAMLTests(unittest.TestCase):
   def test_primitive(self):
@@ -365,6 +416,14 @@ class SerToYAMLTests(unittest.TestCase):
     expected = '2'
     actual   = serialize_by_field_to_yaml(value)
     
+    self.assertEqual(expected, actual)
+
+  def test_empty_list(self):
+    obj = []
+  
+    expected = ''
+    actual = serialize_by_field_to_yaml(obj)
+  
     self.assertEqual(expected, actual)
   
   def test_object_public_only(self):
@@ -499,6 +558,24 @@ public_data:
     actual = serialize_by_field_to_yaml(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
+  
+  def test_object_with_two_references_without_base_field_excluding_circular_references(self):
+    expected = """name: "%s"
+public_data:
+  name: "%s"
+  public_data: "%s"
+  private_data: "%s"
+private_data:
+  name: "%s"
+  public_data: "%s"
+  private_data: "%s\"""" % (
+        quote_plus(two_same_level_references.name),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data)
+      )
+    actual = serialize_by_field_to_yaml(two_same_level_references, public_only=False, use_base_field=False, skip_circular_references=True)
+    
+    self.assertEqual(expected, actual)
 
 class SerToTextTests(unittest.TestCase):
   def test_primitive(self):
@@ -506,6 +583,14 @@ class SerToTextTests(unittest.TestCase):
     
     expected = '2'
     actual   = serialize_by_field_to_plain_text(value)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_empty_list(self):
+    obj = []
+    
+    expected = '(list)\n[\n]'
+    actual = serialize_by_field_to_plain_text(obj)
     
     self.assertEqual(expected, actual)
   
@@ -665,6 +750,24 @@ public_data: (list)
     ]
 ]"""
     actual = serialize_by_field_to_plain_text(recursively_joined_object_1, use_base_field=False, skip_circular_references=True)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_object_with_two_references_without_base_field_excluding_circular_references(self):
+    expected = """name: "%s"
+public_data:
+  name: "%s"
+  public_data: "%s"
+  private_data: "%s"
+private_data:
+  name: "%s"
+  public_data: "%s"
+  private_data: "%s\"""" % (
+        quote_plus(two_same_level_references.name),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data),
+        quote_plus(primitive_dummy.name), quote_plus(primitive_dummy.public_data), quote_plus(primitive_dummy._private_data)
+      )
+    actual = serialize_by_field_to_plain_text(two_same_level_references, public_only=False, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
 
