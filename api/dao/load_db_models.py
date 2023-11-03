@@ -16,7 +16,7 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
   grievances = []
   
   if not isinstance(catalog_id, int):
-    grievances.append('a catalog id must be an int.  (found "%s", a %s instead.)' % (str(catalog_id), str(type(catalog_id))[8:-2]))
+    grievances.append('a catalog id must be an int.  (found "%s", a %s instead.)' % (str(catalog_id), get_type_name(catalog_id)))
   
   id = None
   filename = None
@@ -25,12 +25,12 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
   elif isinstance(id_or_filename, str):
     filename = id_or_filename
   else:
-    grievances.append('an id or file name must be an int or a string.  (found "%s" a %s instead.)' % (str(id_or_filename), str(type(id_or_filename))[8:-2]))
+    grievances.append('an id or file name must be an int or a string.  (found "%s", a %s instead.)' % (str(id_or_filename), get_type_name(id_or_filename)))
   
   if len(grievances) > 0:
     raise TypeError('\n'.join(grievances))
   
-  result = _get_songs(catalog_id, id, filename, None, None, None, None, None, include_artists, include_albums, include_genres)
+  result = _get_songs(catalog_id, id, filename, None, True, None, None, None, True, None, None, True, None, None, True, None, None, True, include_artists, include_albums, include_genres)
   
   if len(result) == 0:
     return None
@@ -38,26 +38,26 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
   if len(result) == 1:
     return result[0]
   
-  message = 'id ' + str(id)
+  message = 'id %s' % (str(id), )
   if id is None:
-    message = 'filename "' + filename + '"'
+    message = 'filename "%s"' % (filename, )
   
-  raise InvalidCountException('found %s songs were found with %s.' % (str(len(result)), message))
+  raise InvalidCountException('%s songs were found with %s.' % (str(len(result)), message))
 
-def get_songs(catalog_id:int, song_name:str, song_year:int, artist_id:int,
+def get_songs(catalog_id:int, song_name:str, song_name_is_an_exact_match:bool, song_year:int, artist_id:int,
               artist_name:str, artist_name_is_an_exact_match:bool,
               album_id:int, album_name:str, album_name_is_an_exact_match:bool,
               album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
               genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
-  return _get_songs(catalog_id, None, None, song_name, song_year,
+  return _get_songs(catalog_id, None, None, song_name, song_name_is_an_exact_match, song_year,
                     artist_id, artist_name, artist_name_is_an_exact_match,
                     album_id, album_name, album_name_is_an_exact_match,
                     album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
                     genre_id, genre_name, genre_name_is_an_exact_match,
                     include_artists, include_albums, include_genres)
 
-def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, song_year:int,
+def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, song_name_is_an_exact_match:bool, song_year:int,
                artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
                album_id:int, album_name:str, album_name_is_an_exact_match:bool,
                album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
@@ -72,32 +72,35 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
                  '  s.duration AS song_duration,\n' \
                  '  c.id as catalog_id,\n' \
                  '  c.name as catalog_name\n'
-  songs_from = 'FROM songs AS s\n' + \
-               '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n'
-  songs_where = 'WHERE c.id = %s\n'
+  songs_from   = 'FROM songs AS s\n' + \
+                 '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n'
+  songs_where  = 'WHERE c.id = %s\n'
   
-  songs_args = [catalog_id]
+  songs_from_args  = []
+  songs_where_args = [catalog_id]
   
   if song_id is not None:
     songs_where += '  AND s.id = %s\n'
-    songs_args.append(song_id)
-  
-  if song_filename is not None:
+    songs_where_args.append(song_id)
+  elif song_filename is not None:
     songs_where += '  AND s.filename = %s\n'
-    songs_args.append(song_filename)
+    songs_where_args.append(song_filename)
   
   if song_name is not None:
-    songs_where += '  AND s.name = %s\n'
-    songs_args.append(song_name)
+    if song_name_is_an_exact_match:
+      songs_where += '  AND s.name = %s\n'
+    else:
+      songs_where += '  AND s.name LIKE %s\n'
+    songs_where_args.append(song_name)
   
   if song_year is not None:
     songs_where += '  AND s.year = %s\n'
-    songs_args.append(song_year)
+    songs_where_args.append(song_year)
   
   if artist_id is not None:
     songs_from += '  INNER JOIN songs_artists AS s_ar_filter ON s_ar_filter.song_id = s.id\n' \
                   '    AND s_ar_filter.artist_id = %s\n'
-    songs_args.append(artist_id)
+    songs_from_args.append(artist_id)
   elif artist_name is not None:
     if artist_name_is_an_exact_match:
       songs_from += '  INNER JOIN songs_artists AS s_ar_filter ON s_ar_filter.song_id = s.id\n' \
@@ -107,12 +110,12 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
       songs_from += '  INNER JOIN songs_artists AS s_ar_filter ON s_ar_filter.song_id = s.id\n' \
                     '    INNER JOIN artists AS ar_filter ON ar_filter.id = s_ar_filter.artist_id\n' \
                     '      AND ar_filter.name LIKE %s\n'
-    songs_args.append(artist_name)
+    songs_from_args.append(artist_name)
   
   if album_id is not None:
     songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
                   '    AND s_al_filter.album_id = %s\n'
-    songs_args.append(album_id)
+    songs_from_args.append(album_id)
   elif album_name is not None:
     if album_name_is_an_exact_match:
       songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
@@ -122,25 +125,25 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
       songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
                     '    INNER JOIN albums AS al_filter ON al_filter.id = s_al_filter.album_id\n' \
                     '      AND al_filter.name LIKE %s\n'
-    songs_args.append(album_name)
+    songs_from_args.append(album_name)
     
     if album_artist_id is None and album_artist_name is None:
       songs_from += '    AND al_filter.album_artist IS NULL\n'
     elif album_artist_id is not None:
       songs_from += '    AND al_filter.album_artist = %s\n'
-      songs_args.append(album_artist_id)
+      songs_from_args.append(album_artist_id)
     elif album_artist_name is not None:
       songs_from += '    INNER JOIN artists AS al_ar_filter ON al_ar_filter.id = al_filter.album_artist\n'
       if album_artist_name_is_an_exact_match:
         songs_from += '      AND al_ar_filter.name = %s\n'
       else:
         songs_from += '      AND al_ar_filter.name LIKE %s\n'
-      songs_args.append(album_artist_name)
+      songs_from_args.append(album_artist_name)
   
   if genre_id is not None:
     songs_from += '  INNER JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n' \
                   '    AND s_g_filter.genre_id = %s\n'
-    songs_args.append(genre_id)
+    songs_from_args.append(genre_id)
   elif genre_name is not None:
     songs_from += '  INNER JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n' \
                   '    INNER JOIN genres AS g_filter ON g_filter.id = s_g_filter.genre_id\n'
@@ -148,11 +151,13 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_name:str, so
       songs_from += '      AND g_filter.name = %s\n'
     else:
       songs_from += '      AND g_filter.name LIKE %s\n'
-    songs_args.append(genre_name)
+    songs_from_args.append(genre_name)
   
   songs_query = songs_select + songs_from + songs_where
   
-  songs_args = tuple(songs_args)
+  songs_args = tuple(songs_from_args + songs_where_args)
+  
+  get_logger().debug('\nsongs_query:\n%s\n\nsongs_args:\n%s' % (songs_query, songs_args))
   
   songs = []
   artists = dict()
@@ -420,7 +425,7 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
         continue
       
       album.set_songs_albums([])
-      songs = _get_songs(catalog_id, None, None, None, None, None, album.get_id(), None, include_albums=False)
+      songs = _get_songs(catalog_id, None, None, None, True, None, None, None, True, album.get_id(), None, True, None, None, True, None, None, True, include_albums=False)
       for song in songs:
         sa_query = 'SELECT track_number FROM songs_albums WHERE song_id=%s AND album_id=%s;' % (song.get_id(), album.get_id())
         cursor.execute(sa_query)

@@ -42,7 +42,7 @@ class MethodNotAllowedException(BaseHTTPException):
     
     method = method.lower()
     if method not in allowed_methods:
-      raise ValueError(invalid_http_method_error_message % (method, ))
+      raise ValueError(invalid_http_method_error_message % ('%s (a %s)' % (method, str(type(method))[8:-2])))
     
     if not isinstance(endpoint, str):
       raise TypeError('an endpoint must be a string.')

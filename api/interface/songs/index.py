@@ -54,12 +54,13 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
     grievances.append('a catalog id must be a nonnegative int.')
   
   song_name = params[GetSongsQueryParams.SONG_NAME.param_name]
+  song_name_is_an_exact_match = params[GetSongsQueryParams.SONG_NAME_IS_AN_EXACT_MATCH.param_name]
   song_year = params[GetSongsQueryParams.SONG_YEAR.param_name]
   
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  songs = get_songs(catalog_id, song_name, song_year,
+  songs = get_songs(catalog_id, song_name, song_name_is_an_exact_match, song_year,
                     artist_id, artist_name, artist_name_is_an_exact_match,
                     album_id, album_name, album_name_is_an_exact_match,
                     album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
