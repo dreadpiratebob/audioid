@@ -15,9 +15,7 @@ def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None):
   
   song_name = mp3.title
   if song_name is None:
-    song_name = mp3.filename
-    while '/' in song_name:
-      song_name = song_name[song_name.index('/')+1:]
+    song_name = mp3.filename[mp3.filename.rfind('/')+1:]
   else:
     song_name = str(song_name)
   
@@ -30,7 +28,7 @@ def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None):
   song_duration = mp3.duration
   
   get_logger().debug('rel path: %s' % song_fn)
-  song = Song(None, song_name, song_year, song_duration, song_fn, int(mp3.date_modified), catalog, None, None, None, None, None)
+  song = Song(None, song_name, None, None, None, song_year, song_duration, song_fn, int(mp3.date_modified), catalog, None, None, None, None, None)
   
   if mp3.artist is not None and mp3.artist != '':
     song.set_songs_artists(get_artist_joins(song, str(mp3.artist), artist_splitters))

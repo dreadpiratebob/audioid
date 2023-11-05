@@ -335,7 +335,7 @@ class PathNode:
 default_interface_dir = 'interface'
 valid_path_re = re.compile('^[/a-zA-Z0-9 _+%.]+$')
 rel_path_not_found_error = 'the path "%s" wasn\'t found.'
-def get_path_trie(start_path:str = default_interface_dir):
+def get_path_trie(start_path:str = default_interface_dir) -> PathNode:
   if start_path[0] == '/':
     start_path = start_path[1:]
   
@@ -392,13 +392,13 @@ class PathData:
     
     raise TypeError('a PathData can only be added to a PathNode, a dict or a PathData.')
   
-  def __eq__(self, other):
+  def __eq__(self, other) -> bool:
     return isinstance(other, PathData) and \
       self.path_node == other.path_node and \
       self.path_parameters == other.path_parameters and \
       self.error_message == other.error_message
   
-  def __hash__(self):
+  def __hash__(self) -> int:
     return (((hash(self.path_node)*397) ^ hash_dict(self.path_parameters))*397) ^ hash(self.error_message)
   
   def __iadd__(self, other):
@@ -428,7 +428,7 @@ class PathData:
 
 end_path = '/index.py'
 path_tries = {default_interface_dir: get_path_trie(default_interface_dir)}
-def get_and_validate_rel_path(environment:dict, start_path:str = default_interface_dir):
+def get_and_validate_rel_path(environment:dict, start_path:str = default_interface_dir) -> PathData:
   query_string = environment['QUERY_STRING']
   rel_path = environment['REQUEST_URI']
   if len(query_string) > 0:

@@ -2,7 +2,7 @@ from api.exceptions.song_data import\
   InvalidArtistDataException,\
   InvalidCatalogDataException,\
   InvalidSongDataException
-from api.util.functions import is_iterable
+from api.util.functions import get_search_text_from_raw_text, is_iterable
 
 class Catalog:
   def __init__(self, id:int, name:str, base_path:str):
@@ -64,7 +64,7 @@ def song_artist_key(s_ar):
   return s_ar.get_list_order()
 
 class Song:
-  def __init__(self, id:int, name:str, year:int, duration:float, filename:str, file_last_modified:int, catalog, genres = None,
+  def __init__(self, id:int, title:str, lcase_title:str, no_diacritic_title:str, lcase_no_diacritic_title:str, year:int, duration:float, filename:str, file_last_modified:int, catalog, genres = None,
                songs_albums = None, songs_artists = None, song_similarities_from_song2 = None, song_similarities_from_song1 = None,
                last_scanned:int = None):
     grievances = []
@@ -72,8 +72,17 @@ class Song:
     if id is not None and not isinstance(id, int):
       grievances.append('an id must be an int.')
     
-    if not isinstance(name, str):
-      grievances.append('a name must be a str.')
+    if not isinstance(title, str):
+      grievances.append('a title must be a str.')
+    
+    if lcase_title is not None and not isinstance(lcase_title, str):
+      grievances.append('a title must be a str.')
+    
+    if no_diacritic_title is not None and not isinstance(no_diacritic_title, str):
+      grievances.append('a title must be a str.')
+    
+    if lcase_no_diacritic_title is not None and not isinstance(lcase_no_diacritic_title, str):
+      grievances.append('a title must be a str.')
     
     if not isinstance(year, int):
       grievances.append('a year must be an int.')
@@ -120,8 +129,20 @@ class Song:
     songs_artists = list(songs_artists)
     songs_artists.sort(key=song_artist_key)
     
+    if lcase_title is None or no_diacritic_title is None or lcase_no_diacritic_title is None:
+      _lcase, _no_diacritic, _lcase_no_diacritic = get_search_text_from_raw_text(title)
+      if lcase_title is None:
+        lcase_title = _lcase
+      if no_diacritic_title is None:
+        no_diacritic_title = _no_diacritic
+      if lcase_no_diacritic_title is None:
+        lcase_no_diacritic_title = _lcase_no_diacritic
+    
     self._id = id
-    self._name = name
+    self._title = title
+    self._lcase_title = lcase_title
+    self._no_diacritic_title = no_diacritic_title
+    self._lcase_no_diacritic_title = lcase_no_diacritic_title
     self._year = year
     self._duration = duration
     self._filename = filename
@@ -135,7 +156,7 @@ class Song:
     self._song_similarities_from_song1 = list(song_similarities_from_song1)
   
   def __str__(self):
-    return '"' + self.get_name() + '" by ' + ''.join([s_a.get_artist().get_name() + ('' if s_a.get_conjunction() is None else s_a.get_conjunction()) for s_a in self.get_songs_artists()])
+    return '"' + self.get_title() + '" by ' + ''.join([s_a.get_artist().get_name() + ('' if s_a.get_conjunction() is None else s_a.get_conjunction()) for s_a in self.get_songs_artists()])
   
   def get_id(self):
     return self._id
@@ -146,14 +167,41 @@ class Song:
     
     self._id = id
   
-  def get_name(self):
-    return self._name
+  def get_title(self):
+    return self._title
   
-  def set_name(self, name:str):
-    if not isinstance(name, str):
-      raise ValueError('a name must be a str.')
+  def set_title(self, title:str):
+    if not isinstance(title, str):
+      raise ValueError('a song title must be a str.')
     
-    self._name = name
+    self._title = title
+  
+  def get_lcase_title(self):
+    return self._lcase_title
+  
+  def set_lcase_title(self, lcase_title:str):
+    if not isinstance(lcase_title, str):
+      raise ValueError('a song title must be a str.')
+    
+    self._lcase_title = lcase_title
+  
+  def get_no_diacritic_title(self):
+    return self._no_diacritic_title
+  
+  def set_no_diacritic_title(self, no_diacritic_title:str):
+    if not isinstance(no_diacritic_title, str):
+      raise ValueError('a song title must be a str.')
+    
+    self._no_diacritic_title = no_diacritic_title
+  
+  def get_lcase_no_diacritic_title(self):
+    return self._lcase_no_diacritic_title
+  
+  def set_lcase_no_diacritic_title(self, lcase_no_diacritic_title:str):
+    if not isinstance(lcase_no_diacritic_title, str):
+      raise ValueError('a song title must be a str.')
+    
+    self._lcase_no_diacritic_title = lcase_no_diacritic_title
   
   def get_year(self):
     return self._year
@@ -196,7 +244,7 @@ class Song:
   
   def get_file_last_modified(self):
     return self._file_last_modified
-
+  
   def set_file_last_modified(self, file_last_modified:int):
     if not isinstance(file_last_modified, int):
       raise ValueError('a last modified timestamp must be an int.')

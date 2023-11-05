@@ -27,7 +27,10 @@ GRANT DELETE ON audioid.catalogs TO 'audioid_admin'@'localhost';
 CREATE TABLE songs
 (
   id int(64) unsigned not null primary key auto_increment,
-  name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  title varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_title varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  no_diacritic_title varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_no_diacritic_title varchar(1024) not null default "" COLLATE utf8mb4_bin,
   year int(16) unsigned,
   duration real(15, 10) unsigned,
   filename varchar(1024) not null COLLATE utf8mb4_bin,
@@ -51,6 +54,9 @@ CREATE TABLE artists
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   UNIQUE(id)
 );
 
@@ -88,6 +94,9 @@ CREATE TABLE albums
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   album_artist int(64) unsigned,
   UNIQUE(id),
   FOREIGN KEY (album_artist)
@@ -267,7 +276,8 @@ END//
 
 GRANT EXECUTE ON FUNCTION audioid.begin_scan_get_last_updated TO 'audioid_admin'@'localhost'//
 
-CREATE PROCEDURE upsert_song(IN in_song_name VARCHAR(128), IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
+CREATE PROCEDURE upsert_song(IN in_song_title VARCHAR(128), IN in_lcase_title VARCHAR(128), IN in_no_diacritic_title VARCHAR(128), IN in_lcase_no_diacritic_title VARCHAR(128),
+                             IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
                              IN in_catalog_id INT(64) unsigned, IN in_genre_name VARCHAR(64), IN in_album_name VARCHAR(128),
                              IN in_album_artist_name VARCHAR(128), IN in_track_number INT(64) unsigned, in_last_modified INT(64) unsigned)
 upsert_song:BEGIN
@@ -294,9 +304,9 @@ upsert_song:BEGIN
   -- CALL log_debug(var_song_id);
   
   IF var_song_id IS NULL THEN
-    -- CALL log_debug(CONCAT("inserting ", in_song_name, "..."));
-    INSERT INTO songs (name, filename, `year`, duration, catalog_id, last_scanned)
-      VALUES(in_song_name, in_filename, in_year, in_duration, in_catalog_id, unix_timestamp());
+    -- CALL log_debug(CONCAT("inserting ", in_song_title, "..."));
+    INSERT INTO songs (title, lcase_title, no_diacritic_title, lcase_no_diacritic_title, filename, `year`, duration, catalog_id, last_scanned)
+      VALUES(in_song_title, in_lcase_title, in_no_diacritic_title, in_lcase_no_diacritic_title, in_filename, in_year, in_duration, in_catalog_id, unix_timestamp());
     SELECT LAST_INSERT_ID() INTO var_song_id;
   ELSE
     IF var_last_scanned > in_last_modified THEN
@@ -305,8 +315,9 @@ upsert_song:BEGIN
       LEAVE upsert_song;
     END IF;
     
-    -- CALL log_debug(CONCAT("updating ", in_song_name, "..."));
-    UPDATE songs SET name=in_song_name, year=in_year, duration=in_duration, last_scanned=unix_timestamp(), mp3_exists=1 WHERE id=var_song_id;
+    -- CALL log_debug(CONCAT("updating ", in_song_title, "..."));
+    UPDATE songs SET title=in_song_title, lcase_title = in_lcase_title, no_diacritic_title = in_no_diacritic_title, lcase_no_diacritic_title = in_lcase_no_diacritic_title,
+     year=in_year, duration=in_duration, last_scanned=unix_timestamp(), mp3_exists=1 WHERE id=var_song_id;
   END IF;
 
   -- CALL log_debug(CONCAT("this song's new id is ", var_song_id));

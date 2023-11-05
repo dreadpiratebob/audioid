@@ -1,6 +1,23 @@
 from api.util.logger import get_logger
 
 from enum import Enum
+from unidecode import unidecode
+
+_diacritic_removal_special_cases = \
+{
+  'KoЯn': 'Korn'
+}
+def get_search_text_from_raw_text(raw_text:str) -> tuple[str, str, str]:
+  lcase = raw_text.lower()
+  
+  if raw_text in _diacritic_removal_special_cases:
+    no_diacritics = _diacritic_removal_special_cases[raw_text]
+  else:
+    no_diacritics = unidecode(raw_text)
+  
+  lcase_no_diacritics = no_diacritics.lower()
+  
+  return lcase, no_diacritics, lcase_no_diacritics
 
 def get_type_name(value:any, class_only:bool = False) -> str:
   start_index = 8
@@ -49,7 +66,7 @@ def is_iterable(obj:any) -> bool:
 def is_primitive(obj:any) -> bool:
   return not hasattr(obj, '__dict__')
 
-def log_exception(exception:Exception):
+def log_exception(exception:Exception) -> None:
   exception_type = str(type(exception))[8:-2]
   message = 'caught an exception of type ' + exception_type + '.\n'
   message += 'exception message: ' + str(exception) + '\n'

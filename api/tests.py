@@ -3,7 +3,8 @@ load_config('test')
 
 from api.exceptions.http_base import BadRequestException, NotFoundException
 from api.index import base_path
-from api.util.functions import hash_dict
+from api.util.audioid import GetSongsQueryParams
+from api.util.functions import get_search_text_from_raw_text, hash_dict
 from api.util.http_path import \
   PathData, \
   PathNode, \
@@ -109,6 +110,75 @@ class ConfigTests(unittest.TestCase):
     expected = val
     actual   = get_config_value(key)
     self.assertEqual(expected, actual)
+
+class CharEncodingTests(unittest.TestCase):
+  # self.assertEqual somehow makes it so that ('š', ) == ('Š', ) is true,  \-:
+  # so using self.assertEqual to compare those two tuples makes it so that tests
+  # don't fail when they should.
+  
+  def test_basic_letters(self):
+    input = 'letters'
+    
+    expected = (input, input, input)
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_lcase_diacritics(self):
+    input = 'ňě'
+    
+    expected = (input, 'ne', 'ne')
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_2case_diacritics(self):
+    input = 'Šiňě'
+    
+    expected = ('šiňě', 'Sine', 'sine')
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_korn(self):
+    input = 'KoЯn'
+
+    expected = ('koяn', 'Korn', 'korn')
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_mandarin(self):
+    input = '为什么'
+    
+    expected = ('为什么', 'Wei Shen Me ', 'wei shen me ')
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_only_numbers(self):
+    input = '1234'
+    
+    expected = (input, input, input)
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_only_punctuation(self):
+    input = '>.<'
+    
+    expected = (input, input, input)
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
+  
+  def test_letters_and_punctuation(self):
+    input = 'Ó_Ò'
+    
+    expected = ('ó_ò', 'O_O', 'o_o')
+    actual   = get_search_text_from_raw_text(input)
+    
+    self.assertTrue(expected == actual)
 
 class SerToJSONTests(unittest.TestCase):
   def test_primitive(self):
@@ -770,6 +840,12 @@ private_data:
     actual = serialize_by_field_to_plain_text(two_same_level_references, public_only=False, use_base_field=False, skip_circular_references=True)
     
     self.assertEqual(expected, actual)
+
+class GetQueryParamTests(unittest.TestCase):
+  def test_get_default_values(self):
+    query_params = {'catalog_id': '1'}
+    
+    self.assertEqual(False, GetSongsQueryParams.SONG_TITLE_HAS_WILDCARDS.default_value)
 
 class BuildResponseFromExceptionTests(unittest.TestCase):
   def test_404_not_found(self):
