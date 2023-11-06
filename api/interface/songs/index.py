@@ -61,8 +61,6 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   song_title_matches_diacritics = params[GetSongsQueryParams.SONG_TITLE_MATCHES_DIACRITICS.param_name]
   song_year = params[GetSongsQueryParams.SONG_YEAR.param_name]
   
-  print('title: %s / wild: %s / lc: %s / diacritics: %s' % (song_title, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics))
-  
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   

@@ -62,7 +62,7 @@ _name_columns = \
   (True,  True ): ('title', 'name'),
   (False, True ): ('lcase_title', 'lcase_name'),
   (True,  False): ('no_diacritic_title', 'no_diacritic_name'),
-  (False, False): ('lcase_no_diacritic_title', 'lcase_no_diacritic_title')
+  (False, False): ('lcase_no_diacritic_title', 'lcase_no_diacritic_name')
 }
 def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, song_title_has_wildcards:bool, song_title_is_case_sensitive:bool, song_title_matches_diacritics:bool, song_year:int,
                artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
@@ -153,7 +153,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
       else:
         album_name = _name_no_case_no_diacritics
     
-    album_name_column_name = _name_columns[(song_title_is_case_sensitive, song_title_matches_diacritics)][1]
+    album_name_column_name = _name_columns[(album_name_is_case_sensitive, album_name_matches_diacritics)][1]
     
     if album_name_has_wildcards:
       songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
