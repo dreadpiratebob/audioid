@@ -12,7 +12,7 @@ invalid_album_artist_id_error = 'an album artist id must be a nonnegative int.'
 
 genres = dict()
 
-def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
+def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> Song:
   grievances = []
   
   if not isinstance(catalog_id, int):
@@ -46,30 +46,30 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
 
 def get_songs(catalog_id:int, song_name:str, song_title_has_wildcards:bool, song_title_is_case_sensitive:bool, song_title_matches_diacritics:bool, song_year:int,
               artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
-              album_id:int, album_name:str, album_name_is_an_exact_match:bool,
+              album_id:int, album_name:str, album_name_has_wildcards:bool, album_name_is_case_sensitive:bool, album_name_matches_diacritics:bool,
               album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
               genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
-              include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
+              include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   return _get_songs(catalog_id, None, None, song_name, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics, song_year,
                     artist_id, artist_name, artist_name_is_an_exact_match,
-                    album_id, album_name, album_name_is_an_exact_match,
+                    album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics,
                     album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
                     genre_id, genre_name, genre_name_is_an_exact_match,
                     include_artists, include_albums, include_genres)
 
-_song_title_columns = \
+_name_columns = \
 {
-  (True,  True ): 'title',
-  (False, True ): 'lcase_title',
-  (True,  False): 'no_diacritic_title',
-  (False, False): 'lcase_no_diacritic_title'
+  (True,  True ): ('title', 'name'),
+  (False, True ): ('lcase_title', 'lcase_name'),
+  (True,  False): ('no_diacritic_title', 'no_diacritic_name'),
+  (False, False): ('lcase_no_diacritic_title', 'lcase_no_diacritic_title')
 }
 def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, song_title_has_wildcards:bool, song_title_is_case_sensitive:bool, song_title_matches_diacritics:bool, song_year:int,
                artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
-               album_id:int, album_name:str, album_name_is_an_exact_match:bool,
+               album_id:int, album_name:str, album_name_has_wildcards:bool, album_name_is_case_sensitive:bool, album_name_matches_diacritics:bool,
                album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
                genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
-               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True):
+               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   if not isinstance(catalog_id, int):
     raise ValueError('got a catalog id that\'s a(n) %s instead of an int: %s' % (get_type_name(catalog_id), str(catalog_id)))
   
@@ -110,7 +110,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
       else:
         song_title = _title_no_case_no_diacritics
     
-    song_title_column_name = _song_title_columns[(song_title_is_case_sensitive, song_title_matches_diacritics)]
+    song_title_column_name = _name_columns[(song_title_is_case_sensitive, song_title_matches_diacritics)][0]
     if song_title_has_wildcards:
       songs_where += '  AND s.' + song_title_column_name + ' LIKE %s\n'
     else:
@@ -141,14 +141,29 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
                   '    AND s_al_filter.album_id = %s\n'
     songs_from_args.append(album_id)
   elif album_name is not None:
-    if album_name_is_an_exact_match:
+    _name_no_case, _name_no_diacritics, _name_no_case_no_diacritics = (None, None, None)
+    if not album_name_is_case_sensitive or not album_name_matches_diacritics:
+      _name_no_case, _name_no_diacritics, _name_no_case_no_diacritics = get_search_text_from_raw_text(album_name)
+      if song_title_is_case_sensitive and song_title_matches_diacritics:
+        pass
+      elif not song_title_is_case_sensitive and song_title_matches_diacritics:
+        album_name = _name_no_case
+      elif song_title_is_case_sensitive and not song_title_matches_diacritics:
+        album_name = _name_no_diacritics
+      else:
+        album_name = _name_no_case_no_diacritics
+    
+    album_name_column_name = _name_columns[(song_title_is_case_sensitive, song_title_matches_diacritics)][1]
+    
+    if album_name_has_wildcards:
       songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
                     '    INNER JOIN albums AS al_filter ON al_filter.id = s_al_filter.album_id\n' \
-                    '      AND al_filter.name = %s\n'
+                    '      AND al_filter.' + album_name_column_name + ' LIKE %s\n'
     else:
       songs_from += '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.song_id = s.id\n' \
                     '    INNER JOIN albums AS al_filter ON al_filter.id = s_al_filter.album_id\n' \
-                    '      AND al_filter.name LIKE %s\n'
+                    '      AND al_filter.' + album_name_column_name + ' = %s\n'
+    
     songs_from_args.append(album_name)
     
     if album_artist_id is None and album_artist_name is None:
