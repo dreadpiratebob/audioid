@@ -47,13 +47,13 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
 def get_songs(catalog_id:int, song_name:str, song_title_has_wildcards:bool, song_title_is_case_sensitive:bool, song_title_matches_diacritics:bool, song_year:int,
               artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
               album_id:int, album_name:str, album_name_has_wildcards:bool, album_name_is_case_sensitive:bool, album_name_matches_diacritics:bool,
-              album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
+              album_artist_id:int, album_artist_name:str, album_artist_name_has_wildcards:bool, filter_on_null_album_artist:bool,
               genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   return _get_songs(catalog_id, None, None, song_name, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics, song_year,
                     artist_id, artist_name, artist_name_is_an_exact_match,
                     album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics,
-                    album_artist_id, album_artist_name, album_artist_name_is_an_exact_match,
+                    album_artist_id, album_artist_name, album_artist_name_has_wildcards, filter_on_null_album_artist,
                     genre_id, genre_name, genre_name_is_an_exact_match,
                     include_artists, include_albums, include_genres)
 
@@ -67,7 +67,7 @@ _name_columns = \
 def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, song_title_has_wildcards:bool, song_title_is_case_sensitive:bool, song_title_matches_diacritics:bool, song_year:int,
                artist_id:int, artist_name:str, artist_name_is_an_exact_match:bool,
                album_id:int, album_name:str, album_name_has_wildcards:bool, album_name_is_case_sensitive:bool, album_name_matches_diacritics:bool,
-               album_artist_id:int, album_artist_name:str, album_artist_name_is_an_exact_match:bool,
+               album_artist_id:int, album_artist_name:str, album_artist_name_has_wildcards:bool, filter_on_null_album_artist:bool,
                genre_id:int, genre_name:str, genre_name_is_an_exact_match:bool,
                include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   if not isinstance(catalog_id, int):
@@ -167,13 +167,14 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
     songs_from_args.append(album_name)
     
     if album_artist_id is None and album_artist_name is None:
-      songs_from += '    AND al_filter.album_artist IS NULL\n'
+      if filter_on_null_album_artist:
+        songs_from += '    AND al_filter.album_artist IS NULL\n'
     elif album_artist_id is not None:
       songs_from += '    AND al_filter.album_artist = %s\n'
       songs_from_args.append(album_artist_id)
     elif album_artist_name is not None:
       songs_from += '    INNER JOIN artists AS al_ar_filter ON al_ar_filter.id = al_filter.album_artist\n'
-      if album_artist_name_is_an_exact_match:
+      if album_artist_name_has_wildcards:
         songs_from += '      AND al_ar_filter.name = %s\n'
       else:
         songs_from += '      AND al_ar_filter.name LIKE %s\n'
@@ -232,8 +233,11 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
             song.get_songs_artists().append(song_artist)
       
       if include_albums:
-        query = 'SELECT a.id AS id,\n' \
-                '  a.name AS name,\n' \
+        query = 'SELECT a.id AS album_id,\n' \
+                '  a.name AS album_name,\n' \
+                '  al.lcase_name as album_lcase_name,\n' \
+                '  al.no_diacritic_name as album_no_diacritic_name,\n' \
+                '  al.lcase_no_diacritic_name as album_lcase_no_diacritic_name,\n' \
                 '  s_a.track_number AS track_number,\n' \
                 '  ar.id AS album_artist_id,\n' \
                 '  ar.name AS album_artist_name\n' \
@@ -248,7 +252,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
           
           for al in range(album_count):
             db_album = albums_cursor.fetchone()
-            album_id = db_album['id']
+            album_id = db_album['album_id']
             album = None
             if album_id in albums:
               album = albums[album_id]
@@ -260,7 +264,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
               else:
                 album_artist = Artist(album_artist_id, db_album['album_artist_name'])
                 artists[album_artist_id] = artist
-              album = Album(album_id, db_album['name'], album_artist)
+              album = Album(album_id, db_album['album_name'], db_album['album_lcase_name'], db_album['album_no_diacritic_name'], db_album['album_lcase_no_diacritic_name'], album_artist)
               albums[album_id] = album
             song_album = SongAlbum(song, album, db_album['track_number'])
             song.get_songs_albums().append(song_album)
@@ -369,7 +373,7 @@ def get_album_by_id(album_id:int, include_tracks:bool = False):
   
   raise InvalidCountException('found %s albums with the id %s.' % (str(len(result)), str(album_id)))
 
-def get_album_by_name(catalog_id:int, album_name:str, album_artist:(int, str) = None, include_tracks:bool = False):
+def get_album_by_name(catalog_id:int, album_name:str, album_artist:[int, str] = None, include_tracks:bool = False):
   album_artist_id = None
   album_artist_name = None
   
@@ -383,8 +387,8 @@ def get_album_by_name(catalog_id:int, album_name:str, album_artist:(int, str) = 
   
   return _get_albums(catalog_id, None, album_name, album_artist_id, album_artist_name, include_tracks)
 
-def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:int, album_artist_name:str, include_tracks:bool = True, album_name_is_an_exact_match:bool = False, artist_name_is_an_exact_match:bool = False):
-  query_select = 'SELECT al.id AS album_id, al.name AS album_name,\n' \
+def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:int, album_artist_name:str, include_tracks:bool = True, album_name_has_wildcards:bool = False, artist_name_has_wildcards:bool = False):
+  query_select = 'SELECT al.id AS album_id, al.name AS album_name, al.lcase_name as album_lcase_name, al.no_diacritic_name as album_no_diacritic_name, al.lcase_no_diacritic_name as album_lcase_no_diacritic_name,\n' \
                  '  ar.id AS album_artist_id, ar.name AS album_artist_name\n'
   query_from   = 'FROM albums AS al\n' \
                  '  LEFT JOIN artists AS ar ON ar.id = al.album_artist_id\n'
@@ -404,14 +408,14 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
   
   if album_name is not None:
     if isinstance(album_name, str):
-      if isinstance(album_name_is_an_exact_match, bool):
-        if album_name_is_an_exact_match:
-          query_where += '\n  AND al.name = %s'
-        else:
+      if isinstance(album_name_has_wildcards, bool):
+        if album_name_has_wildcards:
           query_where += '\n  AND al.name LIKE %s'
+        else:
+          query_where += '\n  AND al.name = %s'
         params.append(album_name)
       else:
-        grievances.append('the "album name is an exact match" flag must be a bool.')
+        grievances.append('the "album name has wildcards" flag must be a bool.')
     else:
       grievances.append('an album name must be a string.')
   
@@ -423,14 +427,14 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
   
   if album_artist_name is not None:
     if isinstance(album_artist_name, str):
-      if isinstance(artist_name_is_an_exact_match, bool):
-        if artist_name_is_an_exact_match:
-          query_where += '\n  AND ar.name = %s'
-        else:
+      if isinstance(artist_name_has_wildcards, bool):
+        if artist_name_has_wildcards:
           query_where += '\n  AND ar.name LIKE %s'
+        else:
+          query_where += '\n  AND ar.name = %s'
         params.append(album_artist_name)
       else:
-        grievances.append('the "artist name is an exact match" flag must be a bool.')
+        grievances.append('the "artist name has wildcards" flag must be a bool.')
     else:
       grievances.append('an album artist name must be a string.')
   
@@ -460,7 +464,7 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
       
       album_artist = Artist(db_album['album_artist_id'], db_album['album_artist_name'])
       
-      album = Album(db_album['id'], db_album['name'], album_artist)
+      album = Album(db_album['id'], db_album['name'], db_album['album_lcase_name'], db_album['album_no_diacritic_name'], db_album['album_lcase_no_diacritic_name'], album_artist)
       albums.append(album)
       
       if not include_tracks:

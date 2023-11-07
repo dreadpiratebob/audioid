@@ -175,33 +175,16 @@ class Song:
       raise ValueError('a song title must be a str.')
     
     self._title = title
+    self._lcase_title, self._no_diacritic_title, self._lcase_no_diacritic_title = get_search_text_from_raw_text(title)
   
   def get_lcase_title(self):
     return self._lcase_title
   
-  def set_lcase_title(self, lcase_title:str):
-    if not isinstance(lcase_title, str):
-      raise ValueError('a song title must be a str.')
-    
-    self._lcase_title = lcase_title
-  
   def get_no_diacritic_title(self):
     return self._no_diacritic_title
   
-  def set_no_diacritic_title(self, no_diacritic_title:str):
-    if not isinstance(no_diacritic_title, str):
-      raise ValueError('a song title must be a str.')
-    
-    self._no_diacritic_title = no_diacritic_title
-  
   def get_lcase_no_diacritic_title(self):
     return self._lcase_no_diacritic_title
-  
-  def set_lcase_no_diacritic_title(self, lcase_no_diacritic_title:str):
-    if not isinstance(lcase_no_diacritic_title, str):
-      raise ValueError('a song title must be a str.')
-    
-    self._lcase_no_diacritic_title = lcase_no_diacritic_title
   
   def get_year(self):
     return self._year
@@ -393,13 +376,22 @@ class SongArtist:
     self._conjunction = conjunction
 
 class Album:
-  def __init__(self, id:int, name:str, album_artist:Artist, songs_albums = None):
+  def __init__(self, id:int, name:str, lcase_name:str, no_diacritic_name:str, lcase_no_diacritic_name:str, album_artist:Artist, songs_albums = None):
     grievances = []
     
     if id is not None and not isinstance(id, int):
       grievances.append('an id must be an int.')
     
     if not isinstance(name, str):
+      grievances.append('a name must be a str.')
+    
+    if lcase_name is not None and not isinstance(lcase_name, str):
+      grievances.append('a name must be a str.')
+    
+    if no_diacritic_name is not None and not isinstance(no_diacritic_name, str):
+      grievances.append('a name must be a str.')
+    
+    if lcase_no_diacritic_name is not None and not isinstance(lcase_no_diacritic_name, str):
       grievances.append('a name must be a str.')
     
     if album_artist is not None and not isinstance(album_artist, Artist):
@@ -412,9 +404,15 @@ class Album:
       songs_albums = list()
     
     self._id = id
+    self._name = name
+    self._lcase_name = lcase_name
+    self._no_diacritic_name = no_diacritic_name
+    self._lcase_no_diacritic_name = lcase_no_diacritic_name
     self._album_artist = album_artist
     self._songs_albums = songs_albums
-    self._name = name
+    
+    if lcase_name is None or no_diacritic_name is not None or lcase_no_diacritic_name is not None:
+      self.set_name(name)
   
   def __str__(self):
     return self._name + ' by ' + self._album_artist.get_name() + ':\n' + \
@@ -431,6 +429,17 @@ class Album:
       raise ValueError('a name must be a str.')
     
     self._name = name
+    
+    self._lcase_name, self._no_diacritic_name, self._lcase_no_diacritic_name = get_search_text_from_raw_text(name)
+  
+  def get_lcase_name(self):
+    return self._lcase_name
+  
+  def get_no_diacritic_name(self):
+    return self._no_diacritic_name
+  
+  def get_lcase_no_diacritic_name(self):
+    return self._name
   
   def get_album_artist(self):
     return self._album_artist

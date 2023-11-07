@@ -37,7 +37,7 @@ def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None):
     album_artist = None
     if mp3.album_artist is not None:
       album_artist = Artist(None, mp3.album_artist)
-    album = Album(None, mp3.album, album_artist)
+    album = Album(None, mp3.album, None, None, None, album_artist)
     album_join = SongAlbum(song, album, None if mp3.track is None else int(mp3.track))
     song.set_songs_albums([album_join])
   
