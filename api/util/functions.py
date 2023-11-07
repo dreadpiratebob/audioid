@@ -81,3 +81,20 @@ def log_exception(exception:Exception) -> None:
     exception_traceback = exception_traceback.tb_next
   
   get_logger().error(message)
+
+def parse_bool(obj:any, throw_on_failure:bool = True, default_value:bool = False) -> bool:
+  if isinstance(obj, bool):
+    return obj
+  elif isinstance(obj, str):
+    text = obj.lower()
+    if text == 'true':
+      return True
+    if text == 'false':
+      return False
+  elif isinstance(obj, (int, float)):
+    return obj != 0
+  
+  if throw_on_failure:
+    raise ValueError('"%s" (a(n) %s) isn\'t parsable as a bool.' % (str(obj), get_type_name(obj)))
+  else:
+    return default_value

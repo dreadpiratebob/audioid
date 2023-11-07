@@ -846,6 +846,18 @@ class GetQueryParamTests(unittest.TestCase):
     query_params = {'catalog_id': '1'}
     
     self.assertEqual(False, GetSongsQueryParams.SONG_TITLE_HAS_WILDCARDS.default_value)
+  
+  def test_album_name_is_case_sensitive(self):
+    query_params =\
+    {
+      'catalog_id': '1',
+      'album_name': 'unit test',
+      'album_name_is_case_sensitive': 'False',
+      'album_name_matches_diacritics': 'True'
+    }
+    
+    self.assertTrue(GetSongsQueryParams.ALBUM_NAME_IS_CASE_SENSITIVE.param_name in query_params)
+    self.assertFalse(GetSongsQueryParams.ALBUM_NAME_IS_CASE_SENSITIVE.get_value(query_params, False)[0])
 
 class BuildResponseFromExceptionTests(unittest.TestCase):
   def test_404_not_found(self):
