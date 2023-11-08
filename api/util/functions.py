@@ -1,5 +1,3 @@
-from api.util.logger import get_logger
-
 from enum import Enum
 from unidecode import unidecode
 
@@ -65,22 +63,6 @@ def is_iterable(obj:any) -> bool:
 
 def is_primitive(obj:any) -> bool:
   return not hasattr(obj, '__dict__')
-
-def log_exception(exception:Exception) -> None:
-  exception_type = str(type(exception))[8:-2]
-  message = 'caught an exception of type ' + exception_type + '.\n'
-  message += 'exception message: ' + str(exception) + '\n'
-  message += 'stack trace:\n'
-  
-  exception_traceback = exception.__traceback__
-  while exception_traceback is not None:
-    filename = str(exception_traceback.tb_frame.f_code.co_filename)
-    exception_line_number = str(exception_traceback.tb_lineno)
-    message += '--from file ' + filename + ', line number ' + exception_line_number + '\n'
-    
-    exception_traceback = exception_traceback.tb_next
-  
-  get_logger().error(message)
 
 def parse_bool(obj:any, throw_on_failure:bool = True, default_value:bool = False) -> bool:
   if isinstance(obj, bool):

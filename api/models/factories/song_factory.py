@@ -9,7 +9,7 @@ from api.models.db_models import \
 
 from api.util.logger import get_logger
 
-def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None):
+def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None) -> Song:
   if artist_splitters is None:
     artist_splitters = [' feat ', ' feat. ', ' featuring ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']
   

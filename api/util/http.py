@@ -1,5 +1,6 @@
 from api.exceptions.http_base import BaseHTTPException, BadRequestException
-from api.util.functions import get_type_name, is_primitive, log_exception
+from api.util.functions import get_type_name, is_primitive
+from api.util.logger import log_exception
 
 from enum import Enum
 from inspect import signature

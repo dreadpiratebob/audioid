@@ -74,7 +74,7 @@ def get_year(data):
   return None
 
 class MP3:
-  def __init__(self, data):
+  def __init__(self, data:dict):
     grievances = []
   
     if MP3Fields.FILENAME.value not in data:

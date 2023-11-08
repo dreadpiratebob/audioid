@@ -1,6 +1,7 @@
+from api.util.functions import get_search_text_from_raw_text
+
 import datetime
 import os.path
-import re
 
 from enum import Enum
 
@@ -36,27 +37,26 @@ class Logger:
     self._log_level = log_level
     self._log_dir   = log_dir
   
-  def debug(self, message):
+  def debug(self, message:str):
     self.log(LogLevel.DEBUG, message)
   
-  def info(self, message):
+  def info(self, message:str):
     self.log(LogLevel.INFO, message)
   
-  def warn(self, message):
+  def warn(self, message:str):
     self.log(LogLevel.WARN, message)
   
-  def error(self, message):
+  def error(self, message:str):
     self.log(LogLevel.ERROR, message)
   
-  def log(self, log_level, message):
+  def log(self, log_level:LogLevel, message:str):
     if log_level.value[1] < self._log_level.value[1]:
       return
     
-    bad_unicode_chars = u'[\udc00-\udfff]'
-    message = re.sub(bad_unicode_chars, '?', message)
+    lcase, no_diacritics, lcase_no_diacritics = get_search_text_from_raw_text(str(message))
     
     now = datetime.datetime.utcnow()
-    fmt_msg = '%s [%s]: %s' % (str(now), log_level.value[0], str(message))
+    fmt_msg = '%s [%s]: %s' % (str(now), log_level.value[0], no_diacritics)
     print(fmt_msg)
     
     if not os.path.exists(_log_dir):
@@ -76,3 +76,19 @@ def get_logger(log_level = LogLevel.DEBUG, log_dir = _log_dir):
   loggers[log_level][log_dir] = logger
   
   return logger
+
+def log_exception(exception:Exception) -> None:
+  exception_type = str(type(exception))[8:-2]
+  message = 'caught an exception of type ' + exception_type + '.\n'
+  message += 'exception message: ' + str(exception) + '\n'
+  message += 'stack trace:\n'
+  
+  exception_traceback = exception.__traceback__
+  while exception_traceback is not None:
+    filename = str(exception_traceback.tb_frame.f_code.co_filename)
+    exception_line_number = str(exception_traceback.tb_lineno)
+    message += '--from file ' + filename + ', line number ' + exception_line_number + '\n'
+    
+    exception_traceback = exception_traceback.tb_next
+  
+  get_logger().error(message)

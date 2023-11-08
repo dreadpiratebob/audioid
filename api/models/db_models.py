@@ -84,7 +84,7 @@ class Song:
     if lcase_no_diacritic_title is not None and not isinstance(lcase_no_diacritic_title, str):
       grievances.append('a title must be a str.')
     
-    if not isinstance(year, int):
+    if year is not None and not isinstance(year, int):
       grievances.append('a year must be an int.')
     
     if not isinstance(duration, float):
