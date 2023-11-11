@@ -2,7 +2,7 @@ from api.exceptions.song_data import\
   InvalidArtistDataException,\
   InvalidCatalogDataException,\
   InvalidSongDataException
-from api.util.functions import get_search_text_from_raw_text, is_iterable
+from api.util.functions import get_search_text_from_raw_text, get_type_name, is_iterable, is_primitive
 
 class Catalog:
   def __init__(self, id:int, name:str, base_path:str):
@@ -29,6 +29,9 @@ class Catalog:
       self._id == other._id and \
       self._name == other._name and \
       self._base_path == other._base_path
+  
+  def __ne__(self, other):
+    return not self.__eq__(other)
   
   def __hash__(self):
     return (((hash(self._id)*397) ^ hash(self._name))*397) ^ hash(self._base_path)
@@ -155,10 +158,101 @@ class Song:
     self._song_similarities_from_song2 = list(song_similarities_from_song2)
     self._song_similarities_from_song1 = list(song_similarities_from_song1)
   
-  def __str__(self):
+  def __eq__(self, other:any) -> bool:
+    if not isinstance(other, Song):
+      return False
+    
+    return self._recursive_equals(other)
+  
+  def __ne__(self, other):
+    if not isinstance(other, Song):
+      return True
+    
+    return not self._recursive_equals(other)
+  
+  def _recursive_equals(self, other:any, seen_objects:list = None) -> bool:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if other in seen_objects:
+      return True
+    
+    seen_objects = seen_objects + [other]
+    
+    for field_name in self.__dict__:
+      self_val = self.__dict__[field_name]
+      self_type = type(self_val)
+      other_val = other.__dict__[field_name]
+      other_type = type(other_val)
+      if self_type != other_type:
+        return False
+      
+      if isinstance(self_val, (list, tuple)):
+        if len(self_val) != len(other_val):
+          return False
+        
+        for i in range(len(self_val)):
+          self_i = self_val[i]
+          other_i = other_val[i]
+          _next_eq = getattr(self_i, '_recursive_equals', None)
+          if callable(_next_eq):
+            if not _next_eq(other_i, seen_objects):
+              return False
+          elif self_i != other_i:
+            return False
+        
+        continue
+      
+      _next_eq = getattr(self_val, '_recursive_equals', None)
+      if callable(_next_eq):
+        if not _next_eq(other_val, seen_objects):
+          return False
+      elif self_val != other_val:
+        return False
+    
+    return True
+  
+  def __hash__(self) -> int:
+    return self._recursive_hash()
+  
+  def _recursive_hash(self, seen_objects:list = None) -> int:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if self in seen_objects:
+      return 0
+    
+    seen_objects = seen_objects + [self]
+
+    result = 0
+
+    field_names = [key for key in self.__dict__]
+    field_names.sort()  # for consistency
+    for field_name in field_names:
+      field_hash = 0
+      field_val  = self.__dict__[field_name]
+      if isinstance(field_val, (list, tuple)):
+        for val_i in field_val:
+          _next_hash = getattr(val_i, '_recursive_hash', None)
+          if callable(_next_hash):
+            field_hash = (field_hash*397) ^ _next_hash(seen_objects)
+          else:
+            field_hash = (field_hash*397) ^ hash(val_i)
+      else:
+        _next_hash = getattr(field_val, '_recursive_hash', None)
+        if callable(_next_hash):
+          field_hash = _next_hash(seen_objects)
+        else:
+          field_hash = hash(field_val)
+      
+      result = (result * 397) ^ field_hash
+
+    return result
+  
+  def __str__(self) -> str:
     return '"' + self.get_title() + '" by ' + ''.join([s_a.get_artist().get_name() + ('' if s_a.get_conjunction() is None else s_a.get_conjunction()) for s_a in self.get_songs_artists()])
   
-  def get_id(self):
+  def get_id(self) -> int:
     return self._id
   
   def set_id(self, id:int):
@@ -167,92 +261,92 @@ class Song:
     
     self._id = id
   
-  def get_title(self):
+  def get_title(self) -> str:
     return self._title
   
-  def set_title(self, title:str):
+  def set_title(self, title:str) -> None:
     if not isinstance(title, str):
       raise ValueError('a song title must be a str.')
     
     self._title = title
     self._lcase_title, self._no_diacritic_title, self._lcase_no_diacritic_title = get_search_text_from_raw_text(title)
   
-  def get_lcase_title(self):
+  def get_lcase_title(self) -> str:
     return self._lcase_title
   
-  def get_no_diacritic_title(self):
+  def get_no_diacritic_title(self) -> str:
     return self._no_diacritic_title
   
-  def get_lcase_no_diacritic_title(self):
+  def get_lcase_no_diacritic_title(self) -> str:
     return self._lcase_no_diacritic_title
   
-  def get_year(self):
+  def get_year(self) -> int:
     return self._year
   
-  def set_year(self, year:int):
+  def set_year(self, year:int) -> None:
     if not isinstance(year, int):
       raise ValueError('a year must be an int.')
     
     self._year = year
   
-  def get_duration(self):
+  def get_duration(self) -> float:
     return self._duration
   
-  def set_duration(self, duration:float):
+  def set_duration(self, duration:float) -> None:
     if not isinstance(duration, float):
       raise ValueError('a duration must be a float.')
     
     self._duration = duration
   
-  def get_filename(self):
+  def get_filename(self) -> str:
     return self._filename
   
-  def set_filename(self, filename:str):
+  def set_filename(self, filename:str) -> None:
     if not isinstance(filename, str):
       raise ValueError('a filename must be a str.')
     
     self._filename = filename
   
-  def get_full_filename(self):
+  def get_full_filename(self) -> str:
     return self.get_catalog().get_base_path() + self.get_filename()
   
-  def get_last_scanned(self):
+  def get_last_scanned(self) -> int:
     return self._last_scanned
   
-  def set_last_scanned(self, last_scanned:int):
+  def set_last_scanned(self, last_scanned:int) -> None:
     if not isinstance(last_scanned, int):
       raise ValueError('a last scanned timestamp must be an int.')
     
     self._last_scanned = last_scanned
   
-  def get_file_last_modified(self):
+  def get_file_last_modified(self) -> int:
     return self._file_last_modified
   
-  def set_file_last_modified(self, file_last_modified:int):
+  def set_file_last_modified(self, file_last_modified:int) -> None:
     if not isinstance(file_last_modified, int):
       raise ValueError('a last modified timestamp must be an int.')
   
     self._file_last_modified = file_last_modified
   
-  def get_catalog(self):
+  def get_catalog(self) -> Catalog:
     return self._catalog
   
-  def set_catalog(self, catalog):
+  def set_catalog(self, catalog) -> None:
     self._catalog = catalog
   
-  def get_genres(self):
+  def get_genres(self) -> list:
     return self._genres
   
-  def set_genres(self, genres):
+  def set_genres(self, genres) -> None:
     if not is_iterable(genres):
       raise TypeError('a collection of genres must be iterable.')
     
     self._genres = set(genres)
   
-  def get_songs_albums(self):
+  def get_songs_albums(self) -> list:
     return self._songs_albums
   
-  def set_songs_albums(self, songs_albums):
+  def set_songs_albums(self, songs_albums) -> None:
     if not is_iterable(songs_albums):
       raise TypeError('songs_albums must be iterable.')
     
@@ -261,10 +355,10 @@ class Song:
     
     self._songs_albums = songs_albums
   
-  def get_songs_artists(self):
+  def get_songs_artists(self) -> list:
     return self._songs_artists
   
-  def set_songs_artists(self, songs_artists):
+  def set_songs_artists(self, songs_artists) -> None:
     if not is_iterable(songs_artists):
       raise TypeError('songs_artists must be iterable.')
     
@@ -273,16 +367,16 @@ class Song:
     
     self._songs_artists = songs_artists
   
-  def get_song_similarities_from_song2(self):
+  def get_song_similarities_from_song2(self) -> list:
     return self._song_similarities_from_song2
   
-  def set_song_similarities_from_song2(self, song_similarities_from_song2):
+  def set_song_similarities_from_song2(self, song_similarities_from_song2) -> None:
     self._song_similarities_from_song2 = song_similarities_from_song2
   
-  def get_song_similarities_from_song1(self):
+  def get_song_similarities_from_song1(self) -> list:
     return self._song_similarities_from_song1
   
-  def set_song_similarities_from_song1(self, song_similarities_from_song1):
+  def set_song_similarities_from_song1(self, song_similarities_from_song1) -> None:
     self._song_similarities_from_song1 = song_similarities_from_song1
 
 class Artist:
@@ -414,17 +508,104 @@ class Album:
     if lcase_name is None or no_diacritic_name is not None or lcase_no_diacritic_name is not None:
       self.set_name(name)
   
-  def __str__(self):
+  def __eq__(self, other:any) -> bool:
+    if not isinstance(other, type(self)):
+      return False
+    
+    return self._recursive_equals(other)
+  
+  def __ne__(self, other:any) -> bool:
+    if not isinstance(other, type(self)):
+      return True
+    
+    return not self._recursive_equals(other)
+  
+  def _recursive_equals(self, other:any, seen_objects:list = None) -> bool:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if other in seen_objects:
+      return True
+    
+    seen_objects = seen_objects + [other]
+    
+    for field_name in self.__dict__:
+      self_val = self.__dict__[field_name]
+      self_type = type(self_val)
+      other_val = other.__dict__[field_name]
+      other_type = type(other_val)
+      if self_type != other_type:
+        return False
+      
+      if isinstance(self_val, (list, tuple)):
+        if len(self_val) != len(other_val):
+          this_result = False
+        for i in range(len(self_val)):
+          self_i = self_val[i]
+          other_i = other_val[i]
+          _next_eq = getattr(self_i, '_recursive_equals', None)
+          if callable(_next_eq):
+            return False
+          elif self_i != other_i:
+            return False
+      else:
+        _next_eq = getattr(self_val, '_recursive_equals', None)
+        if callable(_next_eq):
+          if not _next_eq(other_val, seen_objects):
+            return False
+        elif self_val != other_val:
+          return False
+    
+    return True
+  
+  def __hash__(self) -> int:
+    return self._recursive_hash()
+  
+  def _recursive_hash(self, seen_objects: list = None) -> int:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if self in seen_objects:
+      return 0
+    
+    seen_objects = seen_objects + [self]
+    
+    result = 0
+    
+    field_names = [key for key in self.__dict__]
+    field_names.sort()  # for consistency
+    for field_name in field_names:
+      field_hash = 0
+      field_val = self.__dict__[field_name]
+      if isinstance(field_val, (list, tuple)):
+        for val_i in field_val:
+          _next_hash = getattr(val_i, '_recursive_hash', None)
+          if callable(_next_hash):
+            field_hash = (field_hash * 397) ^ _next_hash(seen_objects)
+          else:
+            field_hash = (field_hash * 397) ^ hash(val_i)
+      else:
+        _next_hash = getattr(field_val, '_recursive_hash', None)
+        if callable(_next_hash):
+          field_hash = _next_hash(seen_objects)
+        else:
+          field_hash = hash(field_val)
+      
+      result = (result * 397) ^ field_hash
+    
+    return result
+  
+  def __str__(self) -> str:
     return self._name + ' by ' + self._album_artist.get_name() + ':\n' + \
       '\n'.join('  ' + str(s_a.get_track_number()) + '. ' + str(s_a.get_song()) for s_a in self._songs_albums)
   
-  def get_id(self):
+  def get_id(self) -> int:
     return self._id
   
-  def get_name(self):
+  def get_name(self) -> str:
     return self._name
   
-  def set_name(self, name:str):
+  def set_name(self, name:str) -> None:
     if not isinstance(name, str):
       raise ValueError('a name must be a str.')
     
@@ -432,19 +613,19 @@ class Album:
     
     self._lcase_name, self._no_diacritic_name, self._lcase_no_diacritic_name = get_search_text_from_raw_text(name)
   
-  def get_lcase_name(self):
+  def get_lcase_name(self) -> str:
     return self._lcase_name
   
-  def get_no_diacritic_name(self):
+  def get_no_diacritic_name(self) -> str:
     return self._no_diacritic_name
   
-  def get_lcase_no_diacritic_name(self):
+  def get_lcase_no_diacritic_name(self) -> str:
     return self._name
   
-  def get_album_artist(self):
+  def get_album_artist(self) -> str:
     return self._album_artist
   
-  def set_album_artist(self, album_artist:Artist):
+  def set_album_artist(self, album_artist:Artist) -> None:
     if not isinstance(album_artist, Artist):
       raise TypeError('an album artist must be an Artist.')
     
@@ -453,7 +634,7 @@ class Album:
   def get_songs_albums(self):
     return self._songs_albums
   
-  def set_songs_albums(self, songs_albums):
+  def set_songs_albums(self, songs_albums) -> None:
     self._songs_albums = songs_albums
 
 class SongAlbum:
@@ -476,28 +657,119 @@ class SongAlbum:
     self._album = album
     self._track_number = track_number
   
-  def get_song_from_song_id(self):
+  def __eq__(self, other) -> bool:
+    if not isinstance(other, type(self)):
+      return False
+    
+    return self._recursive_equals(other)
+  
+  def __ne__(self, other) -> bool:
+    if not isinstance(other, SongAlbum):
+      return True
+    
+    return not self._recursive_equals(other)
+  
+  def _recursive_equals(self, other:any, seen_objects:list = None) -> bool:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if other in seen_objects:
+      return True
+    
+    seen_objects = seen_objects + [other]
+    
+    for field_name in self.__dict__:
+      self_val = self.__dict__[field_name]
+      self_type = type(self_val)
+      other_val = other.__dict__[field_name]
+      other_type = type(other_val)
+      if self_type != other_type:
+        return False
+      
+      if isinstance(self_val, (list, tuple)):
+        if len(self_val) != len(other_val):
+          return False
+        
+        for i in range(len(self_val)):
+          self_i = self_val[i]
+          other_i = other_val[i]
+          _next_eq = getattr(self_i, '_recursive_equals', None)
+          if callable(_next_eq):
+            if not _next_eq(other_i, seen_objects):
+              return False
+          elif self_i != other_i:
+            return False
+        
+        continue
+      
+      _next_eq = getattr(self_val, '_recursive_equals', None)
+      if callable(_next_eq):
+        if not _next_eq(other_val, seen_objects):
+          return False
+      elif self_val != other_val:
+        return False
+    
+    return True
+  
+  def __hash__(self) -> int:
+    return self._recursive_hash()
+  
+  def _recursive_hash(self, seen_objects: list = None) -> int:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if self in seen_objects:
+      return 0
+    
+    seen_objects = seen_objects + [self]
+    
+    result = 0
+    
+    field_names = [key for key in self.__dict__]
+    field_names.sort()  # for consistency
+    for field_name in field_names:
+      field_hash = 0
+      field_val = self.__dict__[field_name]
+      if isinstance(field_val, (list, tuple)):
+        for val_i in field_val:
+          _next_hash = getattr(val_i, '_recursive_hash', None)
+          if callable(_next_hash):
+            field_hash = (field_hash * 397) ^ _next_hash(seen_objects)
+          else:
+            field_hash = (field_hash * 397) ^ hash(val_i)
+      else:
+        _next_hash = getattr(field_val, '_recursive_hash', None)
+        if callable(_next_hash):
+          field_hash = _next_hash(seen_objects)
+        else:
+          field_hash = hash(field_val)
+      
+      result = (result * 397) ^ field_hash
+    
+    return result
+  
+  def get_song(self) -> Song:
     return self._song
   
-  def set_song(self, song:Song):
+  def set_song(self, song:Song) -> None:
     if not isinstance(song, Song):
       raise TypeError('a song must be a Song.')
     
     self._song = song
   
-  def get_album(self):
+  def get_album(self) -> Album:
     return self._album
   
-  def set_album(self, album:Album):
+  def set_album(self, album:Album) -> None:
     if not isinstance(album, Album):
       raise TypeError('an album must be an Album.')
     
     self._album = album
   
-  def get_track_number(self):
+  def get_track_number(self) -> int:
     return self._track_number
   
-  def set_track_number(self, track_number:int):
+  def set_track_number(self, track_number:int) -> None:
     if not isinstance(track_number, int):
       raise ValueError('a track number must be an int.')
     
