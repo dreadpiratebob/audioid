@@ -30,13 +30,15 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   album_name_has_wildcards      = params[GetSongsQueryParams.ALBUM_NAME_HAS_WILDCARDS.param_name]
   album_name_is_case_sensitive  = params[GetSongsQueryParams.ALBUM_NAME_IS_CASE_SENSITIVE.param_name]
   album_name_matches_diacritics = params[GetSongsQueryParams.ALBUM_NAME_MATCHES_DIACRITICS.param_name]
-  filter_on_empty_album_name    = params[GetSongsQueryParams.FILTER_ON_NULL_ALBUM.param_name]
+  filter_on_null_album    = params[GetSongsQueryParams.FILTER_ON_NULL_ALBUM.param_name]
   if album_id is not None and album_name is not None:
     grievances.append('only one query parameter of "album_id" and "album_name" per request can be set.')
   
   album_artist_id = params[GetSongsQueryParams.ALBUM_ARTIST_ID.param_name]
   album_artist_name = params[GetSongsQueryParams.ALBUM_ARTIST_NAME.param_name]
-  album_artist_name_has_wildcards = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_HAS_WILDCARDS.param_name]
+  album_artist_name_has_wildcards      = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_HAS_WILDCARDS.param_name]
+  album_artist_name_is_case_sensitive  = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_IS_CASE_SENSITIVE.param_name]
+  album_artist_name_matches_diacritics = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_MATCHES_DIACRITICS.param_name]
   filter_on_null_album_artist = params[GetSongsQueryParams.FILTER_ON_NULL_ALBUM_ARTIST.param_name]
   if album_artist_id is not None and album_artist_name is not None:
     grievances.append('only one query parameter of "album_artist_id" and "album_artist_name" can be set.')
@@ -63,13 +65,17 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   song_title_matches_diacritics = params[GetSongsQueryParams.SONG_TITLE_MATCHES_DIACRITICS.param_name]
   song_year = params[GetSongsQueryParams.SONG_YEAR.param_name]
   
+  print('query params:')
+  for param in params:
+    print('  %s: %s' % (param, params[param]))
+  
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
   songs = get_songs(catalog_id, song_title, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics, song_year,
                     artist_id, artist_name, artist_name_is_an_exact_match,
-                    album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics,
-                    album_artist_id, album_artist_name, album_artist_name_has_wildcards, filter_on_null_album_artist,
+                    album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics, filter_on_null_album,
+                    album_artist_id, album_artist_name, album_artist_name_has_wildcards, album_artist_name_is_case_sensitive, album_artist_name_matches_diacritics, filter_on_null_album_artist,
                     genre_id, genre_name, genre_name_is_an_exact_match)
   
   if len(songs) == 0:

@@ -278,7 +278,8 @@ GRANT EXECUTE ON FUNCTION audioid.begin_scan_get_last_updated TO 'audioid_admin'
 
 CREATE PROCEDURE upsert_song(IN in_song_title VARCHAR(128), IN in_lcase_title VARCHAR(128), IN in_no_diacritic_title VARCHAR(128), IN in_lcase_no_diacritic_title VARCHAR(128),
                              IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
-                             IN in_catalog_id INT(64) unsigned, IN in_genre_name VARCHAR(64), IN in_album_name VARCHAR(128),
+                             IN in_catalog_id INT(64) unsigned, IN in_genre_name VARCHAR(64),
+                             IN in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
                              IN in_album_artist_name VARCHAR(128), IN in_track_number INT(64) unsigned, in_last_modified INT(64) unsigned)
 upsert_song:BEGIN
   DECLARE var_song_id      INT(64) unsigned DEFAULT NULL;
@@ -347,7 +348,7 @@ upsert_song:BEGIN
 
   DELETE FROM songs_albums WHERE song_id = var_song_id;
   IF in_album_name IS NOT NULL THEN
-    SELECT get_album_id(in_catalog_id, in_album_name, in_album_artist_name) INTO var_album_id;
+    SELECT get_album_id(in_catalog_id, in_album_name, in_album_lcase_name, in_album_no_diacritic_name, in_album_lcase_no_diacritic_name, in_album_artist_name) INTO var_album_id;
     INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
   END IF;
   INSERT INTO song_similarity (song1, song2, similarity) VALUES(var_song_id, var_song_id, 255);
@@ -385,7 +386,8 @@ BEGIN
   RETURN var_genre_id;
 END//
 
-CREATE FUNCTION get_album_id(in_catalog_id INT(64) unsigned, in_album_name VARCHAR(128), in_album_artist_name VARCHAR(128))
+CREATE FUNCTION get_album_id(in_catalog_id INT(64) unsigned, in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
+ in_album_artist_name VARCHAR(128))
 RETURNS INT(64) unsigned
 BEGIN
   DECLARE var_album_id  INT(64) unsigned DEFAULT NULL;
@@ -419,7 +421,7 @@ BEGIN
     SELECT LAST_INSERT_ID() INTO var_artist_id;
   END IF;
   
-  INSERT INTO albums (name, album_artist) VALUES(in_album_name, var_artist_id);
+  INSERT INTO albums (name, lcase_name, no_diacritic_name, lcase_no_diacritic_name, album_artist) VALUES(in_album_name, in_album_lcase_name, in_album_no_diacritic_name, in_album_lcase_no_diacritic_name, var_artist_id);
   SELECT LAST_INSERT_ID() INTO var_album_id;
   
   RETURN var_album_id;

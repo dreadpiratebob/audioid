@@ -25,7 +25,7 @@ class SongFactoryTests(unittest.TestCase):
     expected_album_lcase, expected_album_no_diacritics, expected_album_lcase_no_diacritics = \
       get_search_text_from_raw_text(self.mp3_with_diacritics_in_album_name.album)
     
-    album = Album(None, self.mp3_with_diacritics_in_album_name.album, expected_album_lcase, expected_album_no_diacritics, expected_album_lcase_no_diacritics, None)
+    expected_album = Album(None, self.mp3_with_diacritics_in_album_name.album, expected_album_lcase, expected_album_no_diacritics, expected_album_lcase_no_diacritics, None)
     
     expected_filename = expected_title = self.mp3_with_diacritics_in_album_name.filename[len(self.catalog.get_base_path()):]
     expected = Song\
@@ -39,7 +39,7 @@ class SongFactoryTests(unittest.TestCase):
       self.catalog
     )
     
-    expected.set_songs_albums([SongAlbum(expected, album, 2)])
+    expected.set_songs_albums([SongAlbum(expected, expected_album, 2)])
     
     actual = build_song_from_mp3(self.mp3_with_diacritics_in_album_name, self.catalog)
     
