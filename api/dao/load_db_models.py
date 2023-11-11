@@ -217,7 +217,8 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
       song = Song(db_song['song_id'], db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'], db_song['song_year'], db_song['song_duration'], db_song['song_filename'], None, catalog, genres=[], songs_artists=[], songs_albums=[])
       
       if include_artists:
-        query = 'SELECT a.id as id, a.name as name, s_a.conjunction as conjunction, s_a.list_order as list_order\n' \
+        query = 'SELECT a.id as artist_id, a.name as artist_name, a.lcase_name as artist_lcase_name, a.no_diacritic_name as artist_no_diacritic_name, a.lcase_no_diacritic_name as artist_lcase_no_diacritic_name, ' \
+                  's_a.conjunction as conjunction, s_a.list_order as list_order\n' \
                 'FROM artists AS a\n' \
                 '  INNER JOIN songs_artists AS s_a ON s_a.artist_id = a.id\n' \
                 '    AND s_a.song_id = %s\n' % (song.get_id(), ) + \
@@ -228,12 +229,12 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
           
           for ar in range(artist_count):
             db_artist = artists_cursor.fetchone()
-            artist_id = db_artist['id']
+            artist_id = db_artist['artist_id']
             artist = None
             if artist_id in artists:
               artist = artists[artist_id]
             else:
-              artist = Artist(artist_id, db_artist['name'])
+              artist = Artist(artist_id, db_artist['artist_name'], db_artist['artist_lcase_name'], db_artist['artist_no_diacritic_name'], db_artist['artist_lcase_no_diacritic_name'])
               artists[artist_id] = artist
             song_artist = SongArtist(song, artist, db_artist['list_order'], db_artist['conjunction'])
             song.get_songs_artists().append(song_artist)
@@ -404,7 +405,7 @@ def get_album_by_name(catalog_id:int, album_name:str, album_artist:[int, str] = 
 
 def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:int, album_artist_name:str, include_tracks:bool = True, album_name_has_wildcards:bool = False, artist_name_has_wildcards:bool = False):
   query_select = 'SELECT al.id AS album_id, al.name AS album_name, al.lcase_name as album_lcase_name, al.no_diacritic_name as album_no_diacritic_name, al.lcase_no_diacritic_name as album_lcase_no_diacritic_name,\n' \
-                 '  ar.id AS album_artist_id, ar.name AS album_artist_name\n'
+                 '  ar.id AS album_artist_id, ar.name AS album_artist_name, ar.lcase_name AS album_artist_lcase_name, ar.no_diacritic_name AS album_artist_no_diacritic_name, ar.lcase_no_diacritic_name AS album_artist_no_diacritic_name\n'
   query_from   = 'FROM albums AS al\n' \
                  '  LEFT JOIN artists AS ar ON ar.id = al.album_artist_id\n'
   query_where  = 'WHERE 1=1'
@@ -477,7 +478,7 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
     for i in range(num_rows):
       db_album = cursor.fetchone()
       
-      album_artist = Artist(db_album['album_artist_id'], db_album['album_artist_name'])
+      album_artist = Artist(db_album['album_artist_id'], db_album['album_artist_name'], db_album['album_artist_lcase_name'], db_album['album_artist_no_diacritic_name'], db_album['album_artist_lcase_no_diacritic_name'])
       
       album = Album(db_album['id'], db_album['name'], db_album['album_lcase_name'], db_album['album_no_diacritic_name'], db_album['album_lcase_no_diacritic_name'], album_artist)
       albums.append(album)
