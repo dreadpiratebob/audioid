@@ -69,9 +69,9 @@ def parse_bool(obj:any, throw_on_failure:bool = True, default_value:bool = False
     return obj
   elif isinstance(obj, str):
     text = obj.lower()
-    if text == 'true':
+    if text == 'true' or text == 'yes':
       return True
-    if text == 'false':
+    if text == 'false' or text == 'no':
       return False
   elif isinstance(obj, (int, float)):
     return obj != 0
