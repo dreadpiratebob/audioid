@@ -1,3 +1,4 @@
+from api.dao.load_db_models import FilterInfo
 from api.exceptions.http_base import BadRequestException
 from api.logic.songs import get_songs
 from api.models.db_models import Song
@@ -30,7 +31,8 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   album_name_has_wildcards      = params[GetSongsQueryParams.ALBUM_NAME_HAS_WILDCARDS.param_name]
   album_name_is_case_sensitive  = params[GetSongsQueryParams.ALBUM_NAME_IS_CASE_SENSITIVE.param_name]
   album_name_matches_diacritics = params[GetSongsQueryParams.ALBUM_NAME_MATCHES_DIACRITICS.param_name]
-  filter_on_null_album    = params[GetSongsQueryParams.FILTER_ON_NULL_ALBUM.param_name]
+  filter_on_null_album          = params[GetSongsQueryParams.FILTER_ON_NULL_ALBUM.param_name]
+  album = FilterInfo(album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics, filter_on_null_album)
   if album_id is not None and album_name is not None:
     grievances.append('only one query parameter of "album_id" and "album_name" per request can be set.')
   
@@ -40,6 +42,7 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   album_artist_name_is_case_sensitive  = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_IS_CASE_SENSITIVE.param_name]
   album_artist_name_matches_diacritics = params[GetSongsQueryParams.ALBUM_ARTIST_NAME_MATCHES_DIACRITICS.param_name]
   filter_on_null_album_artist          = params[GetSongsQueryParams.FILTER_ON_NULL_ALBUM_ARTIST.param_name]
+  album_artist = FilterInfo(album_artist_id, album_artist_name, album_artist_name_has_wildcards, album_artist_name_is_case_sensitive, album_artist_name_matches_diacritics, filter_on_null_album_artist)
   if album_artist_id is not None and album_artist_name is not None:
     grievances.append('only one query parameter of "album_artist_id" and "album_artist_name" can be set.')
   
@@ -49,6 +52,7 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   artist_name_is_case_sensitive  = params[GetSongsQueryParams.ARTIST_NAME_IS_CASE_SENSITIVE.param_name]
   artist_name_matches_diacritics = params[GetSongsQueryParams.ARTIST_NAME_MATCHES_DIACRITICS.param_name]
   filter_on_null_artist          = params[GetSongsQueryParams.FILER_ON_NULL_ARTIST.param_name]
+  artist = FilterInfo(artist_id, artist_name, artist_name_has_wildcards, artist_name_is_case_sensitive, artist_name_matches_diacritics, filter_on_null_artist)
   if artist_id is not None and artist_name is not None:
     grievances.append('only one query parameter of "artist_id" and "artist_name" can be set.')
   
@@ -58,6 +62,7 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   genre_name_is_case_sensitive  = params[GetSongsQueryParams.GENRE_NAME_IS_CASE_SENSITIVE.param_name]
   genre_name_matches_diacritics = params[GetSongsQueryParams.GENRE_NAME_MATCHES_DIACRITICS.param_name]
   filter_on_null_genre          = params[GetSongsQueryParams.FILTER_ON_NULL_GENRE.param_name]
+  genre = FilterInfo(genre_id, genre_name, genre_name_has_wildcards, genre_name_is_case_sensitive, genre_name_matches_diacritics, filter_on_null_genre)
   if genre_id is not None and genre_name is not None:
     grievances.append('only one query parameter of "genre_id" and "genre_name" can be set.')
   
@@ -70,15 +75,11 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   song_title_is_case_sensitive  = params[GetSongsQueryParams.SONG_TITLE_IS_CASE_SENSITIVE.param_name]
   song_title_matches_diacritics = params[GetSongsQueryParams.SONG_TITLE_MATCHES_DIACRITICS.param_name]
   song_year = params[GetSongsQueryParams.SONG_YEAR.param_name]
-  
+  song = FilterInfo(None, song_title, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics, False)
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  songs = get_songs(catalog_id, song_title, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics, song_year,
-                    artist_id, artist_name, artist_name_has_wildcards, artist_name_is_case_sensitive, artist_name_matches_diacritics, filter_on_null_artist,
-                    album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics, filter_on_null_album,
-                    album_artist_id, album_artist_name, album_artist_name_has_wildcards, album_artist_name_is_case_sensitive, album_artist_name_matches_diacritics, filter_on_null_album_artist,
-                    genre_id, genre_name, genre_name_has_wildcards, genre_name_is_case_sensitive, genre_name_matches_diacritics, filter_on_null_genre)
+  songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre)
   
   if len(songs) == 0:
     return Response(None, HTTPStatusCodes.HTTP204)

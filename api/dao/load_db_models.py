@@ -161,7 +161,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
       songs_from += '  INNER JOIN songs_artists AS s_ar_filter ON s_ar_filter.song_id = s.id\n' \
                     '    INNER JOIN artists AS ar_filter ON ar_filter.id = s_ar_filter.artist_id\n' \
                     '      AND ar_filter.' + artist_name_column_name + ' = %s\n'
-    songs_from_args.append(artist)
+    songs_from_args.append(artist.name)
   elif artist.filter_on_null: # artist_id is None and artist_name is None.
       songs_from += '  LEFT JOIN songs_artists AS s_a_filter ON s_a_filter.song_id = s.id\n'
       songs_having += '  AND COUNT(s_a_filter.artist_id) = 0\n'
@@ -190,7 +190,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                     '    INNER JOIN albums AS al_filter ON al_filter.id = s_al_filter.album_id\n' \
                     '      AND al_filter.' + album_name_column_name + ' = %s\n'
     
-    songs_from_args.append(album)
+    songs_from_args.append(album.name)
     
     if album_artist.id is not None:
       songs_from += '    AND al_filter.album_artist = %s\n'
