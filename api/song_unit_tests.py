@@ -81,8 +81,6 @@ class DBModelEqualsAndHashTests(unittest.TestCase):
     actual1 = hash(self.song_with_album)
     actual2 = hash(self.song_with_album)
     self.assertEqual(actual1, actual2)
-  
-  
 
 if __name__ == '__main__':
   unittest.main()

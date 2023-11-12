@@ -36,7 +36,7 @@ def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None) -> Song:
   if mp3.album is not None and mp3.album != '':
     album_artist = None
     if mp3.album_artist is not None:
-      album_artist = Artist(None, mp3.album_artist)
+      album_artist = Artist(None, mp3.album_artist, None, None, None)
     album = Album(None, mp3.album, None, None, None, album_artist)
     album_join = SongAlbum(song, album, None if mp3.track is None else int(mp3.track))
     song.set_songs_albums([album_join])
@@ -65,7 +65,7 @@ def get_artist_joins(song, artist_str, artist_splitters):
       if chunk != splitter:
         continue
       
-      artist = Artist(None, artist_str[beginning:i])
+      artist = Artist(None, artist_str[beginning:i], None, None, None)
       artist_join = SongArtist(song, artist, len(result), splitter)
       result.append(artist_join)
       
@@ -76,7 +76,7 @@ def get_artist_joins(song, artist_str, artist_splitters):
     
     i += 1
   
-  artist = Artist(None, artist_str[beginning:])
+  artist = Artist(None, artist_str[beginning:], None, None, None)
   artist_join = SongArtist(song, artist, len(result))
   result.append(artist_join)
   

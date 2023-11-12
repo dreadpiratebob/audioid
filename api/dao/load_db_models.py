@@ -247,7 +247,10 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
                 '  a.lcase_no_diacritic_name as album_lcase_no_diacritic_name,\n' \
                 '  s_a.track_number AS track_number,\n' \
                 '  ar.id AS album_artist_id,\n' \
-                '  ar.name AS album_artist_name\n' \
+                '  ar.name AS album_artist_name,\n' \
+                '  ar.lcase_name AS album_artist_lcase_name,\n' \
+                '  ar.no_diacritic_name AS album_artist_no_diacritic_name,\n' \
+                '  ar.lcase_no_diacritic_name AS album_artist_no_diacritic_name\n' \
                 'FROM albums AS a\n' \
                 '  INNER JOIN songs_albums AS s_a ON s_a.album_id = a.id\n' \
                 '    AND s_a.song_id = %s\n' % (song.get_id(), ) + \
@@ -269,7 +272,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
               if album_artist_id in artists:
                 album_artist = artists[album_artist_id]
               else:
-                album_artist = Artist(album_artist_id, db_album['album_artist_name'])
+                album_artist = Artist(album_artist_id, db_album['album_artist_name'], db_artist['album_artist_lcase_name'], db_artist['album_artist_no_diacritic_name'], db_artist['album_artist_lcase_no_diacritic_name'])
                 artists[album_artist_id] = artist
               album = Album(album_id, db_album['album_name'], db_album['album_lcase_name'], db_album['album_no_diacritic_name'], db_album['album_lcase_no_diacritic_name'], album_artist)
               albums[album_id] = album
@@ -311,11 +314,11 @@ def save_song(song):
   
   admin = True
   with get_cursor(admin) as cursor:
-    artist_joins = ',\n    '.join({str((s_a.get_artist().get_name(), s_a.get_conjunction(), s_a.get_list_order())) for s_a in song.get_songs_artists()})
+    artist_joins = ',\n    '.join({str((s_a.get_artist().get_name(), s_a.get_artist().get_lcase_name(), s_a.get_artist().get_no_diacritic_name(), s_a.get_artist().get_lcase_no_diacritic_name(), s_a.get_conjunction(), s_a.get_list_order())) for s_a in song.get_songs_artists()})
     # for safety
     query = 'DELETE FROM upsert_song_artist_info WHERE 1=1;\n'
     cursor.execute(query)
-    query = 'INSERT INTO upsert_song_artist_info (artist_name, conjunction, list_order)\nVALUES\n    %s;' % artist_joins
+    query = 'INSERT INTO upsert_song_artist_info (artist_name, artist_lcase_name, artist_no_diacritic_name, artist_lcase_no_diacritic_name, conjunction, list_order)\nVALUES\n    %s;' % artist_joins
     cursor.execute(query)
     
     in_genre_name = None
@@ -323,7 +326,10 @@ def save_song(song):
     in_album_lcase_name               = None
     in_album_no_diacritics_name       = None
     in_album_lcase_no_diacritics_name = None
-    in_album_artist_name = None
+    in_album_artist_name                    = None
+    in_album_artist_lcase_name              = None
+    in_album_artist_no_diacritic_name       = None
+    in_album_artist_lcase_no_diacritic_name = None
     in_track_number = None
     
     genre = None
@@ -341,9 +347,13 @@ def save_song(song):
       in_album_no_diacritics_name = song_album.get_album().get_no_diacritic_name()
       in_album_lcase_no_diacritics_name = song_album.get_album().get_lcase_no_diacritic_name()
       in_track_number = song_album.get_track_number()
-      
-      if song_album.get_album().get_album_artist() is not None:
-        in_album_artist_name = song_album.get_album().get_album_artist().get_name()
+  
+      album_artist:Artist = song_album.get_album().get_album_artist()
+      if album_artist is not None:
+        in_album_artist_name                    = album_artist.get_name()
+        in_album_artist_lcase_name              = album_artist.get_lcase_name()
+        in_album_artist_no_diacritic_name       = album_artist.get_no_diacritic_name()
+        in_album_artist_lcase_no_diacritic_name = album_artist.get_lcase_no_diacritic_name()
     
     proc_args = \
     (
@@ -361,6 +371,9 @@ def save_song(song):
       in_album_no_diacritics_name,
       in_album_lcase_no_diacritics_name,
       in_album_artist_name,
+      in_album_artist_lcase_name,
+      in_album_artist_no_diacritic_name,
+      in_album_artist_lcase_no_diacritic_name,
       in_track_number,
       song.get_file_last_modified(),
     )

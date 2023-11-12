@@ -252,6 +252,9 @@ CREATE TABLE song_similarity
 CREATE TABLE upsert_song_artist_info
 (
   artist_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  artist_lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  artist_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  artist_lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   list_order int(4) unsigned not null,
   conjunction varchar(64) not null default "" COLLATE utf8mb4_bin
 );
@@ -280,7 +283,8 @@ CREATE PROCEDURE upsert_song(IN in_song_title VARCHAR(128), IN in_lcase_title VA
                              IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
                              IN in_catalog_id INT(64) unsigned, IN in_genre_name VARCHAR(64),
                              IN in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
-                             IN in_album_artist_name VARCHAR(128), IN in_track_number INT(64) unsigned, in_last_modified INT(64) unsigned)
+                             IN in_album_artist_name VARCHAR(1024), IN in_album_artist_lcase_name VARCHAR(1024), IN in_album_artist_no_diacritic_name VARCHAR(1024), IN in_album_artist_lcase_no_diacritic_name VARCHAR(1024),
+                             IN in_track_number INT(64) unsigned, in_last_modified INT(64) unsigned)
 upsert_song:BEGIN
   DECLARE var_song_id      INT(64) unsigned DEFAULT NULL;
   DECLARE var_genre_id     INT(64) unsigned DEFAULT NULL;
@@ -288,11 +292,14 @@ upsert_song:BEGIN
   DECLARE var_last_scanned INT(64) unsigned default NULL;
   DECLARE var_rollback     BOOL DEFAULT 0;
   DECLARE var_artist_id    INT(64) unsigned DEFAULT NULL;
-  DECLARE var_artist_name  VARCHAR(1024) DEFAULT "";
+  DECLARE var_artist_name                    VARCHAR(1024) DEFAULT NULL;
+  DECLARE var_artist_lcase_name              VARCHAR(1024) DEFAULT NULL;
+  DECLARE var_artist_no_diacritic_name       VARCHAR(1024) DEFAULT NULL;
+  DECLARE var_artist_lcase_no_diacritic_name VARCHAR(1024) DEFAULT NULL;
   DECLARE var_list_order   INT(4) unsigned;
   DECLARE var_conjunction  VARCHAR(64) DEFAULT "";
   DECLARE cursor_done      INT(1) DEFAULT 0;
-  DECLARE artist_join_cursor CURSOR FOR SELECT artist_name, conjunction, list_order FROM upsert_song_artist_info ORDER BY list_order;
+  DECLARE artist_join_cursor CURSOR FOR SELECT artist_name, artist_lcase_name, artist_no_diacritic_name, artist_lcase_no_diacritic_name, conjunction, list_order FROM upsert_song_artist_info ORDER BY list_order;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET cursor_done = 1;
 
   -- DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET var_rollback = 1;
@@ -333,12 +340,12 @@ upsert_song:BEGIN
   SET cursor_done = 0;
   OPEN artist_join_cursor;
   artist_join_loop:LOOP
-    FETCH artist_join_cursor INTO var_artist_name, var_conjunction, var_list_order;
+    FETCH artist_join_cursor INTO var_artist_name, var_artist_lcase_name, var_artist_no_diacritic_name, var_artist_lcase_no_diacritic_name, var_conjunction, var_list_order;
     IF cursor_done = 1 THEN
       LEAVE artist_join_loop;
     END IF;
 
-    SELECT get_artist_id(in_catalog_id, var_artist_name) INTO var_artist_id;
+    SELECT get_artist_id(in_catalog_id, var_artist_name, var_artist_lcase_name, var_artist_no_diacritic_name, var_artist_lcase_no_diacritic_name) INTO var_artist_id;
     -- not sure if it's faster to do this or set the artist_id in upsert_song_artist_info and do a bulk update.
     INSERT INTO songs_artists (song_id, artist_id, conjunction, list_order)
       VALUES (var_song_id, var_artist_id, var_conjunction, var_list_order);
@@ -348,7 +355,9 @@ upsert_song:BEGIN
 
   DELETE FROM songs_albums WHERE song_id = var_song_id;
   IF in_album_name IS NOT NULL THEN
-    SELECT get_album_id(in_catalog_id, in_album_name, in_album_lcase_name, in_album_no_diacritic_name, in_album_lcase_no_diacritic_name, in_album_artist_name) INTO var_album_id;
+    SELECT get_album_id(in_catalog_id,
+        in_album_name, in_album_lcase_name, in_album_no_diacritic_name, in_album_lcase_no_diacritic_name,
+        in_album_artist_name, in_album_artist_lcase_name, in_album_artist_no_diacritic_name, in_album_artist_lcase_no_diacritic_name) INTO var_album_id;
     INSERT INTO songs_albums (song_id, album_id, track_number) VALUES(var_song_id, var_album_id, in_track_number);
   END IF;
   INSERT INTO song_similarity (song1, song2, similarity) VALUES(var_song_id, var_song_id, 255);
@@ -386,8 +395,9 @@ BEGIN
   RETURN var_genre_id;
 END//
 
-CREATE FUNCTION get_album_id(in_catalog_id INT(64) unsigned, in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
- in_album_artist_name VARCHAR(128))
+CREATE FUNCTION get_album_id(in_catalog_id INT(64) unsigned,
+  in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
+  in_album_artist_name VARCHAR(1024), in_album_artist_lcase_name VARCHAR(1024), in_album_artist_no_diacritic_name VARCHAR(1024), in_album_artist_lcase_no_diacritic_name VARCHAR(1024))
 RETURNS INT(64) unsigned
 BEGIN
   DECLARE var_album_id  INT(64) unsigned DEFAULT NULL;
@@ -402,7 +412,7 @@ BEGIN
     WHERE a.name = in_album_name AND album_artist IS NULL
     GROUP BY a.id;
   ELSE
-    SELECT get_artist_id(in_catalog_id, in_album_artist_name) INTO var_artist_id;
+    SELECT get_artist_id(in_catalog_id, in_album_artist_name, in_album_artist_lcase_name, in_album_artist_no_diacritic_name, in_album_artist_lcase_no_diacritic_name) INTO var_artist_id;
     SELECT a.id INTO var_album_id
     FROM albums AS a
       INNER JOIN songs_albums AS s_a ON s_a.album_id = a.id
@@ -417,8 +427,7 @@ BEGIN
   END IF;
   
   IF in_album_artist_name IS NOT NULL AND var_artist_id IS NULL THEN
-    INSERT INTO artists (name) VALUES(in_album_artist_name);
-    SELECT LAST_INSERT_ID() INTO var_artist_id;
+    SELECT get_artist_id(in_catalog_id, in_album_artist_name, in_album_artist_lcase_name, in_album_artist_no_diacritic_name, in_album_artist_lcase_no_diacritic_name) INTO var_artist_id;
   END IF;
   
   INSERT INTO albums (name, lcase_name, no_diacritic_name, lcase_no_diacritic_name, album_artist) VALUES(in_album_name, in_album_lcase_name, in_album_no_diacritic_name, in_album_lcase_no_diacritic_name, var_artist_id);
@@ -427,7 +436,7 @@ BEGIN
   RETURN var_album_id;
 END//
 
-CREATE FUNCTION get_artist_id(in_catalog_id INT(64) unsigned, in_artist_name VARCHAR(128))
+CREATE FUNCTION get_artist_id(in_catalog_id INT(64) unsigned, in_artist_name VARCHAR(1024), in_artist_lcase_name VARCHAR(1024), in_artist_no_diacritic_name VARCHAR(1024), in_artist_lcase_no_diacritic_name VARCHAR(1024))
 RETURNS INT(64) unsigned
 BEGIN
   DECLARE var_artist_id INT(64) unsigned DEFAULT NULL;
@@ -442,7 +451,8 @@ BEGIN
   GROUP BY a.id;
 
   IF var_artist_id IS NULL THEN
-    INSERT INTO artists (name) VALUES(in_artist_name);
+    INSERT INTO artists (name, lcase_name, no_diacritic_name, lcase_no_diacritic_name)
+      VALUES(in_artist_name, in_artist_lcase_name, in_artist_no_diacritic_name, in_artist_lcase_no_diacritic_name);
     SELECT LAST_INSERT_ID() INTO var_artist_id;
   END IF;
 
