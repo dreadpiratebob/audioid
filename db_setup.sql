@@ -138,6 +138,9 @@ CREATE TABLE genres
 (
   id int(64) unsigned not null primary key auto_increment,
   name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   UNIQUE(id)
 );
 
@@ -281,10 +284,12 @@ GRANT EXECUTE ON FUNCTION audioid.begin_scan_get_last_updated TO 'audioid_admin'
 
 CREATE PROCEDURE upsert_song(IN in_song_title VARCHAR(128), IN in_lcase_title VARCHAR(128), IN in_no_diacritic_title VARCHAR(128), IN in_lcase_no_diacritic_title VARCHAR(128),
                              IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
-                             IN in_catalog_id INT(64) unsigned, IN in_genre_name VARCHAR(64),
+                             IN in_catalog_id INT(64) unsigned,
                              IN in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
                              IN in_album_artist_name VARCHAR(1024), IN in_album_artist_lcase_name VARCHAR(1024), IN in_album_artist_no_diacritic_name VARCHAR(1024), IN in_album_artist_lcase_no_diacritic_name VARCHAR(1024),
-                             IN in_track_number INT(64) unsigned, in_last_modified INT(64) unsigned)
+                             IN in_track_number INT(64) unsigned,
+                             IN in_genre_name VARCHAR(1024), IN in_genre_lcase_name VARCHAR(1024), IN in_genre_no_diacritic_name VARCHAR(1024), IN in_genre_lcase_no_diacritic_name VARCHAR(1024),
+                             in_last_modified INT(64) unsigned)
 upsert_song:BEGIN
   DECLARE var_song_id      INT(64) unsigned DEFAULT NULL;
   DECLARE var_genre_id     INT(64) unsigned DEFAULT NULL;
@@ -332,7 +337,7 @@ upsert_song:BEGIN
 
   DELETE FROM songs_genres WHERE song_id = var_song_id;
   IF in_genre_name IS NOT NULL THEN
-    SELECT get_genre_id(in_catalog_id, in_genre_name) INTO var_genre_id;
+    SELECT get_genre_id(in_catalog_id, in_genre_name, in_genre_lcase_name, in_genre_no_diacritic_name, in_genre_lcase_no_diacritic_name) INTO var_genre_id;
     INSERT INTO songs_genres (song_id, genre_id) VALUES(var_song_id, var_genre_id);
   END IF;
 
@@ -371,7 +376,7 @@ END//
 
 GRANT EXECUTE ON PROCEDURE audioid.upsert_song TO 'audioid_admin'@'localhost'//
 
-CREATE FUNCTION get_genre_id(in_catalog_id INT(64) unsigned, in_genre_name VARCHAR(64))
+CREATE FUNCTION get_genre_id(in_catalog_id INT(64) unsigned, in_genre_name VARCHAR(1024), in_genre_lcase_name VARCHAR(1024), in_genre_no_diacritic_name VARCHAR(1024), in_genre_lcase_no_diacritic_name VARCHAR(1024))
 RETURNS INT(64) unsigned
 BEGIN
   DECLARE var_genre_id INT(64) unsigned DEFAULT NULL;
@@ -388,7 +393,7 @@ BEGIN
     RETURN var_genre_id;
   END IF;
   
-  INSERT INTO genres (name) VALUES(in_genre_name);
+  INSERT INTO genres (name, lcase_name, no_diacritic_name, lcase_no_diacritic_name) VALUES(in_genre_name, in_genre_lcase_name, in_genre_no_diacritic_name, in_genre_lcase_no_diacritic_name);
   
   SELECT LAST_INSERT_ID() INTO var_genre_id;
   

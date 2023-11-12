@@ -30,7 +30,7 @@ def get_song(catalog_id:int, id_or_filename:(int, str), include_artists:bool = T
   if len(grievances) > 0:
     raise TypeError('\n'.join(grievances))
   
-  result = _get_songs(catalog_id, id, filename, None, False, True, True, None, None, None, False, True, True, False, None, None, False, True, True, False, None, None, False, True, True, False, None, None, False, include_artists, include_albums, include_genres)
+  result = _get_songs(catalog_id, id, filename, None, False, True, True, None, None, None, False, True, True, False, None, None, False, True, True, False, None, None, False, True, True, False, None, None, False, True, True, False, include_artists, include_albums, include_genres)
   
   if len(result) == 0:
     return None
@@ -48,13 +48,13 @@ def get_songs(catalog_id:int, song_name:str, song_title_has_wildcards:bool, song
               artist_id:int, artist_name:str, artist_name_has_wildcards:bool, artist_name_is_case_sensitive:bool, artist_name_matches_diacritics:bool, filter_on_null_artist:bool,
               album_id:int, album_name:str, album_name_has_wildcards:bool, album_name_is_case_sensitive:bool, album_name_matches_diacritics:bool, filter_on_null_album:bool,
               album_artist_id:int, album_artist_name:str, album_artist_name_has_wildcards:bool, album_artist_name_is_case_sensitive:bool, album_artist_name_matches_diacritics:bool, filter_on_null_album_artist:bool,
-              genre_id:int, genre_name:str, genre_name_has_wildcards:bool,
+              genre_id:int, genre_name:str, genre_name_has_wildcards:bool, genre_name_is_case_sensitive:bool, genre_name_matches_diacritics:bool, filter_on_null_genre:bool,
               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   return _get_songs(catalog_id, None, None, song_name, song_title_has_wildcards, song_title_is_case_sensitive, song_title_matches_diacritics, song_year,
                     artist_id, artist_name, artist_name_has_wildcards, artist_name_is_case_sensitive, artist_name_matches_diacritics, filter_on_null_artist,
                     album_id, album_name, album_name_has_wildcards, album_name_is_case_sensitive, album_name_matches_diacritics, filter_on_null_album,
                     album_artist_id, album_artist_name, album_artist_name_has_wildcards, album_artist_name_is_case_sensitive, album_artist_name_matches_diacritics, filter_on_null_album_artist,
-                    genre_id, genre_name, genre_name_has_wildcards,
+                    genre_id, genre_name, genre_name_has_wildcards, genre_name_is_case_sensitive, genre_name_matches_diacritics, filter_on_null_genre,
                     include_artists, include_albums, include_genres)
 
 _name_columns = \
@@ -68,7 +68,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
                artist_id:int, artist_name:str, artist_name_has_wildcards:bool, artist_name_is_case_sensitive:bool, artist_name_matches_diacritics:bool, filter_on_null_artist:bool,
                album_id:int, album_name:str, album_name_has_wildcards:bool, album_name_is_case_sensitive:bool, album_name_matches_diacritics:bool, filter_on_null_album:bool,
                album_artist_id:int, album_artist_name:str, album_artist_name_has_wildcards:bool, album_artist_name_is_case_sensitive:bool, album_artist_name_matches_diacritics:bool, filter_on_null_album_artist:bool,
-               genre_id:int, genre_name:str, genre_name_has_wildcards:bool,
+               genre_id:int, genre_name:str, genre_name_has_wildcards:bool, genre_name_is_case_sensitive:bool, genre_name_matches_diacritics:bool, filter_on_null_genre:bool,
                include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   if not isinstance(catalog_id, int):
     raise ValueError('got a catalog id that\'s a(n) %s instead of an int: %s' % (get_type_name(catalog_id), str(catalog_id)))
@@ -198,11 +198,15 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
   elif genre_name is not None:
     songs_from += '  INNER JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n' \
                   '    INNER JOIN genres AS g_filter ON g_filter.id = s_g_filter.genre_id\n'
+    genre_name_column_name = _name_columns[(genre_name_is_case_sensitive, genre_name_matches_diacritics)][1]
     if genre_name_has_wildcards:
-      songs_from += '      AND g_filter.name LIKE %s\n'
+      songs_from += '      AND g_filter.' + genre_name_column_name + ' LIKE %s\n'
     else:
-      songs_from += '      AND g_filter.name = %s\n'
+      songs_from += '      AND g_filter.' + genre_name_column_name + ' = %s\n'
     songs_from_args.append(genre_name)
+  elif filter_on_null_genre: # genre_id is None and genre_name is None
+    songs_from += '  LEFT JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n'
+    songs_having += '  AND COUNT(s_g_filter.genre_id) = 0\n'
   
   songs_query = songs_select + songs_from + songs_where + songs_group_by + songs_having + ';'
   
@@ -255,7 +259,7 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
                 '  ar.name AS album_artist_name,\n' \
                 '  ar.lcase_name AS album_artist_lcase_name,\n' \
                 '  ar.no_diacritic_name AS album_artist_no_diacritic_name,\n' \
-                '  ar.lcase_no_diacritic_name AS album_artist_no_diacritic_name\n' \
+                '  ar.lcase_no_diacritic_name AS album_artist_lcase_no_diacritic_name\n' \
                 'FROM albums AS a\n' \
                 '  INNER JOIN songs_albums AS s_a ON s_a.album_id = a.id\n' \
                 '    AND s_a.song_id = %s\n' % (song.get_id(), ) + \
@@ -277,15 +281,15 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
               if album_artist_id in artists:
                 album_artist = artists[album_artist_id]
               else:
-                album_artist = Artist(album_artist_id, db_album['album_artist_name'], db_artist['album_artist_lcase_name'], db_artist['album_artist_no_diacritic_name'], db_artist['album_artist_lcase_no_diacritic_name'])
-                artists[album_artist_id] = artist
+                album_artist = Artist(album_artist_id, db_album['album_artist_name'], db_album['album_artist_lcase_name'], db_album['album_artist_no_diacritic_name'], db_album['album_artist_lcase_no_diacritic_name'])
+                artists[album_artist_id] = album_artist
               album = Album(album_id, db_album['album_name'], db_album['album_lcase_name'], db_album['album_no_diacritic_name'], db_album['album_lcase_no_diacritic_name'], album_artist)
               albums[album_id] = album
             song_album = SongAlbum(song, album, db_album['track_number'])
             song.get_songs_albums().append(song_album)
       
       if include_genres:
-        query = 'SELECT g.id AS id, g.name AS name\n' \
+        query = 'SELECT g.id AS genre_id, g.name AS genre_name, g.lcase_name as genre_lcase_name, g.no_diacritic_name as genre_no_diacritic_name, g.lcase_no_diacritic_name as genre_lcase_no_diacritic_name\n' \
                 'FROM genres AS g\n' \
                 '  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n' \
                 '    AND s_g.song_id = %s\n' % (song.get_id(), ) + \
@@ -296,12 +300,12 @@ def _get_songs(catalog_id:int, song_id:int, song_filename:str, song_title:str, s
           
           for g in range(genre_count):
             db_genre = genres_cursor.fetchone()
-            genre_id = db_genre['id']
+            genre_id = db_genre['genre_id']
             genre = None
             if genre_id in genres:
               genre = genres[genre_id]
             else:
-              genre = Genre(genre_id, db_genre['name'])
+              genre = Genre(genre_id, db_genre['genre_name'], db_genre['genre_lcase_name'], db_genre['genre_no_diacritic_name'], db_genre['genre_lcase_no_diacritic_name'])
               genres[genre_id] = genre
             song.get_genres().append(genre)
       
@@ -319,14 +323,21 @@ def save_song(song):
   
   admin = True
   with get_cursor(admin) as cursor:
-    artist_joins = ',\n    '.join({str((s_a.get_artist().get_name(), s_a.get_artist().get_lcase_name(), s_a.get_artist().get_no_diacritic_name(), s_a.get_artist().get_lcase_no_diacritic_name(), s_a.get_conjunction(), s_a.get_list_order())) for s_a in song.get_songs_artists()})
     # for safety
     query = 'DELETE FROM upsert_song_artist_info WHERE 1=1;\n'
     cursor.execute(query)
-    query = 'INSERT INTO upsert_song_artist_info (artist_name, artist_lcase_name, artist_no_diacritic_name, artist_lcase_no_diacritic_name, conjunction, list_order)\nVALUES\n    %s;' % artist_joins
-    cursor.execute(query)
     
-    in_genre_name = None
+    if len(song.get_songs_artists()) > 0:
+      artist_info_params = []
+      query_values = ''
+      for s_a in song.get_songs_artists():
+        artist_info_params += [s_a.get_artist().get_name(), s_a.get_artist().get_lcase_name(), s_a.get_artist().get_no_diacritic_name(), s_a.get_artist().get_lcase_no_diacritic_name(), s_a.get_conjunction(), s_a.get_list_order()]
+        query_values += '\n    (%s, %s, %s, %s, %s, %s),'
+      
+      query = 'INSERT INTO upsert_song_artist_info (artist_name, artist_lcase_name, artist_no_diacritic_name, artist_lcase_no_diacritic_name, conjunction, list_order)\nVALUES%s;' % (query_values[:-1], )
+      print('query:\n%s\n\nparams:\n%s' % (query, tuple(artist_info_params)))
+      cursor.execute(query, tuple(artist_info_params))
+    
     in_album_name                     = None
     in_album_lcase_name               = None
     in_album_no_diacritics_name       = None
@@ -336,14 +347,21 @@ def save_song(song):
     in_album_artist_no_diacritic_name       = None
     in_album_artist_lcase_no_diacritic_name = None
     in_track_number = None
+    in_genre_name                    = None
+    in_genre_lcase_name              = None
+    in_genre_no_diacritic_name       = None
+    in_genre_lcase_no_diacritic_name = None
     
-    genre = None
+    genre:Genre = None
     for g in song.get_genres():
       genre = g
       break
     
     if genre is not None:
-      in_genre_name = genre.get_name()
+      in_genre_name                    = genre.get_name()
+      in_genre_lcase_name              = genre.get_lcase_name()
+      in_genre_no_diacritic_name       = genre.get_no_diacritic_name()
+      in_genre_lcase_no_diacritic_name = genre.get_lcase_no_diacritic_name()
     
     song_album = song.get_songs_albums()[0] if len(song.get_songs_albums()) > 0 else None
     if song_album is not None:
@@ -370,7 +388,6 @@ def save_song(song):
       song.get_year(),  # in_year
       song.get_duration(), # in_duration
       song.get_catalog().get_id(),  # in_catalog_id
-      in_genre_name,
       in_album_name,
       in_album_lcase_name,
       in_album_no_diacritics_name,
@@ -380,7 +397,11 @@ def save_song(song):
       in_album_artist_no_diacritic_name,
       in_album_artist_lcase_no_diacritic_name,
       in_track_number,
-      song.get_file_last_modified(),
+      in_genre_name,
+      in_genre_lcase_name,
+      in_genre_no_diacritic_name,
+      in_genre_lcase_no_diacritic_name,
+      song.get_file_last_modified()
     )
     
     logger.info('saving ' + str(song) + ' from "' + song.get_full_filename() + '" to the database...')

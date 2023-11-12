@@ -986,7 +986,7 @@ class SongAlbum:
     self._track_number = track_number
 
 class Genre:
-  def __init__(self, id:int, name:str):
+  def __init__(self, id:int, name:str, lcase_name:str, no_diacritic_name:str, lcase_no_diacritic_name:str):
     grievances = []
     
     if id is not None and not isinstance(id, int):
@@ -995,23 +995,138 @@ class Genre:
     if not isinstance(name, str):
       grievances.append('a name must be a str.')
     
+    if lcase_name is not None and not isinstance(lcase_name, str):
+      grievances.append('a name must be a str.')
+    
+    if no_diacritic_name is not None and not isinstance(no_diacritic_name, str):
+      grievances.append('a name must be a str.')
+    
+    if lcase_no_diacritic_name is not None and not isinstance(lcase_no_diacritic_name, str):
+      grievances.append('a name must be a str.')
+    
+    if len(grievances) > 0:
+      raise TypeError('\n'.join(grievances))
+    
     self._id = id
     self._name = name
+    self._lcase_name = lcase_name
+    self._no_diacritic_name = no_diacritic_name
+    self._lcase_no_diacritic_name = lcase_no_diacritic_name
+    
+    if lcase_name is None or no_diacritic_name is None or lcase_no_diacritic_name is None:
+      self.set_name(name)
   
-  def __str__(self):
+  def __eq__(self, other: any) -> bool:
+    if not isinstance(other, type(self)):
+      return False
+    
+    return self._recursive_equals(other)
+  
+  def __ne__(self, other: any) -> bool:
+    if not isinstance(other, type(self)):
+      return True
+    
+    return not self._recursive_equals(other)
+  
+  def _recursive_equals(self, other: any, seen_objects: list = None) -> bool:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if other in seen_objects:
+      return True
+    
+    seen_objects = seen_objects + [other]
+    
+    for field_name in self.__dict__:
+      self_val = self.__dict__[field_name]
+      self_type = type(self_val)
+      other_val = other.__dict__[field_name]
+      other_type = type(other_val)
+      if self_type != other_type:
+        return False
+      
+      if isinstance(self_val, (list, tuple)):
+        if len(self_val) != len(other_val):
+          this_result = False
+        for i in range(len(self_val)):
+          self_i = self_val[i]
+          other_i = other_val[i]
+          _next_eq = getattr(self_i, '_recursive_equals', None)
+          if callable(_next_eq):
+            return False
+          elif self_i != other_i:
+            return False
+      else:
+        _next_eq = getattr(self_val, '_recursive_equals', None)
+        if callable(_next_eq):
+          if not _next_eq(other_val, seen_objects):
+            return False
+        elif self_val != other_val:
+          return False
+    
+    return True
+  
+  def __hash__(self) -> int:
+    return self._recursive_hash()
+  
+  def _recursive_hash(self, seen_objects: list = None) -> int:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if self in seen_objects:
+      return 0
+    
+    seen_objects = seen_objects + [self]
+    
+    result = 0
+    
+    field_names = [key for key in self.__dict__]
+    field_names.sort()  # for consistency
+    for field_name in field_names:
+      field_hash = 0
+      field_val = self.__dict__[field_name]
+      if isinstance(field_val, (list, tuple)):
+        for val_i in field_val:
+          _next_hash = getattr(val_i, '_recursive_hash', None)
+          if callable(_next_hash):
+            field_hash = (field_hash * 397) ^ _next_hash(seen_objects)
+          else:
+            field_hash = (field_hash * 397) ^ hash(val_i)
+      else:
+        _next_hash = getattr(field_val, '_recursive_hash', None)
+        if callable(_next_hash):
+          field_hash = _next_hash(seen_objects)
+        else:
+          field_hash = hash(field_val)
+      
+      result = (result * 397) ^ field_hash
+    
+    return result
+  
+  def __str__(self) -> str:
     return self._name
   
-  def get_id(self):
+  def get_id(self) -> int:
     return self._id
   
-  def get_name(self):
+  def get_name(self) -> str:
     return self._name
   
-  def set_name(self, name:str):
+  def set_name(self, name:str) -> None:
     if not isinstance(name, str):
       raise ValueError('a(n) name must be a(n) str.')
     
     self._name = name
+    self._lcase_name, self._no_diacritic_name, self._lcase_no_diacritic_name = get_search_text_from_raw_text(name)
+  
+  def get_lcase_name(self) -> str:
+    return self._lcase_name
+  
+  def get_no_diacritic_name(self) -> str:
+    return self._no_diacritic_name
+  
+  def get_lcase_no_diacritic_name(self) -> str:
+    return self._lcase_no_diacritic_name
 
 class SongGenre:
   def __init__(self, song:Song, genre:Genre):
@@ -1029,14 +1144,107 @@ class SongGenre:
     self._song = song
     self._genre = genre
   
-  def get_song(self):
+  def __eq__(self, other: any) -> bool:
+    if not isinstance(other, type(self)):
+      return False
+    
+    return self._recursive_equals(other)
+  
+  def __ne__(self, other: any) -> bool:
+    if not isinstance(other, type(self)):
+      return True
+    
+    return not self._recursive_equals(other)
+  
+  def _recursive_equals(self, other: any, seen_objects: list = None) -> bool:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if other in seen_objects:
+      return True
+    
+    seen_objects = seen_objects + [other]
+    
+    for field_name in self.__dict__:
+      self_val = self.__dict__[field_name]
+      self_type = type(self_val)
+      other_val = other.__dict__[field_name]
+      other_type = type(other_val)
+      if self_type != other_type:
+        return False
+      
+      if isinstance(self_val, (list, tuple)):
+        if len(self_val) != len(other_val):
+          this_result = False
+        for i in range(len(self_val)):
+          self_i = self_val[i]
+          other_i = other_val[i]
+          _next_eq = getattr(self_i, '_recursive_equals', None)
+          if callable(_next_eq):
+            return False
+          elif self_i != other_i:
+            return False
+      else:
+        _next_eq = getattr(self_val, '_recursive_equals', None)
+        if callable(_next_eq):
+          if not _next_eq(other_val, seen_objects):
+            return False
+        elif self_val != other_val:
+          return False
+    
+    return True
+  
+  def __hash__(self) -> int:
+    return self._recursive_hash()
+  
+  def _recursive_hash(self, seen_objects: list = None) -> int:
+    if seen_objects is None:
+      seen_objects = []
+    
+    if self in seen_objects:
+      return 0
+    
+    seen_objects = seen_objects + [self]
+    
+    result = 0
+    
+    field_names = [key for key in self.__dict__]
+    field_names.sort()  # for consistency
+    for field_name in field_names:
+      field_hash = 0
+      field_val = self.__dict__[field_name]
+      if isinstance(field_val, (list, tuple)):
+        for val_i in field_val:
+          _next_hash = getattr(val_i, '_recursive_hash', None)
+          if callable(_next_hash):
+            field_hash = (field_hash * 397) ^ _next_hash(seen_objects)
+          else:
+            field_hash = (field_hash * 397) ^ hash(val_i)
+      else:
+        _next_hash = getattr(field_val, '_recursive_hash', None)
+        if callable(_next_hash):
+          field_hash = _next_hash(seen_objects)
+        else:
+          field_hash = hash(field_val)
+      
+      result = (result * 397) ^ field_hash
+    
+    return result
+  
+  def get_song(self) -> Song:
     return self._song
   
-  def set_song(self, song):
+  def set_song(self, song) -> None:
+    if not isinstance(song, Song):
+      raise TypeError('a song must be a Song.')
+    
     self._song = song
   
-  def get_genre(self):
+  def get_genre(self) -> Genre:
     return self._genre
   
-  def set_genre(self, genre):
+  def set_genre(self, genre) -> None:
+    if not isinstance(genre, Genre):
+      raise TypeError('a genre must be a Genre.')
+    
     self._genre = genre

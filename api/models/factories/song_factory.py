@@ -42,7 +42,7 @@ def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None) -> Song:
     song.set_songs_albums([album_join])
   
   if mp3.genre is not None and mp3.genre != '':
-    genre = Genre(None, mp3.genre)
+    genre = Genre(None, mp3.genre, None, None, None)
     song.set_genres({genre})
   
   return song
