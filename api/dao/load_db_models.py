@@ -49,6 +49,7 @@ def get_songs(catalog_id:int, song:FilterInfo, song_year:int, artist:FilterInfo,
               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   return _get_songs(catalog_id, None, song, song_year, artist, album, album_artist, genre, include_artists, include_albums, include_genres)
 
+_name_separator = '\n • '
 _name_columns = \
 {
   (True,  True ): ('title', 'name'),
@@ -71,12 +72,14 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '  s.duration AS song_duration,\n' \
                    '  c.id AS catalog_id,\n' \
                    '  c.name AS catalog_name,\n' \
-                   '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' \
+                   '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' + \
+                  ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator, )*7)) + \
                    '  al.name AS album_name,\n' \
                    '  al.lcase_name AS album_lcase_name,\n' \
                    '  al.no_diacritic_name AS album_no_diacritic_name,\n' \
                    '  al.lcase_no_diacritic_name AS album_lcase_no_diacritic_name,\n' \
-                   '  s_al.track_number AS track_number\n'
+                   '  s_al.track_number AS track_number,\n' \
+                   '  g.name AS genre_name\n'
   songs_from     = 'FROM songs AS s\n' \
                    '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n' \
                    '  LEFT JOIN songs_artists AS s_ar ON s_ar.song_id = s.id\n' \
@@ -246,27 +249,17 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
       song = Song(db_song['song_id'], db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'], db_song['song_year'], db_song['song_duration'], db_song['song_filename'], None, catalog, genres=[], songs_artists=[], songs_albums=[])
       
       if include_artists:
-        query = 'SELECT a.id as artist_id, a.name as artist_name, a.lcase_name as artist_lcase_name, a.no_diacritic_name as artist_no_diacritic_name, a.lcase_no_diacritic_name as artist_lcase_no_diacritic_name, ' \
-                  's_a.conjunction as conjunction, s_a.list_order as list_order\n' \
-                'FROM artists AS a\n' \
-                '  INNER JOIN songs_artists AS s_a ON s_a.artist_id = a.id\n' \
-                '    AND s_a.song_id = %s\n' % (song.get_id(), ) + \
-                'ORDER BY s_a.list_order;'
-        
-        with get_cursor(False) as artists_cursor:
-          artist_count = artists_cursor.execute(query)
-          
-          for ar in range(artist_count):
-            db_artist = artists_cursor.fetchone()
-            artist_id = db_artist['artist_id']
-            artist = None
-            if artist_id in artists:
-              artist = artists[artist_id]
-            else:
-              artist = Artist(artist_id, db_artist['artist_name'], db_artist['artist_lcase_name'], db_artist['artist_no_diacritic_name'], db_artist['artist_lcase_no_diacritic_name'])
-              artists[artist_id] = artist
-            song_artist = SongArtist(song, artist, db_artist['list_order'], db_artist['conjunction'])
-            song.get_songs_artists().append(song_artist)
+        artist_names = db_song['artist_names'].split(_name_separator)
+        for i in range(0, len(artist_names), 6):
+          artist_id = int(artist_names[i])
+          artist = None
+          if artist_id in artists:
+            artist = artists[artist_id]
+          else:
+            artist = Artist(int(artist_names[i]), artist_names[i + 1], artist_names[i + 2], artist_names[i + 3], artist_names[i + 4])
+            artists[artist_id] = artist
+          song_artist = SongArtist(song, artist, int(artist_names[i + 5]), artist_names[i + 6])
+          song.get_songs_artists().append(song_artist)
       
       if include_albums:
         query = 'SELECT a.id AS album_id,\n' \
