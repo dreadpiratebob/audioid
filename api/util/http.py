@@ -24,6 +24,9 @@ class HTTPStatusCodes(Enum):
     return isinstance(other, HTTPStatusCodes) and \
       self._code == other._code
   
+  def __ne__(self, other):
+    return not self.__eq__(other)
+  
   def __str__(self):
     return str(self._code) + ' ' + self._message
   
@@ -117,6 +120,9 @@ class HTTPMIMETypes(Enum):
       self.serializer_function_name == other.serializer_function_name and \
       self.base_structure == other.base_structure
   
+  def __ne__(self, other):
+    return not self.__eq__(other)
+  
   def __hash__(self):
     return (((hash(self.http_name) * 397) ^ hash(self.serializer_function_name)) * 397) ^ hash(self.base_structure)
   
@@ -143,6 +149,9 @@ class HTTPRequestMethods(Enum):
   
   def __eq__(self, other):
     return isinstance(other, HTTPRequestMethods) and self._name == other._name
+  
+  def __ne__(self, other):
+    return not self.__eq__(other)
   
   def __hash__(self):
     return hash(self._name)

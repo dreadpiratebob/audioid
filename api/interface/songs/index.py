@@ -1,8 +1,8 @@
-from api.dao.load_db_models import FilterInfo
+from api.util.response_list_modifiers import FilterInfo
 from api.exceptions.http_base import BadRequestException
 from api.logic.songs import get_songs
 from api.models.db_models import Song
-from api.util.audioid import GetSongsQueryParams
+from api.util.audioid.songs import GetSongsQueryParams
 from api.util.http import HTTPStatusCodes, Response
 from api.util.http_path import AvailablePath
 

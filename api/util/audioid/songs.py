@@ -1,5 +1,6 @@
 from api.util.functions import parse_bool
 from api.util.http import QueryParam
+from api.util.response_list_modifiers import OrderColName
 
 class GetSongsQueryParams(QueryParam):
   ALBUM_ID    = 'album_id',    False, int, 'an integer', None, 'the id of the album whose songs to get; only one of this and album_name can be set.'
@@ -27,8 +28,17 @@ class GetSongsQueryParams(QueryParam):
   GENRE_NAME_IS_CASE_SENSITIVE  = 'genre_name_is_case_sensitive',  False, parse_bool, 'a boolean', False, 'if genre_name isn\'t set, genre_name_is_case_sensitive is ignored.  if genre_name_is_case_sensitive is true, only songs whose genre\'s name exactly match genre_name will be returned; otherwise, songs whose genre\'s names match genre_name regardless of case will be returned.'
   GENRE_NAME_MATCHES_DIACRITICS = 'genre_name_matches_diacritics', False, parse_bool, 'a boolean', False, 'if genre_name isn\'t set, genre_name_matches_diacritics is ignored.  if genre_name_matches_diacritics is true, only songs whose genre\'s name\'s diacritics match genre_name will be returned; otherwise, all diacritics will be stripped out before any comparison is done.'
   FILTER_ON_NULL_GENRE          = 'filter_on_null_genre',          False, parse_bool, 'a boolean', False, 'if filter_on_null_genre is true and no genre is specified, only songs that don\'t have a genre will be returned; if filter_on_null_genre is false and no genre is specified, songs will be returned regardless of whether they have a genre.'
-  SONG_TITLE   = 'song_title',   False, str, 'a string',   None, 'the title of the songs to get'
+  SONG_TITLE = 'song_title', False, str, 'a string', None, 'the title of the songs to get'
   SONG_TITLE_HAS_WILDCARDS      = 'song_title_has_wildcards',      False, parse_bool, 'a boolean', True,  'if song_title isn\'t set, song_title_has_wildcards is ignored.  if song_title_has_wildcards is true, % and _ in song_title will be treated as wildcards where % matches zero or more characters and _ matches exactly one character, but either % or _ can match any character.  if song_title_has_wildcards is false, % and _ will be treated literally.'
   SONG_TITLE_IS_CASE_SENSITIVE  = 'song_title_is_case_sensitive',  False, parse_bool, 'a boolean', False, 'if song_title isn\'t set, song_title_is_case_sensitive is ignored.  if song_title_is_case_sensitive is true, letters in song_title will be matched exactly; otherwise, they\'ll match letters regardless of case.'
   SONG_TITLE_MATCHES_DIACRITICS = 'song_title_matches_diacritics', False, parse_bool, 'a boolean', False, 'if song_title isn\'t set, song_title_matches_diacritics is ignored.  if song_title_matches_diacritics is true, letters in song_title will be matched exactly; otherwise, diacritics will be stripped out of both the song_title parameter and song\'s title, so "a" in the query parameter will match "ä", "à", "å", etc. in the song title.'
-  SONG_YEAR   = 'song_year',   False, int, 'an integer', None, 'the year of the songs to get'
+  SONG_YEAR = 'song_year', False, int, 'an integer', None, 'the year of the songs to get'
+
+class GetSongsOrderColumns(OrderColName):
+  SONG_TITLE = 'song_title', 'the song\'s title'
+  SONG_YEAR  = 'song_year', 'the year the song was released'
+  ARTIST_NAME = 'artist_name', 'the name of the song\'s artist. (if this was something like "Some Artist feat. Another Artist" in the original file, that whole string will be used for the sort order.)'
+  ALBUM_NAME = 'album_name', 'the name of the album that the song is on'
+  ALBUM_ARTIST_NAME = 'album_artist_name', 'the name of the song\'s album\'s artist'
+  TRACK_NUMBER = 'track_number', 'the song\'s track number'
+  GENRE_NAME = 'genre_name', 'the song\'s genre\'s name'

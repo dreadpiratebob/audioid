@@ -5,8 +5,30 @@ from api.models.db_models import Catalog, Song, Album, SongAlbum
 from api.models.factories.song_factory import build_song_from_mp3
 from api.models.mp3 import MP3, MP3Fields
 from api.util.functions import get_search_text_from_raw_text
+from api.util.response_list_modifiers import \
+  OrderColName, OrderDirection, OrderByCol, \
+  get_order_clause
 
 import unittest
+
+class TestCols(OrderColName):
+  A = 'a'
+  B = 'b'
+  C = 'c'
+
+class OrderTests(unittest.TestCase):
+  def test_build_order_by_clause(self):
+    order_by = \
+    [
+      OrderByCol(TestCols.A, OrderDirection.ASCENDING),
+      OrderByCol(TestCols.B, OrderDirection.DESCENDING),
+      OrderByCol(TestCols.C, OrderDirection.ASCENDING)
+    ]
+    
+    expected = ', '.join(ob.col.column_name + ' ' + ob.direction.value for ob in order_by)
+    actual   = get_order_clause(order_by)
+    
+    self.assertEqual(expected, actual)
 
 class SongFactoryTests(unittest.TestCase):
   catalog = Catalog(None, 'debug', '/thing/')

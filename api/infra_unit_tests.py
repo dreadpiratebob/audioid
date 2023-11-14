@@ -3,7 +3,7 @@ load_config('test')
 
 from api.exceptions.http_base import BadRequestException, NotFoundException
 from api.index import base_path
-from api.util.audioid import GetSongsQueryParams
+from api.util.audioid.songs import GetSongsQueryParams
 from api.util.functions import get_search_text_from_raw_text, hash_dict
 from api.util.http_path import \
   PathData, \

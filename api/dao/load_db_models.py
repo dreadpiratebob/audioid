@@ -4,6 +4,7 @@ from api.exceptions.song_data import InvalidCountException, InvalidSongDataExcep
 from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
 from api.util.functions import get_search_text_from_raw_text, get_type_name
 from api.util.logger import get_logger
+from api.util.response_list_modifiers import FilterInfo
 
 invalid_catalog_id_error = 'a catalog id must be a nonnegative int.'
 invalid_artist_id_error = 'an artist id must be a nonnegative int.'
@@ -11,36 +12,6 @@ invalid_album_id_error = 'an album id must be a nonnegative int.'
 invalid_album_artist_id_error = 'an album artist id must be a nonnegative int.'
 
 genres = dict()
-
-class FilterInfo:
-  def __init__(self, id:int, name:str, has_wildcards:bool, is_case_sensitive:bool, matches_diacritics:bool, filter_on_null:bool):
-    self.id = id
-    self.name = name
-    self.name_has_wildcards = has_wildcards
-    self.name_is_case_sensitive = is_case_sensitive
-    self.name_matches_diacritics = matches_diacritics
-    self.filter_on_null = filter_on_null
-  
-  def __eq__(self, other):
-    if not isinstance(other, type(self)):
-      return False
-    
-    for field_name in self.__dict__:
-      if self.__dict__[field_name] != other.__dict__[field_name]:
-        return False
-    
-    return True
-  
-  def __ne__(self, other):
-    return not self.__eq__(other)
-  
-  def __hash__(self):
-    result = 0
-    
-    for field_name in self.__dict__:
-      result = (result*397)*hash(self.__dict__[field_name])
-    
-    return result
 
 def get_song(catalog_id:int, id_or_filename:[int, str], include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> Song:
   grievances = []
@@ -98,10 +69,22 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '  s.filename AS song_filename,\n' \
                    '  s.year AS song_year,\n' \
                    '  s.duration AS song_duration,\n' \
-                   '  c.id as catalog_id,\n' \
-                   '  c.name as catalog_name\n'
-  songs_from     = 'FROM songs AS s\n' + \
-                   '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n'
+                   '  c.id AS catalog_id,\n' \
+                   '  c.name AS catalog_name,\n' \
+                   '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' \
+                   '  al.name AS album_name,\n' \
+                   '  al.lcase_name AS album_lcase_name,\n' \
+                   '  al.no_diacritic_name AS album_no_diacritic_name,\n' \
+                   '  al.lcase_no_diacritic_name AS album_lcase_no_diacritic_name,\n' \
+                   '  s_al.track_number AS track_number\n'
+  songs_from     = 'FROM songs AS s\n' \
+                   '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n' \
+                   '  LEFT JOIN songs_artists AS s_ar ON s_ar.song_id = s.id\n' \
+                   '    LEFT JOIN artists AS ar ON ar.id = s_ar.artist_id\n' \
+                   '  LEFT JOIN songs_albums AS s_al ON s_al.song_id = s.id\n' \
+                   '    LEFT JOIN albums AS al ON al.id = s_al.album_id\n' \
+                   '  LEFT JOIN songs_genres AS s_g ON s_g.song_id = s.id\n' \
+                   '    LEFT JOIN genres AS g ON g.id = s_g.genre_id\n'
   songs_where    = 'WHERE c.id = %s\n'
   songs_group_by = 'GROUP BY s.id\n'
   songs_having   = 'HAVING 1=1\n'
