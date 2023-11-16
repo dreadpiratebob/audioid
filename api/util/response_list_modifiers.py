@@ -45,10 +45,55 @@ class OrderDirection(Enum):
   ASCENDING = 'ASC'
   DESCENDING = 'DESC'
 
+def get_order_direction(input:str) -> OrderDirection:
+  input = input.lower()
+  
+  if input in (OrderDirection.ASCENDING.value.lower(), 'ascending'):
+    return OrderDirection.ASCENDING
+  
+  if input in (OrderDirection.DESCENDING.value.lower(), 'descending'):
+    return OrderDirection.DESCENDING
+  
+  raise ValueError('the value "%s" can\'t be parsed as an order direction.' % (str(input), ))
+
 class OrderByCol:
   def __init__(self, col:OrderColName, direction:OrderDirection):
     self.col = col
     self.direction = direction
+
+def get_order_parser(cols:type(OrderColName), cols_by_name = None):
+  def parse_order(input:str) -> list[OrderByCol]:
+    result = []
+    
+    _cols_by_name = cols_by_name
+    if _cols_by_name is None:
+      _cols_by_name = {col.column_name: col for col in cols}
+    
+    tokens = input.split(',')
+    if len(tokens) < 0:
+      raise ValueError('no column names were found.')
+    
+    for token in tokens:
+      if token[0] == ' ':
+        token = token[1:]
+      
+      pieces = token.split(' ')
+      if len(pieces) > 2:
+        raise ValueError('the order piece "%s" has too many spaces; a column name can\'t have spaces, so each piece should have at most one space.' % (token, ))
+      
+      if pieces[0] not in _cols_by_name:
+        raise ValueError('"%s" isn\'t a valid column name; valid column names are %s.' % (pieces[0], ', '.join([col.column_name for col in cols]), ))
+      
+      _col = _cols_by_name[pieces[0]]
+      _dir = OrderDirection.ASCENDING
+      if len(pieces) == 2:
+        _dir = get_order_direction(pieces[1])
+      
+      result.append(OrderByCol(_col, _dir))
+    
+    return result
+  
+  return parse_order
 
 def get_order_clause(order_bys:list[OrderByCol]) -> str:
   return ', '.join(['%s %s' % (ob.col.column_name, ob.direction.value) for ob in order_bys])

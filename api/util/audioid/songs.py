@@ -1,6 +1,17 @@
 from api.util.functions import parse_bool
 from api.util.http import QueryParam
-from api.util.response_list_modifiers import OrderColName
+from api.util.response_list_modifiers import OrderColName, get_order_parser
+
+class GetSongsOrderColumns(OrderColName):
+  SONG_TITLE = 'song_title', 'the song\'s title'
+  SONG_YEAR  = 'song_year', 'the year the song was released'
+  ARTIST_NAME = 'artist_name', 'the name of the song\'s artist. (if this was something like "Some Artist feat. Another Artist" in the original file, that whole string will be used for the sort order.)'
+  ALBUM_NAME = 'album_name', 'the name of the album that the song is on'
+  ALBUM_ARTIST_NAME = 'album_artist_name', 'the name of the song\'s album\'s artist'
+  TRACK_NUMBER = 'track_number', 'the song\'s track number'
+  GENRE_NAME = 'genre_name', 'the song\'s genre\'s name'
+
+get_songs_order_columns_by_column_name = {col.column_name: col for col in GetSongsOrderColumns}
 
 class GetSongsQueryParams(QueryParam):
   ALBUM_ID    = 'album_id',    False, int, 'an integer', None, 'the id of the album whose songs to get; only one of this and album_name can be set.'
@@ -33,12 +44,4 @@ class GetSongsQueryParams(QueryParam):
   SONG_TITLE_IS_CASE_SENSITIVE  = 'song_title_is_case_sensitive',  False, parse_bool, 'a boolean', False, 'if song_title isn\'t set, song_title_is_case_sensitive is ignored.  if song_title_is_case_sensitive is true, letters in song_title will be matched exactly; otherwise, they\'ll match letters regardless of case.'
   SONG_TITLE_MATCHES_DIACRITICS = 'song_title_matches_diacritics', False, parse_bool, 'a boolean', False, 'if song_title isn\'t set, song_title_matches_diacritics is ignored.  if song_title_matches_diacritics is true, letters in song_title will be matched exactly; otherwise, diacritics will be stripped out of both the song_title parameter and song\'s title, so "a" in the query parameter will match "ä", "à", "å", etc. in the song title.'
   SONG_YEAR = 'song_year', False, int, 'an integer', None, 'the year of the songs to get'
-
-class GetSongsOrderColumns(OrderColName):
-  SONG_TITLE = 'song_title', 'the song\'s title'
-  SONG_YEAR  = 'song_year', 'the year the song was released'
-  ARTIST_NAME = 'artist_name', 'the name of the song\'s artist. (if this was something like "Some Artist feat. Another Artist" in the original file, that whole string will be used for the sort order.)'
-  ALBUM_NAME = 'album_name', 'the name of the album that the song is on'
-  ALBUM_ARTIST_NAME = 'album_artist_name', 'the name of the song\'s album\'s artist'
-  TRACK_NUMBER = 'track_number', 'the song\'s track number'
-  GENRE_NAME = 'genre_name', 'the song\'s genre\'s name'
+  ORDER_BY  = 'order_by',  False, int, 'a comma-separated list of song-columns/direction pairs', get_order_parser(GetSongsOrderColumns, get_songs_order_columns_by_column_name), 'each song column name must be one of %s; each direction must be "ascending" or "descending".  (each of those is case-insensitive.)' % (', '.join([col.column_name for col in GetSongsOrderColumns]), )

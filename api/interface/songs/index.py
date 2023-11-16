@@ -79,6 +79,8 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
+  order_by = None
+  
   songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre)
   
   if len(songs) == 0:
