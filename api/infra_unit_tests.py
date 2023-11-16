@@ -22,6 +22,9 @@ from api.util.http import \
   serialize_by_field_to_xml, \
   serialize_by_field_to_yaml, \
   serialize_by_field_to_plain_text
+from api.util.response_list_modifiers import \
+  OrderColName, OrderDirection, OrderByCol, \
+  get_order_clause, get_order_parser
 
 from urllib.parse import quote_plus
 
@@ -1035,6 +1038,55 @@ class RelPathTests(unittest.TestCase):
     subdir_name = '__song_id__int__'
     
     self.assertIsNotNone(path_param_folder_name_re.match(subdir_name))
+
+class TestCols(OrderColName):
+  A = 'a', '1'
+  B = 'b', '2'
+  C = 'c', '3'
+
+test_cols_by_name = { col.column_name: col for col in TestCols }
+
+class OrderTests(unittest.TestCase):
+  def test_build_order_by_clause(self):
+    order_by = \
+      [
+        OrderByCol(TestCols.A, OrderDirection.ASCENDING),
+        OrderByCol(TestCols.B, OrderDirection.DESCENDING),
+        OrderByCol(TestCols.C, OrderDirection.ASCENDING)
+      ]
+    
+    expected = ', '.join(ob.col.column_name + ' ' + ob.direction.value for ob in order_by)
+    actual = get_order_clause(order_by)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_parse_order_bys(self):
+    query_param = 'a asc, b desc, c'
+    parse_func = get_order_parser(TestCols, test_cols_by_name)
+    
+    expected = \
+    [
+      OrderByCol(TestCols.A, OrderDirection.ASCENDING),
+      OrderByCol(TestCols.B, OrderDirection.DESCENDING),
+      OrderByCol(TestCols.C, OrderDirection.ASCENDING),
+    ]
+    actual = parse_func(query_param)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_parse_order_bys_with_full_directions(self):
+    query_param = 'a, b descending, c ascending'
+    parse_func = get_order_parser(TestCols, test_cols_by_name)
+    
+    expected = \
+    [
+      OrderByCol(TestCols.A, OrderDirection.ASCENDING),
+      OrderByCol(TestCols.B, OrderDirection.DESCENDING),
+      OrderByCol(TestCols.C, OrderDirection.ASCENDING),
+    ]
+    actual = parse_func(query_param)
+    
+    self.assertEqual(expected, actual)
 
 if __name__ == '__main__':
   unittest.main()

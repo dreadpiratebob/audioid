@@ -60,6 +60,20 @@ class OrderByCol:
   def __init__(self, col:OrderColName, direction:OrderDirection):
     self.col = col
     self.direction = direction
+  
+  def __eq__(self, other):
+    return isinstance(other, OrderByCol) and \
+      self.col == other.col and \
+      self.direction == other.direction
+  
+  def __ne__(self, other):
+    return not self.__eq__(other)
+  
+  def __hash__(self):
+    return (hash(self.col)*397) ^ hash(self.direction)
+  
+  def __str__(self):
+    return '%s %s' % (self.col.column_name, self.direction.value)
 
 def get_order_parser(cols:type(OrderColName), cols_by_name = None):
   def parse_order(input:str) -> list[OrderByCol]:
