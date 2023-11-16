@@ -1,6 +1,6 @@
 from api.util.functions import parse_bool
 from api.util.http import QueryParam
-from api.util.response_list_modifiers import OrderColName, get_order_parser
+from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, get_order_parser
 
 class GetSongsOrderColumns(OrderColName):
   SONG_TITLE = 'song_title', 'the song\'s title'
@@ -12,6 +12,12 @@ class GetSongsOrderColumns(OrderColName):
   GENRE_NAME = 'genre_name', 'the song\'s genre\'s name'
 
 get_songs_order_columns_by_column_name = {col.column_name: col for col in GetSongsOrderColumns}
+default_get_songs_order_by = \
+[
+  OrderByCol(GetSongsOrderColumns.ALBUM_ARTIST_NAME, OrderDirection.ASCENDING),
+  OrderByCol(GetSongsOrderColumns.ALBUM_NAME,        OrderDirection.ASCENDING),
+  OrderByCol(GetSongsOrderColumns.TRACK_NUMBER,      OrderDirection.ASCENDING)
+]
 
 class GetSongsQueryParams(QueryParam):
   ALBUM_ID    = 'album_id',    False, int, 'an integer', None, 'the id of the album whose songs to get; only one of this and album_name can be set.'

@@ -30,6 +30,8 @@ class FilterInfo:
     
     return result
 
+default_filter_info = FilterInfo(None, None, False, True, True, False)
+
 class OrderColName(Enum):
   def __new__(self, *args, **kwds):
     value = len(self.__members__) + 1

@@ -7,7 +7,7 @@ from api.util.http import HTTPStatusCodes, Response
 from api.util.http_path import AvailablePath
 
 class Songs:
-  def __init__(self, songs:(list, tuple)):
+  def __init__(self, songs:[list, tuple]):
     songs_type_error = 'songs must be a list or tuple of songs.'
     if not isinstance(songs, (list, tuple)):
       raise TypeError(songs_type_error)
@@ -79,9 +79,9 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  order_by = None
+  order_by = params[GetSongsQueryParams.ORDER_BY.param_name]
   
-  songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre)
+  songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre, order_by)
   
   if len(songs) == 0:
     return Response(None, HTTPStatusCodes.HTTP204)

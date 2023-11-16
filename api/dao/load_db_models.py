@@ -2,9 +2,13 @@ from api.dao.mysql_utils import commit, get_cursor
 from api.exceptions.http_base import NotImplementedException
 from api.exceptions.song_data import InvalidCountException, InvalidSongDataException
 from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
+from api.util.audioid.songs import GetSongsOrderColumns, default_get_songs_order_by
 from api.util.functions import get_search_text_from_raw_text, get_type_name
 from api.util.logger import get_logger
-from api.util.response_list_modifiers import FilterInfo
+from api.util.response_list_modifiers import \
+  FilterInfo, default_filter_info, \
+  OrderByCol, \
+  OrderDirection, get_order_clause
 
 invalid_catalog_id_error = 'a catalog id must be a nonnegative int.'
 invalid_artist_id_error = 'an artist id must be a nonnegative int.'
@@ -19,10 +23,10 @@ def get_song(catalog_id:int, id_or_filename:[int, str], include_artists:bool = T
   if not isinstance(catalog_id, int):
     grievances.append('a catalog id must be an int.  (found "%s", a %s instead.)' % (str(catalog_id), get_type_name(catalog_id)))
   
-  id = None
+  song_filter = default_filter_info
   filename = None
   if isinstance(id_or_filename, int):
-    id = id_or_filename
+    song_filter.id = id_or_filename
   elif isinstance(id_or_filename, str):
     filename = id_or_filename
   else:
@@ -31,7 +35,7 @@ def get_song(catalog_id:int, id_or_filename:[int, str], include_artists:bool = T
   if len(grievances) > 0:
     raise TypeError('\n'.join(grievances))
   
-  result = _get_songs(catalog_id, id, filename, None, False, True, True, None, None, None, False, True, True, False, None, None, False, True, True, False, None, None, False, True, True, False, None, None, False, True, True, False, include_artists, include_albums, include_genres)
+  result = _get_songs(catalog_id, filename, song_filter, None, None, None, None, None, None, include_artists, include_albums, include_genres)
   
   if len(result) == 0:
     return None
@@ -46,8 +50,9 @@ def get_song(catalog_id:int, id_or_filename:[int, str], include_artists:bool = T
   raise InvalidCountException('%s songs were found with %s.' % (str(len(result)), message))
 
 def get_songs(catalog_id:int, song:FilterInfo, song_year:int, artist:FilterInfo, album:FilterInfo, album_artist:FilterInfo, genre:FilterInfo,
+              order_by:list[OrderByCol],
               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
-  return _get_songs(catalog_id, None, song, song_year, artist, album, album_artist, genre, include_artists, include_albums, include_genres)
+  return _get_songs(catalog_id, None, song, song_year, artist, album, album_artist, genre, order_by, include_artists, include_albums, include_genres)
 
 _name_separator_for_queries   = '\\n • '
 _name_separator_for_splitting = _name_separator_for_queries.replace('\\n', '\n')
@@ -58,10 +63,36 @@ _name_columns = \
   (True,  False): ('no_diacritic_title', 'no_diacritic_name'),
   (False, False): ('lcase_no_diacritic_title', 'lcase_no_diacritic_name')
 }
+get_songs_order_by_type_error = 'order_by for getting songs must be a list of song columns.'
 def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int, artist:FilterInfo, album:FilterInfo, album_artist:FilterInfo, genre:FilterInfo,
+               order_by:list[OrderByCol],
                include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
   if not isinstance(catalog_id, int):
     raise ValueError('got a catalog id that\'s a(n) %s instead of an int: %s' % (get_type_name(catalog_id), str(catalog_id)))
+  
+  if song is None:
+    song = default_filter_info
+  
+  if artist is None:
+    artist = default_filter_info
+  
+  if album is None:
+    album = default_filter_info
+  
+  if album_artist is None:
+    album_artist = default_filter_info
+  
+  if genre is None:
+    genre = default_filter_info
+  
+  if order_by is None:
+    order_by = default_get_songs_order_by
+  elif not isinstance(order_by, list):
+    raise TypeError(get_songs_order_by_type_error)
+  else:
+    for col in order_by:
+      if not isinstance(col.col, GetSongsOrderColumns) or not isinstance(col.direction, OrderDirection):
+        raise TypeError(get_songs_order_by_type_error)
   
   songs_select   = 'SELECT s.id AS song_id,\n' \
                    '  s.title AS song_title,\n' \
@@ -75,7 +106,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '  c.name AS catalog_name,\n' \
                    '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' + \
                    ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator_for_queries,) * 7)) + \
-                   '  al.name AS album_name,\n' + \
+                    '  al.name AS album_name,\n' + \
                    ('  GROUP_CONCAT(CONCAT(al.id, "%s", al.name, "%s", al.lcase_name, "%s", al.no_diacritic_name, "%s", al.lcase_no_diacritic_name, "%s", al_ar.id, "%s", al_ar.name, "%s", al_ar.lcase_name, "%s", al_ar.no_diacritic_name, "%s", al_ar.lcase_no_diacritic_name, "%s", s_al.track_number) ORDER BY al.name SEPARATOR "%s") AS album_names,\n' % ((_name_separator_for_queries,) * 11)) + \
                     '  g.name as genre_name,\n' + \
                    ('  GROUP_CONCAT(CONCAT(g.id, "%s", g.name, "%s", g.lcase_name, "%s", g.no_diacritic_name, "%s", g.lcase_no_diacritic_name) ORDER BY g.name SEPARATOR "%s") AS genre_names\n' % ((_name_separator_for_queries,) * 5))
@@ -91,6 +122,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
   songs_where    = 'WHERE c.id = %s\n'
   songs_group_by = 'GROUP BY s.id\n'
   songs_having   = 'HAVING 1=1\n'
+  songs_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
   
   songs_from_args  = []
   songs_where_args = [catalog_id]
@@ -231,7 +263,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
     songs_from += '  LEFT JOIN songs_genres AS s_g_filter ON s_g_filter.song_id = s.id\n'
     songs_having += '  AND COUNT(s_g_filter.genre_id) = 0\n'
   
-  songs_query = songs_select + songs_from + songs_where + songs_group_by + songs_having + ';'
+  songs_query = songs_select + songs_from + songs_where + songs_group_by + songs_having + songs_order_by + ';'
   
   songs_args = tuple(songs_from_args + songs_where_args)
   
