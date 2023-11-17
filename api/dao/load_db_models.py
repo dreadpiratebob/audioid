@@ -106,7 +106,8 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '  c.name AS catalog_name,\n' \
                    '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' + \
                    ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator_for_queries,) * 7)) + \
-                    '  al.name AS album_name,\n' + \
+                    '  al.name AS album_name,\n' \
+                    '  al_ar.name AS album_artist_name,\n' + \
                    ('  GROUP_CONCAT(CONCAT(al.id, "%s", al.name, "%s", al.lcase_name, "%s", al.no_diacritic_name, "%s", al.lcase_no_diacritic_name, "%s", al_ar.id, "%s", al_ar.name, "%s", al_ar.lcase_name, "%s", al_ar.no_diacritic_name, "%s", al_ar.lcase_no_diacritic_name, "%s", s_al.track_number) ORDER BY al.name SEPARATOR "%s") AS album_names,\n' % ((_name_separator_for_queries,) * 11)) + \
                     '  g.name as genre_name,\n' + \
                    ('  GROUP_CONCAT(CONCAT(g.id, "%s", g.name, "%s", g.lcase_name, "%s", g.no_diacritic_name, "%s", g.lcase_no_diacritic_name) ORDER BY g.name SEPARATOR "%s") AS genre_names\n' % ((_name_separator_for_queries,) * 5))
@@ -280,7 +281,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
       catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], None)
       song = Song(db_song['song_id'], db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'], db_song['song_year'], db_song['song_duration'], db_song['song_filename'], None, catalog, genres=[], songs_artists=[], songs_albums=[])
       
-      if include_artists:
+      if include_artists and db_song['artist_names'] is not None:
         artist_names = db_song['artist_names'].split(_name_separator_for_splitting)
         for j in range(0, len(artist_names), 7):
           artist_id = int(artist_names[j])
@@ -293,7 +294,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
           song_artist = SongArtist(song, artist, int(artist_names[j + 5]), artist_names[j + 6])
           song.get_songs_artists().append(song_artist)
       
-      if include_albums:
+      if include_albums and db_song['album_names'] is not None:
         album_names = db_song['album_names'].split(_name_separator_for_splitting)
         for j in range(0, len(album_names), 11):
           album_id = int(album_names[j])
@@ -313,7 +314,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
           song_album = SongAlbum(song, album, int(album_names[j + 10]))
           song.get_songs_albums().append(song_album)
       
-      if include_genres:
+      if include_genres and db_song['genre_names'] is not None:
         genre_names = db_song['genre_names'].split(_name_separator_for_splitting)
         for j in range(0, len(genre_names), 5):
           genre_id = int(genre_names[j])
