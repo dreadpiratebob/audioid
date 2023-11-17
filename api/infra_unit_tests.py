@@ -1087,6 +1087,38 @@ class OrderTests(unittest.TestCase):
     actual = parse_func(query_param)
     
     self.assertEqual(expected, actual)
+  
+  def test_parse_order_bys_with_invalid_column(self):
+    bad_column = 'jkl'
+    query_param = 'a, %s asc, c desc' % (bad_column, )
+    parse_func = get_order_parser(TestCols, test_cols_by_name)
+    
+    found_error = False
+    try:
+      parse_func(query_param)
+    except ValueError as e:
+      found_error = True
+      expected = '"%s" isn\'t a valid column name; valid column names are %s.' % (bad_column, ', '.join(col.column_name for col in TestCols))
+      actual = str(e)
+      self.assertEqual(expected, actual)
+    
+    self.assertTrue(found_error)
+  
+  def test_parse_order_bys_with_invalid_direction(self):
+    bad_direction = 'jkl;'
+    query_param = 'a, b %s, c jkl;' % (bad_direction, )
+    parse_func = get_order_parser(TestCols, test_cols_by_name)
+    
+    found_error = False
+    try:
+      parse_func(query_param)
+    except ValueError as e:
+      found_error = True
+      expected = 'the value "%s" can\'t be parsed as an order direction.' % bad_direction
+      actual = str(e)
+      self.assertEqual(expected, actual)
+    
+    self.assertTrue(found_error)
 
 if __name__ == '__main__':
   unittest.main()
