@@ -84,7 +84,10 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   page_size   = params[GetSongsQueryParams.PAGE_Size.param_name]
   page_info   = None
   if page_size is not None:
-    page_info = PageInfo(page_number, page_size)
+    try:
+      page_info = PageInfo(page_number, page_size)
+    except (ValueError, TypeError) as e:
+      raise BadRequestException(str(e))
   
   songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre, order_by, page_info)
   

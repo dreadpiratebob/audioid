@@ -127,6 +127,15 @@ class PageInfo:
     if len(grievances) > 0:
       raise TypeError('\n'.join(grievances))
     
+    if page_number < 1:
+      grievances.append('a page number must be at least 1.')
+    
+    if page_size < 1:
+      grievances.append('a page size must be at least 1.')
+    
+    if len(grievances) > 0:
+      raise ValueError('\n'.join(grievances))
+    
     self.page_number = page_number
     self.page_size   = page_size
   
@@ -152,7 +161,7 @@ class PageInfo:
     return result
   
   def __str__(self):
-    return 'LIMIT %s OFFSET %s' % (self.page_size, self.page_number*self.page_size)
+    return 'LIMIT %s OFFSET %s' % (self.page_size, (self.page_number - 1)*self.page_size)
 
 def parse_page_size(input:str) -> int:
   input = input.lower()
