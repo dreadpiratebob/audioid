@@ -1,6 +1,6 @@
 from api.util.functions import parse_bool
 from api.util.http import QueryParam
-from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, get_order_parser
+from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, get_order_parser, parse_page_size
 
 class GetSongsOrderColumns(OrderColName):
   SONG_TITLE = 'song_title', 'the song\'s title'
@@ -50,4 +50,6 @@ class GetSongsQueryParams(QueryParam):
   SONG_TITLE_IS_CASE_SENSITIVE  = 'song_title_is_case_sensitive',  False, parse_bool, 'a boolean', False, 'if song_title isn\'t set, song_title_is_case_sensitive is ignored.  if song_title_is_case_sensitive is true, letters in song_title will be matched exactly; otherwise, they\'ll match letters regardless of case.'
   SONG_TITLE_MATCHES_DIACRITICS = 'song_title_matches_diacritics', False, parse_bool, 'a boolean', False, 'if song_title isn\'t set, song_title_matches_diacritics is ignored.  if song_title_matches_diacritics is true, letters in song_title will be matched exactly; otherwise, diacritics will be stripped out of both the song_title parameter and song\'s title, so "a" in the query parameter will match "ä", "à", "å", etc. in the song title.'
   SONG_YEAR = 'song_year', False, int, 'an integer', None, 'the year of the songs to get'
-  ORDER_BY  = 'order_by',  False, get_order_parser(GetSongsOrderColumns, get_songs_order_columns_by_column_name), 'a comma-separated list of song-columns/direction pairs', default_get_songs_order_by, 'each song column name must be one of %s; each direction must be "ascending" or "descending".  (each of those is case-insensitive.)' % (', '.join([col.column_name for col in GetSongsOrderColumns]), )
+  ORDER_BY    = 'order_by',    False, get_order_parser(GetSongsOrderColumns, get_songs_order_columns_by_column_name), 'a comma-separated list of song-columns/direction pairs', default_get_songs_order_by, 'each song column name must be one of %s; each direction must be "ascending" or "descending".  (each of those is case-insensitive.)' % (', '.join([col.column_name for col in GetSongsOrderColumns]), )
+  PAGE_NUMBER = 'page_number', False, int, 'an integer', 1,   'the 1-based number of which page to get; e.g. if you\'re getting 50 results at a time and you want results #51-100, this would be 2.'
+  PAGE_Size   = 'page_size',   False, parse_page_size, 'an integer', 100, 'the size of one page; i.e. the maximum number of results to get.  if this is "all", all results will be returned regardless of what the value of page_number is.'

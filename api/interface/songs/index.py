@@ -1,4 +1,4 @@
-from api.util.response_list_modifiers import FilterInfo
+from api.util.response_list_modifiers import FilterInfo, PageInfo
 from api.exceptions.http_base import BadRequestException
 from api.logic.songs import get_songs
 from api.models.db_models import Song
@@ -79,9 +79,14 @@ def get(environment:dict, path_params:dict, query_params:dict, body):
   if len(grievances) > 0:
     raise BadRequestException('\n'.join(grievances))
   
-  order_by = params[GetSongsQueryParams.ORDER_BY.param_name]
+  order_by    = params[GetSongsQueryParams.ORDER_BY.param_name]
+  page_number = params[GetSongsQueryParams.PAGE_NUMBER.param_name]
+  page_size   = params[GetSongsQueryParams.PAGE_Size.param_name]
+  page_info   = None
+  if page_size is not None:
+    page_info = PageInfo(page_number, page_size)
   
-  songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre, order_by)
+  songs = get_songs(catalog_id, song, song_year, artist, album, album_artist, genre, order_by, page_info)
   
   if len(songs) == 0:
     return Response(None, HTTPStatusCodes.HTTP204)

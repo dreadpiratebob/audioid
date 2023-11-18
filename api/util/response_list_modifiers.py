@@ -113,3 +113,51 @@ def get_order_parser(cols:type(OrderColName), cols_by_name = None):
 
 def get_order_clause(order_bys:list[OrderByCol]) -> str:
   return ', '.join(['%s %s' % (ob.col.column_name, ob.direction.value) for ob in order_bys])
+
+class PageInfo:
+  def __init__(self, page_number:int, page_size:int):
+    grievances = []
+    
+    if not isinstance(page_number, int):
+      grievances.append('a page number must be an integer.')
+    
+    if not isinstance(page_size, int):
+      grievances.append('a page size must be an integer.')
+    
+    if len(grievances) > 0:
+      raise TypeError('\n'.join(grievances))
+    
+    self.page_number = page_number
+    self.page_size   = page_size
+  
+  def __eq__(self, other):
+    if not isinstance(other, type(self)):
+      return False
+    
+    for field_name in self.__dict__:
+      if self.__dict__[field_name] != other.__dict__[field_name]:
+        return False
+    
+    return True
+  
+  def __ne__(self, other):
+    return not self.__eq__(other)
+  
+  def __hash__(self):
+    result = 0
+    
+    for field_name in self.__dict__:
+      result = result*397 ^ hash(self.__dict__[field_name])
+    
+    return result
+  
+  def __str__(self):
+    return 'LIMIT %s OFFSET %s' % (self.page_size, self.page_number*self.page_size)
+
+def parse_page_size(input:str) -> int:
+  input = input.lower()
+  
+  if input == 'any':
+    return None
+  
+  return int(input)
