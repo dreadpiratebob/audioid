@@ -356,7 +356,6 @@ def save_song(song):
         query_values += '\n    (%s, %s, %s, %s, %s, %s),'
       
       query = 'INSERT INTO upsert_song_artist_info (artist_name, artist_lcase_name, artist_no_diacritic_name, artist_lcase_no_diacritic_name, conjunction, list_order)\nVALUES%s;' % (query_values[:-1], )
-      print('query:\n%s\n\nparams:\n%s' % (query, tuple(artist_info_params)))
       cursor.execute(query, tuple(artist_info_params))
     
     in_album_name                     = None

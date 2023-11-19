@@ -456,6 +456,17 @@ BEGIN
   GROUP BY a.id;
 
   IF var_artist_id IS NULL THEN
+    SELECT a.id INTO var_artist_id
+    FROM artists AS a
+      INNER JOIN albums AS al ON al.album_artist = a.id
+        INNER JOIN songs_albums AS s_al ON s_al.album_id = al.id
+          INNER JOIN songs AS s ON s.id = s_al.song_id
+            AND s.catalog_id = in_catalog_id
+    WHERE a.name = in_artist_name
+    GROUP BY a.id;
+  END IF;
+
+  IF var_artist_id IS NULL THEN
     INSERT INTO artists (name, lcase_name, no_diacritic_name, lcase_no_diacritic_name)
       VALUES(in_artist_name, in_artist_lcase_name, in_artist_no_diacritic_name, in_artist_lcase_no_diacritic_name);
     SELECT LAST_INSERT_ID() INTO var_artist_id;
