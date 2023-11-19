@@ -108,12 +108,12 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '  c.id AS catalog_id,\n' \
                    '  c.name AS catalog_name,\n' \
                    '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' + \
-                   ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator_for_queries,) * 7)) + \
-                    '  al.name AS album_name,\n' \
-                    '  al_ar.name AS album_artist_name,\n' + \
-                   ('  GROUP_CONCAT(CONCAT(al.id, "%s", al.name, "%s", al.lcase_name, "%s", al.no_diacritic_name, "%s", al.lcase_no_diacritic_name, "%s", al_ar.id, "%s", al_ar.name, "%s", al_ar.lcase_name, "%s", al_ar.no_diacritic_name, "%s", al_ar.lcase_no_diacritic_name, "%s", s_al.track_number) ORDER BY al.name SEPARATOR "%s") AS album_names,\n' % ((_name_separator_for_queries,) * 11)) + \
-                    '  g.name as genre_name,\n' + \
-                   ('  GROUP_CONCAT(CONCAT(g.id, "%s", g.name, "%s", g.lcase_name, "%s", g.no_diacritic_name, "%s", g.lcase_no_diacritic_name) ORDER BY g.name SEPARATOR "%s") AS genre_names\n' % ((_name_separator_for_queries,) * 5))
+                  ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator_for_queries,) * 7)) + \
+                   '  al.name AS album_name,\n' \
+                   '  al_ar.name AS album_artist_name,\n' + \
+                  ('  GROUP_CONCAT(CONCAT(al.id, "%s", al.name, "%s", al.lcase_name, "%s", al.no_diacritic_name, "%s", al.lcase_no_diacritic_name, "%s", al_ar.id, "%s", al_ar.name, "%s", al_ar.lcase_name, "%s", al_ar.no_diacritic_name, "%s", al_ar.lcase_no_diacritic_name, "%s", s_al.track_number) ORDER BY al.name SEPARATOR "%s") AS album_names,\n' % ((_name_separator_for_queries,) * 11)) + \
+                   '  g.name as genre_name,\n' + \
+                  ('  GROUP_CONCAT(CONCAT(g.id, "%s", g.name, "%s", g.lcase_name, "%s", g.no_diacritic_name, "%s", g.lcase_no_diacritic_name) ORDER BY g.name SEPARATOR "%s") AS genre_names\n' % ((_name_separator_for_queries,) * 5))
   songs_from     = 'FROM songs AS s\n' \
                    '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n' \
                    '  LEFT JOIN songs_artists AS s_ar ON s_ar.song_id = s.id\n' \
