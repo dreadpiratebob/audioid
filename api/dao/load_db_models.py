@@ -127,7 +127,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
   songs_group_by = 'GROUP BY s.id\n'
   songs_having   = 'HAVING 1=1\n'
   songs_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
-  songs_limit    = '' if page_info is None else str(page_info)
+  songs_limit    = '' if page_info is None else (str(page_info) + '\n')
   
   songs_from_args  = []
   songs_where_args = [catalog_id]
