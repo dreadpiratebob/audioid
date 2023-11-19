@@ -120,7 +120,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '    LEFT JOIN artists AS ar ON ar.id = s_ar.artist_id\n' \
                    '  LEFT JOIN songs_albums AS s_al ON s_al.song_id = s.id\n' \
                    '    LEFT JOIN albums AS al ON al.id = s_al.album_id\n' \
-                   '      LEFT JOIN artists AS al_ar ON al_ar.id = al.album_artist' \
+                   '      LEFT JOIN artists AS al_ar ON al_ar.id = al.album_artist\n' \
                    '  LEFT JOIN songs_genres AS s_g ON s_g.song_id = s.id\n' \
                    '    LEFT JOIN genres AS g ON g.id = s_g.genre_id\n'
   songs_where    = 'WHERE c.id = %s\n'
