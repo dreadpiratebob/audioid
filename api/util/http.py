@@ -688,11 +688,12 @@ class QueryParam(Enum):
     obj._value_ = value
     return obj
   
-  def __init__(self, param_name:str, required:bool, parse_func, param_type_name:str, default_value, description:str):
+  def __init__(self, param_name:str, required:bool, parse_func, public_param_type_name:str, exception_param_type_name:str, default_value, description:str):
     self.param_name = param_name
     self.is_required = required
     self._parse_func = parse_func
-    self.param_type_name = param_type_name
+    self.param_type = public_param_type_name
+    self._exception_param_type_name = exception_param_type_name
     self.default_value = default_value
     self.description = description
   
@@ -700,7 +701,7 @@ class QueryParam(Enum):
     return self.param_name + ' (' + ('required' if self.is_required else 'optional') + '): ' + self.description
   
   def get_value(self, query_params:dict, return_error_message:bool = True):
-    return get_param(self.param_name, query_params, self._parse_func, self.param_type_name, self.is_required, 'query',
+    return get_param(self.param_name, query_params, self._parse_func, self._exception_param_type_name, self.is_required, 'query',
                      self.default_value, return_error_message)
 
 def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = False, param_type:str = 'query',
