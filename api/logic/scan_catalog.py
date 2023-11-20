@@ -12,7 +12,7 @@ from pymysql.err import OperationalError
 import os
 import traceback
 
-def scan_catalog(catalog_identifier, artist_splitters = None):
+def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None:
   if artist_splitters is None:
     artist_splitters = [' featuring ', ' feat ', ' feat. ', ' ft ', ' ft. ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']
   elif not is_iterable(artist_splitters):

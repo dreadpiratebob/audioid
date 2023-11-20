@@ -2,7 +2,7 @@ from api.exceptions.song_data import CatalogNotFoundException
 from api.models.db_models import Catalog
 from api.dao.mysql_utils import get_cursor
 
-def get_catalog(identifier):
+def get_catalog(identifier:[int, str]) -> Catalog:
   field = 'id'
   if isinstance(identifier, str):
     field = 'name'
