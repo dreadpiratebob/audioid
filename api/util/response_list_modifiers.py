@@ -29,6 +29,9 @@ class FilterInfo:
       result = (result*397)*hash(self.__dict__[field_name])
     
     return result
+  
+  def clone(self):
+    return FilterInfo(self.id, self.name, self.name_has_wildcards, self.name_is_case_sensitive, self.name_matches_diacritics, self.filter_on_null)
 
 default_filter_info = FilterInfo(None, None, False, True, True, False)
 

@@ -9,7 +9,7 @@ from api.util.functions import get_search_text_from_raw_text
 import unittest
 
 class SongFactoryTests(unittest.TestCase):
-  catalog = Catalog(None, 'debug', '/thing/')
+  catalog = Catalog(None, 'debug', 'debug', 'debug', 'debug', '/thing/')
   mp3_with_diacritics_in_album_name = MP3({
     # required.
     MP3Fields.FILENAME.value: '/thing/mp3.mp3', # make sure this starts with catalog._base_path (above).
@@ -46,7 +46,7 @@ class SongFactoryTests(unittest.TestCase):
     self.assertEqual(expected, actual)
 
 class DBModelEqualsAndHashTests(unittest.TestCase):
-  catalog = Catalog(None, 'debug', '/thing/')
+  catalog = Catalog(None, 'debug', 'debug', 'debug', 'debug', '/thing/')
   
   expected_basic_title = 'mp3.mp3'
   song_basic = Song(None, expected_basic_title, expected_basic_title, expected_basic_title, expected_basic_title,

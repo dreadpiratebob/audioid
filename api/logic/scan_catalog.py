@@ -1,4 +1,4 @@
-from api.dao.catalog import get_catalog
+from api.dao.load_db_models import get_catalog
 from api.dao.mysql_utils import get_cursor
 from api.dao.mp3 import read_metadata
 from api.dao.load_db_models import save_song

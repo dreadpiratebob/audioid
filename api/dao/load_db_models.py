@@ -17,6 +17,84 @@ invalid_album_artist_id_error = 'an album artist id must be a nonnegative int.'
 
 genres = dict()
 
+_name_columns = \
+{
+  (True,  True ): ('title', 'name'),
+  (False, True ): ('lcase_title', 'lcase_name'),
+  (True,  False): ('no_diacritic_title', 'no_diacritic_name'),
+  (False, False): ('lcase_no_diacritic_title', 'lcase_no_diacritic_name')
+}
+
+def get_catalog(catalog_identifier:[int, str], include_base_path:bool = False) -> Catalog:
+  catalog_filter = FilterInfo(None, None, False, True, True, False)
+  
+  if isinstance(catalog_identifier, int):
+    catalog_filter.id = catalog_identifier
+  elif isinstance(catalog_identifier, str):
+    catalog_filter.name = catalog_identifier
+  else:
+    raise TypeError('a catalog identifier must be an int (a catalog id) or a string (a catalog name).')
+  
+  result = get_catalogs(catalog_filter, include_base_paths=include_base_path)
+  
+  if len(result) == 0:
+    return None
+  
+  if len(result) == 1:
+    return result[0]
+  
+  search_type = 'id'
+  if isinstance(catalog_identifier, str):
+    search_type = 'name'
+  
+  raise ValueError('%s catalogs were found with the %s "%s".' % (len(result), search_type, catalog_identifier))
+
+def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = None, page_info:PageInfo = None, include_base_paths:bool = False) -> list[Catalog]:
+  if catalog_filter is None:
+    catalog_filter = default_filter_info
+  
+  if order_by is None:
+    order_by = []
+  
+  if page_info is not None and not isinstance(page_info, PageInfo):
+    raise TypeError('invalid page info for getting catalogs.')
+  
+  if not isinstance(include_base_paths, bool):
+    raise TypeError('the "include base paths" for catalogs must be a bool.')
+  
+  catalogs_select   = 'SELECT catalog_id, catalog_name, catalog_lcase_name, catalog_no_diacritic_name, catalog_lcase_no_diacritic_name, catalog_base_path\n'
+  catalogs_from     = 'FROM catalogs\n'
+  catalogs_where    = 'WHERE %s\n'
+  catalogs_order_by = get_order_clause(order_by)
+  catalogs_limit    = '' if page_info is None else str(page_info)
+  
+  catalogs_args = tuple()
+  
+  if catalog_filter.id is not None:
+    catalogs_where %= 'id = %s'
+    catalogs_args = (catalog_filter.id, )
+  elif catalog_filter.name is not None:
+    catalog_column_name = _name_columns[(catalog_filter.name_is_case_sensitive, catalog_filter.name_matches_diacritics)][1]
+    if catalog_filter.name_has_wildcards:
+      catalogs_where %= (catalog_column_name + ' LIKE %s')
+    else:
+      catalogs_where %= (catalog_column_name + ' = %s')
+    catalogs_args = (catalog_filter.name, )
+  else:
+    catalogs_where %= ('1=1', )
+  
+  catalogs = []
+  query    = catalogs_select + catalogs_from + catalogs_where, catalogs_order_by, catalogs_limit + ';'
+  with get_cursor(False) as cursor:
+    catalog_ct = cursor.execute(query, catalogs_args)
+    for i in range(len(catalog_ct)):
+      db_catalog = cursor.fetchone()
+      
+      base_path = db_catalog['catalog_base_path'] if include_base_paths else None
+      catalogs.append(Catalog(db_catalog['catalog_id'], db_catalog['catalog_name'], db_catalog['catalog_lcase_name'], db_catalog['catalog_no_diacritic_name'], db_catalog['catalog_lcase_no_diacritic_name'], base_path))
+  
+  return catalogs
+
 def get_song(catalog_id:int, id_or_filename:[int, str], include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> Song:
   grievances = []
   
@@ -56,13 +134,6 @@ def get_songs(catalog_id:int, song:FilterInfo, song_year:int, artist:FilterInfo,
 
 _name_separator_for_queries   = '\\n • '
 _name_separator_for_splitting = _name_separator_for_queries.replace('\\n', '\n')
-_name_columns = \
-{
-  (True,  True ): ('title', 'name'),
-  (False, True ): ('lcase_title', 'lcase_name'),
-  (True,  False): ('no_diacritic_title', 'no_diacritic_name'),
-  (False, False): ('lcase_no_diacritic_title', 'lcase_no_diacritic_name')
-}
 get_songs_order_by_type_error = 'order_by for getting songs must be a list of song columns.'
 def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int, artist:FilterInfo, album:FilterInfo, album_artist:FilterInfo, genre:FilterInfo,
                order_by:list[OrderByCol], page_info:PageInfo,
@@ -72,18 +143,28 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
   
   if song is None:
     song = default_filter_info
+  elif not isinstance(genre, FilterInfo):
+    raise ValueError('invalid song filter info for getting songs.')
   
   if artist is None:
     artist = default_filter_info
+  elif not isinstance(genre, FilterInfo):
+    raise ValueError('invalid artist filter info for getting songs.')
   
   if album is None:
     album = default_filter_info
+  elif not isinstance(genre, FilterInfo):
+    raise ValueError('invalid album filter info for getting songs.')
   
   if album_artist is None:
     album_artist = default_filter_info
+  elif not isinstance(genre, FilterInfo):
+    raise ValueError('invalid album_artist filter info for getting songs.')
   
   if genre is None:
     genre = default_filter_info
+  elif not isinstance(genre, FilterInfo):
+    raise ValueError('invalid genre filter info for getting songs.')
   
   if order_by is None:
     order_by = default_get_songs_order_by
@@ -107,6 +188,9 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
                    '  s.duration AS song_duration,\n' \
                    '  c.id AS catalog_id,\n' \
                    '  c.name AS catalog_name,\n' \
+                   '  c.lcase_name AS catalog_lcase_name,\n' \
+                   '  c.no_diacritic_name AS catalog_no_diacritic_name,\n' \
+                   '  c.lcase_no_diacritic_name AS catalog_lcase_no_diacritic_name,\n' \
                    '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' + \
                   ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator_for_queries,) * 7)) + \
                    '  al.name AS album_name,\n' \
@@ -282,7 +366,7 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
     for i in range(song_count):
       db_song = songs_cursor.fetchone()
       
-      catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], None)
+      catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], db_song['catalog_lcase_name'], db_song['catalog_no_diacritic_name'], db_song['catalog_lcase_no_diacritic_name'], None)
       song = Song(db_song['song_id'], db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'], db_song['song_year'], db_song['song_duration'], db_song['song_filename'], None, catalog, genres=[], songs_artists=[], songs_albums=[])
       
       if include_artists and db_song['artist_names'] is not None:

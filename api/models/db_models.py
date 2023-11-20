@@ -5,13 +5,22 @@ from api.exceptions.song_data import\
 from api.util.functions import get_search_text_from_raw_text, get_type_name, is_iterable, is_primitive
 
 class Catalog:
-  def __init__(self, id:int, name:str, base_path:str):
+  def __init__(self, id:int, name:str, lcase_name:str, no_diacritic_name:str, lcase_no_diacritic_name:str, base_path:str):
     grievances = []
     
     if id is not None and not isinstance(id, int):
       grievances.append('an id must be an int.')
     
     if not isinstance(name, str):
+      grievances.append('a name must be a str.')
+    
+    if lcase_name is not None and not isinstance(lcase_name, str):
+      grievances.append('a name must be a str.')
+    
+    if no_diacritic_name is not None and not isinstance(no_diacritic_name, str):
+      grievances.append('a name must be a str.')
+    
+    if lcase_no_diacritic_name is not None and not isinstance(lcase_no_diacritic_name, str):
       grievances.append('a name must be a str.')
     
     if base_path is not None and not isinstance(base_path, str):
@@ -22,7 +31,13 @@ class Catalog:
     
     self._id = id
     self._name = name
+    self._lcase_name = lcase_name
+    self._no_diacritic_name = no_diacritic_name
+    self._lcase_no_diacritic_name = lcase_no_diacritic_name
     self._base_path = base_path
+    
+    if lcase_name is None or no_diacritic_name is None or lcase_no_diacritic_name is None:
+      self.set_name(name)
   
   def __eq__(self, other):
     return isinstance(other, Catalog) and \
@@ -50,6 +65,16 @@ class Catalog:
       raise ValueError('a name must be a str.')
     
     self._name = name
+    self._lcase_name, self._no_diacritic_name, self._lcase_no_diacritic_name = get_search_text_from_raw_text(name)
+  
+  def get_lcase_name(self):
+    return self._lcase_name
+  
+  def get_no_diacritic_name(self):
+    return self._no_diacritic_name
+  
+  def get_lcase_no_diacritic_name(self):
+    return self._lcase_no_diacritic_name
   
   def get_base_path(self):
     return self._base_path

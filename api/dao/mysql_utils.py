@@ -52,7 +52,7 @@ if missing_admin_conn_info:
 else:
   admin_db_conn = pymysql.connect(host = 'localhost', user = 'audioid_admin', password = 'hey look - a password', db = 'audioid', charset='utf8mb4', cursorclass = pymysql.cursors.DictCursor)
 
-def get_cursor(admin:bool = False) -> pymysql.Connection:
+def get_cursor(admin:bool = False) -> pymysql.cursors.Cursor:
   conn = user_db_conn
   if admin:
     conn = admin_db_conn
