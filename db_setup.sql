@@ -12,7 +12,10 @@ CREATE USER 'audioid_admin'@'localhost' IDENTIFIED BY 'hey look - a password';
 CREATE TABLE catalogs
 (
   id int(64) unsigned not null primary key auto_increment,
-  name varchar(64) not null COLLATE utf8mb4_bin,
+  name varchar(1024) not null COLLATE utf8mb4_bin,
+  lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   base_path varchar(1024) COLLATE utf8mb4_bin,
   unique(name),
   unique(base_path)
