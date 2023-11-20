@@ -629,8 +629,9 @@ clean_unused_data:BEGIN
     SELECT a.id
     FROM artists AS a
       LEFT JOIN songs_artists AS s_a ON s_a.artist_id = a.id
+      LEFT JOIN albums AS al ON al.album_artist = a.id
     GROUP BY a.id
-    HAVING COUNT(s_a.song_id) = 0
+    HAVING COUNT(s_a.song_id) = 0 AND COUNT(al.id) = 0
   );
   
   DELETE FROM genres
@@ -644,11 +645,7 @@ clean_unused_data:BEGIN
   );
 END//
 
-DELIMITER ;
-
-GRANT EXECUTE ON PROCEDURE audioid.clean_unused_data TO 'audioid_admin'@'localhost';
-
-DELIMITER //
+GRANT EXECUTE ON PROCEDURE audioid.clean_unused_data TO 'audioid_admin'@'localhost'//
 
 CREATE PROCEDURE upsert_song_similarity(IN in_song1 INT(64) UNSIGNED, IN in_song2 INT(64) UNSIGNED, IN in_similarity INT(8) UNSIGNED)
 upsert_song_similarity:BEGIN

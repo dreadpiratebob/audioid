@@ -77,3 +77,4 @@ def scan_catalog(catalog_identifier, artist_splitters = None):
   
   with get_cursor(True) as cursor:
     cursor.execute('CALL delete_songs_without_mp3s(%s);' % (str(catalog.get_id(), )))
+    cursor.execute('CALL clean_unused_data();')
