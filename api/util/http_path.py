@@ -435,10 +435,15 @@ def get_and_validate_rel_path(environment:dict, start_path:str = default_interfa
     rel_path = rel_path[:-1 * (len(query_string) + 1)]
   
   rel_path = rel_path.replace('\\', '/')
-  if len(rel_path) > 0 and rel_path[0] == '/':
-      rel_path = rel_path[1:]
-  if len(rel_path) > 0 and rel_path[-1] == '/':
+  if len(rel_path) > 0:
+    if rel_path[-1] == '?':
       rel_path = rel_path[:-1]
+    
+    if rel_path[0] == '/':
+      rel_path = rel_path[1:]
+    if rel_path[-1] == '/':
+      rel_path = rel_path[:-1]
+  
   if start_path not in path_tries:
     path_tries[start_path] = get_path_trie(start_path)
   
