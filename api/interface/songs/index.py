@@ -94,7 +94,7 @@ def get(environment:dict, path_params:dict, query_params:dict, body) -> Response
   if len(songs) == 0:
     return Response(None, HTTPStatusCodes.HTTP204)
   
-  return Response(Songs(songs), HTTPStatusCodes.HTTP200)
+  return Response(Songs(songs), HTTPStatusCodes.HTTP200, use_public_fields_only=False)
 
 def get_help() -> AvailablePath:
   return AvailablePath(query_params=tuple(param for param in GetSongsQueryParams), description='this endpoint lists available songs, filtered, sorted and paginated as requested.')

@@ -452,7 +452,7 @@ def _serialize_by_field_to_yaml(obj:any, public_only:bool, use_base_field:bool, 
       if yaml_val is None:
         continue
       
-      while yaml_val[0] == ' ':
+      while len(yaml_val) > 0 and yaml_val[0] == ' ':
         yaml_val = yaml_val[1:]
       
       result += serd_start + yaml_val
@@ -565,7 +565,7 @@ def _serialize_by_field_to_plain_text(obj:any, public_only:bool, use_base_field:
       if text_val is None:
         continue
       
-      while text_val[0] in ('\n', ' '):
+      while len(text_val) > 0 and text_val[0] in ('\n', ' '):
         text_val = text_val[1:]
       
       result += '\n%s%s,' % (this_indent, text_val)

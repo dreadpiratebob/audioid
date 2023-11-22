@@ -2,6 +2,7 @@ from api.dao.mysql_utils import commit, get_cursor
 from api.exceptions.http_base import NotImplementedException
 from api.exceptions.song_data import InvalidCountException, InvalidSongDataException
 from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
+from api.util.audioid.catalogs import GetCatalogsOrderColumns, default_get_catalogs_order_by
 from api.util.audioid.songs import GetSongsOrderColumns, default_get_songs_order_by
 from api.util.functions import get_search_text_from_raw_text, get_type_name
 from api.util.logger import get_logger
@@ -49,12 +50,22 @@ def get_catalog(catalog_identifier:[int, str], include_base_path:bool = False) -
   
   raise ValueError('%s catalogs were found with the %s "%s".' % (len(result), search_type, catalog_identifier))
 
+get_catalogs_order_by_type_error = 'order_by for getting catalogs must be a list of catalog columns.'
 def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = None, page_info:PageInfo = None, include_base_paths:bool = False) -> list[Catalog]:
   if catalog_filter is None:
     catalog_filter = default_filter_info
   
   if order_by is None:
-    order_by = []
+    order_by = default_get_catalogs_order_by
+  elif isinstance(order_by, (list, tuple)):
+    if len(order_by) == 0:
+      order_by = default_get_catalogs_order_by
+    else:
+      for ob in order_by:
+        if not isinstance(ob, OrderByCol) or not isinstance(ob.col, GetCatalogsOrderColumns):
+          raise TypeError(get_catalogs_order_by_type_error)
+  else:
+    raise TypeError(get_catalogs_order_by_type_error)
   
   if page_info is not None and not isinstance(page_info, PageInfo):
     raise TypeError('invalid page info for getting catalogs.')
@@ -62,11 +73,17 @@ def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = N
   if not isinstance(include_base_paths, bool):
     raise TypeError('the "include base paths" for catalogs must be a bool.')
   
-  catalogs_select   = 'SELECT catalog_id, catalog_name, catalog_lcase_name, catalog_no_diacritic_name, catalog_lcase_no_diacritic_name, catalog_base_path\n'
-  catalogs_from     = 'FROM catalogs\n'
+  catalogs_select   = 'SELECT\n' \
+                      '  c.id AS catalog_id,\n' \
+                      '  c.name AS catalog_name,\n' \
+                      '  c.lcase_name AS catalog_lcase_name,\n' \
+                      '  c.no_diacritic_name AS catalog_no_diacritic_name,\n' \
+                      '  c.lcase_no_diacritic_name AS catalog_lcase_no_diacritic_name,\n' \
+                      '  c.base_path AS catalog_base_path\n'
+  catalogs_from     = 'FROM catalogs AS c\n'
   catalogs_where    = 'WHERE %s\n'
-  catalogs_order_by = get_order_clause(order_by)
-  catalogs_limit    = '' if page_info is None else str(page_info)
+  catalogs_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
+  catalogs_limit    = '' if page_info is None else (str(page_info) + '\n')
   
   catalogs_args = tuple()
   
@@ -84,10 +101,11 @@ def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = N
     catalogs_where %= ('1=1', )
   
   catalogs = []
-  query    = catalogs_select + catalogs_from + catalogs_where, catalogs_order_by, catalogs_limit + ';'
+  query    = catalogs_select + catalogs_from + catalogs_where + catalogs_order_by + catalogs_limit + ';'
+  
   with get_cursor(False) as cursor:
     catalog_ct = cursor.execute(query, catalogs_args)
-    for i in range(len(catalog_ct)):
+    for i in range(catalog_ct):
       db_catalog = cursor.fetchone()
       
       base_path = db_catalog['catalog_base_path'] if include_base_paths else None
@@ -168,12 +186,15 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
   
   if order_by is None:
     order_by = default_get_songs_order_by
-  elif not isinstance(order_by, list):
-    raise TypeError(get_songs_order_by_type_error)
+  elif isinstance(order_by, (list, tuple)):
+    if len(order_by) == 0:
+      order_by = default_get_songs_order_by
+    else:
+      for col in order_by:
+        if not isinstance(col.col, GetSongsOrderColumns) or not isinstance(col.direction, OrderDirection):
+          raise TypeError(get_songs_order_by_type_error)
   else:
-    for col in order_by:
-      if not isinstance(col.col, GetSongsOrderColumns) or not isinstance(col.direction, OrderDirection):
-        raise TypeError(get_songs_order_by_type_error)
+    raise TypeError(get_songs_order_by_type_error)
   
   if page_info is not None and not isinstance(page_info, PageInfo):
     raise TypeError('page info must be a page number and a page size.')
@@ -355,8 +376,6 @@ def _get_songs(catalog_id:int, song_filename:str, song:FilterInfo, song_year:int
   songs_query = songs_select + songs_from + songs_where + songs_group_by + songs_having + songs_order_by + songs_limit + ';'
   
   songs_args = tuple(songs_from_args + songs_where_args)
-  
-  get_logger().debug('\nsongs_query:\n%s\n\nsongs_args:\n%s' % (songs_query, songs_args))
   
   songs = []
   artists = dict()

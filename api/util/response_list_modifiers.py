@@ -114,7 +114,7 @@ def get_order_parser(cols:type(OrderColName), cols_by_name = None):
   
   return parse_order
 
-def get_order_clause(order_bys:list[OrderByCol]) -> str:
+def get_order_clause(order_bys:[list[OrderByCol], tuple[OrderByCol]]) -> str:
   return ', '.join(['%s %s' % (ob.col.column_name, ob.direction.value) for ob in order_bys])
 
 class PageInfo:
@@ -169,7 +169,7 @@ class PageInfo:
 def parse_page_size(input:str) -> int:
   input = input.lower()
   
-  if input == 'any':
+  if input == 'all':
     return None
   
   return int(input)

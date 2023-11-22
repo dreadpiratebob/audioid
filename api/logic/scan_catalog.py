@@ -19,7 +19,7 @@ def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None
     raise TypeError('artist splitters must be an iterable collection.')
   
   logger = get_logger()
-  catalog = get_catalog(catalog_identifier)
+  catalog = get_catalog(catalog_identifier, True)
   
   if not os.path.isdir(catalog.get_base_path()):
     logger.error('the catalog\'s base path was "%s", which isn\'t a directory.' % catalog.get_base_path())
