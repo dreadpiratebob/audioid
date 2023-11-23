@@ -3,6 +3,7 @@ from api.exceptions.http_base import NotImplementedException
 from api.exceptions.song_data import InvalidCountException, InvalidSongDataException
 from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
 from api.util.audioid.catalogs import GetCatalogsOrderColumns, default_get_catalogs_order_by
+from api.util.audioid.genres import GetGenresOrderColumns, default_get_genres_order_by
 from api.util.audioid.songs import GetSongsOrderColumns, default_get_songs_order_by
 from api.util.functions import get_search_text_from_raw_text, get_type_name
 from api.util.logger import get_logger
@@ -98,7 +99,7 @@ def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = N
       catalogs_where %= (catalog_column_name + ' = %s')
     catalogs_args = (catalog_filter.name, )
   else:
-    catalogs_where %= ('1=1', )
+    catalogs_where = ''
   
   catalogs = []
   query    = catalogs_select + catalogs_from + catalogs_where + catalogs_order_by + catalogs_limit + ';'
@@ -540,7 +541,10 @@ def save_song(song):
   commit(admin)
   logger.info('done saving %s' % song.get_filename())
 
-def get_album_by_id(album_id:int, include_tracks:bool = False):
+def get_artist(artist_identifier:[int, str], include_songs:bool = False, include_albums:bool = False) -> Artist:
+  raise NotImplementedException('')
+
+def get_album_by_id(album_id:int, include_tracks:bool = False) -> Album:
   result = _get_albums(None, album_id, None, include_tracks)
   
   if len(result) == 0:
@@ -660,20 +664,93 @@ def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:in
   
   return albums
 
-def get_artist_by_id(artist_id:str, include_songs:bool = False, include_albums:bool = False):
+def get_genre(catalog_id:int, genre_id:[id, str]) -> Genre:
   raise NotImplementedException('')
 
-def get_artist_by_name(artist_name:str, include_songs:bool = False, include_albums:bool = False):
-  raise NotImplementedException('')
-
-def get_artists_by_song_id(song_id:str):
-  raise NotImplementedException('')
-
-def get_genre_by_id(genre_id:str):
-  raise NotImplementedException('')
-
-def get_genre_by_name(genre_name:str):
-  raise NotImplementedException('')
-
-def get_genres_by_song_id(song_id:str):
-  raise NotImplementedException('')
+get_genres_order_by_error_message = 'order_by must be a list or tuple of OrderByCols with genre columns.'
+def get_genres(catalog_id:int, genre_filter:FilterInfo, order_by:list[OrderByCol], page_info:PageInfo) -> list[Genre]:
+  grievances = []
+  
+  if catalog_id is not None and not isinstance(catalog_id, int):
+    grievances.append('a catalog id must be an int.')
+  
+  if genre_filter is None:
+    genre_filter = default_filter_info
+  elif not isinstance(genre_filter, FilterInfo):
+    grievances.append('the genre filter for getting genres must be FilterInfo.')
+  
+  if order_by is None:
+    order_by = default_get_genres_order_by
+  elif isinstance(order_by, (list, tuple)):
+    if len(order_by) == 0:
+      order_by = default_get_genres_order_by
+    else:
+      for ob in order_by:
+        if not isinstance(ob, OrderByCol) or not isinstance(ob.col, GetGenresOrderColumns):
+          grievances.append(get_genres_order_by_error_message)
+          break
+  else:
+    grievances.append(get_genres_order_by_error_message)
+  
+  if len(grievances) > 0:
+    raise TypeError('\n'.join(grievances))
+  
+  genres_select   = 'SELECT\n' \
+                    '  g.id AS genre_id,\n' \
+                    '  g.name AS genre_name,\n' \
+                    '  g.lcase_name AS genre_lcase_name,\n' \
+                    '  g.no_diacritic_name AS genre_no_diacritic_name,\n' \
+                    '  g.lcase_no_diacritic_name AS genre_lcase_no_diacritic_name\n'
+  genres_from     = 'FROM genres AS g\n' \
+                    '  INNER JOIN songs_genres AS s_g ON s_g.genre_id = g.id\n' \
+                    '    INNER JOIN songs AS s ON s.id = s_g.song_id\n' \
+                    '      AND s.catalog_id = %s\n'
+  genres_where    = 'WHERE %s\n'
+  genres_group_by = 'GROUP BY g.id\n'
+  genres_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
+  genres_limit    = '' if page_info is None else str(page_info) + '\n'
+  
+  genre_args = [catalog_id]
+  
+  if genre_filter.id is not None:
+    genres_where %= 'g.id = %s\n'
+    genre_args.append(genre_filter.id)
+  elif genre_filter.name is not None:
+    genre_name_column_name = _name_columns[(genre_filter.name_is_case_sensitive, genre_filter.name_matches_diacritics)][1]
+    if not genre_filter.name_is_case_sensitive or not genre_filter.name_matches_diacritics:
+      _lcase_genre_name, _no_diacritic_genre_name, _lcase_no_diacritic_genre_name = get_search_text_from_raw_text(genre_filter.name)
+      if genre_filter.name_is_case_sensitive and not genre_filter.name_matches_diacritics:
+        genre_filter.name = _no_diacritic_genre_name
+      elif not genre_filter.name_is_case_sensitive and genre_filter.name_matches_diacritics:
+        genre_filter.name = _lcase_genre_name
+      else:
+        genre_filter.name = _lcase_no_diacritic_genre_name
+    
+    if genre_filter.name_has_wildcards:
+      genres_where %= 'g.' + genre_name_column_name + ' LIKE %s'
+    else:
+      genres_where %= 'g.' + genre_name_column_name + ' = %s'
+    
+    genre_args.append(genre_filter.name)
+  else:
+    genres_where = ''
+  
+  genres_query = genres_select + genres_from + genres_where + genres_group_by + genres_order_by + genres_limit + ';'
+  genres = []
+  with get_cursor() as cursor:
+    genre_ct = cursor.execute(genres_query, genre_args)
+    for i in range(genre_ct):
+      db_genre = cursor.fetchone()
+      genres.append\
+      (
+        Genre
+        (
+          db_genre['genre_id'],
+          db_genre['genre_name'],
+          db_genre['genre_lcase_name'],
+          db_genre['genre_no_diacritic_name'],
+          db_genre['genre_lcase_no_diacritic_name']
+        )
+      )
+  
+  return genres
