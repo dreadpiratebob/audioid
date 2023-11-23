@@ -31,12 +31,12 @@ from urllib.parse import quote_plus
 import unittest
 
 class Dummy:
-  def __init__(self, name:str, public_data, private_data):
+  def __init__(self, name:str, public_data:any, private_data:any):
     self.name = name
     self.public_data = public_data
     self._private_data = private_data
   
-  def __eq__(self, other):
+  def __eq__(self, other:any) -> bool:
     if type(self) != type(other):
       return False
     
@@ -53,7 +53,7 @@ class Dummy:
     
     return True
   
-  def __hash__(self):
+  def __hash__(self) -> int:
     result = 0
     
     for value in self.__dict__.values():
@@ -67,23 +67,26 @@ class Dummy:
     
     return result
   
-  def __str__(self):
+  def __str__(self) -> str:
     return 'Dummy "%s": %s' % (self.name, str(self.public_data))
 
 class Joiner:
-  def __init__(self, thing1, thing2):
+  def __init__(self, thing1:any, thing2:any):
     self.thing1 = thing1
     self.thing2 = thing2
   
-  def __eq__(self, other):
+  def __eq__(self, other:any) -> bool:
     return isinstance(other, Joiner) and \
       self.thing1 == other.thing1 and \
       self.thing2 == other.thing2
   
-  def __hash__(self):
+  def __ne__(self, other:any) -> bool:
+    return not self.__eq__(other)
+  
+  def __hash__(self) -> int:
     return (hash(self.thing1)*397) ^ hash(self.thing2)
   
-  def __str__(self):
+  def __str__(self) -> str:
     return 'thing1: %s\nthing2: %s' % (str(self.thing1), str(self.thing2))
 
 recursively_joined_object_1 = Dummy('recursive_test_1.', [], 1)
@@ -385,7 +388,7 @@ class SerToXMLTests(unittest.TestCase):
     actual = serialize_by_field_to_xml(value, use_base_field=True)
     
     self.assertEqual(expected, actual)
-
+  
   def test_dict_of_primitives(self):
     obj = {'a': 1, 'b': 2, 'c': 3}
   
