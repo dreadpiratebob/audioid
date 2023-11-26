@@ -654,104 +654,112 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
       
       artists.append(artist)
   
-  raise NotImplementedException('!')
+  return artists
 
-def get_album_by_id(album_id:int, include_tracks:bool = False) -> Album:
-  result = _get_albums(None, album_id, None, include_tracks)
+def get_album(album_identifier:[int, str], include_tracks:bool = False) -> Album:
+  id_type    = 'id'
+  album_id   = None
+  album_name = None
+  if isinstance(album_identifier, int):
+    album_id = album_identifier
+  elif isinstance(album_identifier, str):
+    id_type = 'name'
+    album_name = album_identifier
+  else:
+    raise TypeError('an album identifier must be an integer (id) or string (name).')
   
-  if len(result) == 0:
+  album_filter = FilterInfo(album_id, album_name, False, True, True, False)
+  albums = _get_albums(None, album_filter, None, None, None, include_tracks)
+  
+  if len(albums) == 0:
     return None
   
-  if len(result) == 1:
-    return result[0]
+  if len(albums) == 1:
+    return albums[0]
   
-  raise InvalidCountException('found %s albums with the id %s.' % (str(len(result)), str(album_id)))
+  raise InvalidCountException('found %s albums with the id %s.' % (str(len(albums)), str(album_id)))
 
-def get_album_by_name(catalog_id:int, album_name:str, album_artist:[int, str] = None, include_tracks:bool = False):
-  album_artist_id = None
-  album_artist_name = None
-  
-  if album_artist is not None:
-    if isinstance(album_artist, int):
-      album_artist_id = album_artist
-    elif isinstance(album_artist, str):
-      album_artist_name = album_artist
-    else:
-      raise TypeError('an album artist must be None, a string (an artist name) or an int (an artist id).')
-  
-  return _get_albums(catalog_id, None, album_name, album_artist_id, album_artist_name, include_tracks)
-
-def _get_albums(catalog_id:int, album_id:int, album_name:str, album_artist_id:int, album_artist_name:str, include_tracks:bool = True, album_name_has_wildcards:bool = False, artist_name_has_wildcards:bool = False):
-  query_select = 'SELECT al.id AS album_id, al.name AS album_name, al.lcase_name as album_lcase_name, al.no_diacritic_name as album_no_diacritic_name, al.lcase_no_diacritic_name as album_lcase_no_diacritic_name,\n' \
-                 '  ar.id AS album_artist_id, ar.name AS album_artist_name, ar.lcase_name AS album_artist_lcase_name, ar.no_diacritic_name AS album_artist_no_diacritic_name, ar.lcase_no_diacritic_name AS album_artist_no_diacritic_name\n'
-  query_from   = 'FROM albums AS al\n' \
-                 '  LEFT JOIN artists AS ar ON ar.id = al.album_artist_id\n'
-  query_where  = 'WHERE 1=1'
-  
-  params = []
+get_albums_order_by_type_error = 'order_by must be a list of GetAlbumsOrderByCols.'
+def _get_albums(catalog_id:int, album_filter:FilterInfo, album_artist_filter:FilterInfo, order_by:list[OrderByCol], page_info:PageInfo, include_tracks:bool = True):
   grievances = []
   
-  if catalog_id is not None and not isinstance(catalog_id, int):
-    grievances.append(invalid_catalog_id_error)
+  if album_filter is None:
+    album_filter = default_filter_info
+  elif not isinstance(album_filter, FilterInfo):
+    grievances.append('an album filter must be filter info.')
   
-  if album_id is not None:
-    if isinstance(album_id, int):
-      query_where += '\n  AND al.id = %s' % (album_id, )
-    else:
-      grievances.append(invalid_album_id_error)
+  if album_artist_filter is None:
+    album_artist_filter = default_filter_info
+  elif not isinstance(album_artist_filter, FilterInfo):
+    grievances.append('an album artist filter must be filter info.')
   
-  if album_name is not None:
-    if isinstance(album_name, str):
-      if isinstance(album_name_has_wildcards, bool):
-        if album_name_has_wildcards:
-          query_where += '\n  AND al.name LIKE %s'
-        else:
-          query_where += '\n  AND al.name = %s'
-        params.append(album_name)
-      else:
-        grievances.append('the "album name has wildcards" flag must be a bool.')
+  if order_by is None:
+    order_by = default_get_albums_order_by
+  elif isinstance(order_by, (list, tuple)):
+    if len(order_by) == 0:
+      order_by = default_get_albums_order_by
     else:
-      grievances.append('an album name must be a string.')
+      for ob in order_by:
+        if not isinstance(ob, OrderByCol) or not isinstance(ob.col, GetAlbumsOrderColumns):
+          grievances.append(get_albums_order_by_type_error)
+          break
+  else:
+    grievances.append(get_albums_order_by_type_error)
   
-  if album_artist_id is not None:
-    if isinstance(album_artist_id, int):
-      query_where += '\n  AND al.album_artist_id = %s' % (album_artist_id, )
-    else:
-      grievances.append(invalid_album_artist_id_error)
+  if page_info is not None and not isinstance(page_info, PageInfo):
+    grievances.append('page_info must be page info.')
   
-  if album_artist_name is not None:
-    if isinstance(album_artist_name, str):
-      if isinstance(artist_name_has_wildcards, bool):
-        if artist_name_has_wildcards:
-          query_where += '\n  AND ar.name LIKE %s'
-        else:
-          query_where += '\n  AND ar.name = %s'
-        params.append(album_artist_name)
-      else:
-        grievances.append('the "artist name has wildcards" flag must be a bool.')
-    else:
-      grievances.append('an album artist name must be a string.')
+  if not isinstance(include_tracks, bool):
+    grievances.append('the "include tracks" flag must be a boolean.')
   
   if len(grievances) > 0:
     raise TypeError('\n'.join(grievances))
   
-  if catalog_id < 0:
+  albums_select   = 'SELECT\n' \
+                    '  al.id AS album_id,\n' \
+                    '  al.name AS album_name, al.lcase_name as album_lcase_name, al.no_diacritic_name as album_no_diacritic_name, al.lcase_no_diacritic_name as album_lcase_no_diacritic_name,\n' \
+                    '  ar.id AS album_artist_id,\n' \
+                    '  ar.name AS album_artist_name, ar.lcase_name AS album_artist_lcase_name, ar.no_diacritic_name AS album_artist_no_diacritic_name, ar.lcase_no_diacritic_name AS album_artist_no_diacritic_name\n'
+  albums_from     = 'FROM albums AS al\n' \
+                    '  LEFT JOIN artists AS ar ON ar.id = al.album_artist_id\n'
+  albums_where    = 'WHERE 1=1\n'
+  albums_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
+  albums_limit    = '' if page_info is None else (str(page_info) + '\n')
+  
+  albums_where_args = []
+  
+  if catalog_id is not None and not isinstance(catalog_id, int):
     grievances.append(invalid_catalog_id_error)
   
-  if album_id < 0:
-    grievances.append(invalid_album_id_error)
+  if album_filter.id is not None:
+    albums_where += '  AND al.id = %s\n'
+    albums_where_args.append(album_filter.id)
+  elif album_filter.name is not None:
+    name_column = _name_columns[(album_filter.name_is_case_sensitive, album_filter.name_matches_diacritics)][1]
+    if album_filter.name_has_wildcards:
+      albums_where += '  AND al.' + name_column + ' LIKE %s\n'
+    else:
+      albums_where += '  AND al.' + name_column + ' = %s\n'
+    albums_where_args.append(album_filter.get_search_adjusted_name())
   
-  if album_artist_id < 0:
-    grievances.append(invalid_album_artist_id_error)
+  if album_artist_filter.id is not None:
+    albums_where += '  AND al.album_artist = %s\n'
+    albums_where_args.append(album_artist_filter.id)
+  elif album_artist_filter.name is not None:
+    name_column = _name_columns[(album_artist_filter.name_is_case_sensitive, album_artist_filter.name_matches_diacritics)][1]
+    if album_artist_filter.name_has_wildcards:
+      albums_where += '  AND ar.' + name_column + ' LIKE %s\n'
+    else:
+      albums_where += '  AND ar.' + name_column + ' = %s\n'
+    albums_where_args.append(album_artist_filter.name)
+  elif album_artist_filter.filter_on_null:
+    albums_where += '  AND al.album_artist IS NULL\n'
   
-  if len(grievances) > 0:
-    raise ValueError('\n'.join(grievances))
-  
-  query = query_select + query_from + query_where
-  params = {param for param in params}
-  albums = []
+  albums_query = albums_select + albums_from + albums_where + albums_order_by + albums_limit + ';'
+  albums_args  = tuple(albums_where_args)
+  albums       = []
   with get_cursor(False) as cursor:
-    num_rows = cursor.execute(query, params)
+    num_rows = cursor.execute(albums_query, albums_args)
     
     for i in range(num_rows):
       db_album = cursor.fetchone()
