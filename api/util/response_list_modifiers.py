@@ -1,7 +1,26 @@
+from api.util.functions import get_search_text_from_raw_text
+
 from enum import Enum
 
 class FilterInfo:
   def __init__(self, id:int, name:str, has_wildcards:bool, is_case_sensitive:bool, matches_diacritics:bool, filter_on_null:bool):
+    grievances = []
+    
+    if id is not None and not isinstance(id, int):
+      grievances.append('an id must be an int.')
+    
+    if name is not None and not isinstance(name, str):
+      grievances.append('a name must be a string.')
+    
+    if not isinstance(has_wildcards, bool):
+      grievances.append('the "has wildcards" flag must be a boolean.')
+    
+    if not isinstance(matches_diacritics, bool):
+      grievances.append('the "matches diacritics" flag must be a boolean.')
+    
+    if not isinstance(filter_on_null, bool):
+      grievances.append('the "filter on null" flag must be a boolean.')
+    
     self.id = id
     self.name = name
     self.name_has_wildcards = has_wildcards
@@ -32,6 +51,20 @@ class FilterInfo:
   
   def clone(self):
     return FilterInfo(self.id, self.name, self.name_has_wildcards, self.name_is_case_sensitive, self.name_matches_diacritics, self.filter_on_null)
+  
+  def get_search_adjusted_name(self) -> str:
+    if self.name_is_case_sensitive and self.name_matches_diacritics:
+      return self.name
+    
+    lcase_name, no_diacritic_name, lcase_no_diacritic_name = get_search_text_from_raw_text(self.name)
+    
+    if not self.name_is_case_sensitive and self.name_matches_diacritics:
+      return lcase_name
+    
+    if self.name_is_case_sensitive and not self.name_matches_diacritics:
+      return no_diacritic_name
+    
+    return lcase_no_diacritic_name
 
 default_filter_info = FilterInfo(None, None, False, True, True, False)
 

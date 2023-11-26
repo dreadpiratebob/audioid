@@ -16,7 +16,7 @@ class Genres:
       if not isinstance(genre, Genre):
         raise TypeError(catalogs_type_error)
     
-    self.catalogs = genres
+    self.genres = genres
 
 def get(environment:dict, path_params:dict, query_params:dict, body) -> Response:
   param_val_errors = {param.param_name: param.get_value(query_params) for param in GetGenresQueryParams}
@@ -47,12 +47,12 @@ def get(environment:dict, path_params:dict, query_params:dict, body) -> Response
     except (ValueError, TypeError) as e:
       raise BadRequestException(str(e))
   
-  catalogs = get_genres(catalog_id, genre_filter, order_by, page_info)
+  genres = get_genres(catalog_id, genre_filter, order_by, page_info)
   
-  if len(catalogs) == 0:
+  if len(genres) == 0:
     return Response(None, HTTPStatusCodes.HTTP204)
   
-  return Response(Genres(catalogs), HTTPStatusCodes.HTTP200, use_public_fields_only=False)
+  return Response(Genres(genres), HTTPStatusCodes.HTTP200, use_public_fields_only=False)
 
 def get_help() -> AvailablePath:
   return AvailablePath(query_params=tuple(param for param in GetGenresQueryParams), description='this endpoint lists genres in the given catalog, filtered by name if requested and sorted and paginated as requested.')

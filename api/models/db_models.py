@@ -433,6 +433,7 @@ class Artist:
     self._lcase_no_diacritic_name = lcase_no_diacritic_name
     self._songs_artists = songs_artists
     self._albums = albums
+    self._genres = None
     
     if lcase_name is None or no_diacritic_name is None or lcase_no_diacritic_name is None:
       self.set_name(name)
@@ -564,15 +565,24 @@ class Artist:
   
   def set_albums(self, albums) -> list:
     self._albums = albums
+  
+  def get_genres(self) -> list:
+    return self._genres
+  
+  def set_genres(self, genres:list) -> None:
+    if not isinstance(genres, list):
+      raise TypeError('an artist\'s genres must be a list of genres.')
+    
+    self._genres = genres
 
 class SongArtist:
   def __init__(self, song:Song, artist:Artist, list_order:int, conjunction:str = ''):
     grievances = []
     
-    if not isinstance(list_order, int):
+    if list_order is not None and not isinstance(list_order, int):
       grievances.append('a list order must be an int.')
     
-    if not isinstance(conjunction, str):
+    if conjunction is not None and not isinstance(conjunction, str):
       grievances.append('a conjunction must be a str.')
     
     if len(grievances) > 0:
