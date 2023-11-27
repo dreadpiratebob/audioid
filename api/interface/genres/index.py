@@ -8,13 +8,13 @@ from api.util.response_list_modifiers import FilterInfo, OrderByCol, OrderDirect
 
 class Genres:
   def __init__(self, genres:[list, tuple]):
-    catalogs_type_error = 'catalogs must be a list or tuple of songs.'
+    genres_type_error = 'genres must be a list or tuple of genres.'
     if not isinstance(genres, (list, tuple)):
-      raise TypeError(catalogs_type_error)
+      raise TypeError(genres_type_error)
     
     for genre in genres:
       if not isinstance(genre, Genre):
-        raise TypeError(catalogs_type_error)
+        raise TypeError(genres_type_error)
     
     self.genres = genres
 

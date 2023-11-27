@@ -8,7 +8,7 @@ from api.util.response_list_modifiers import FilterInfo, OrderByCol, OrderDirect
 
 class Catalogs:
   def __init__(self, catalogs: [list, tuple]):
-    catalogs_type_error = 'catalogs must be a list or tuple of songs.'
+    catalogs_type_error = 'catalogs must be a list or tuple of catalogs.'
     if not isinstance(catalogs, (list, tuple)):
       raise TypeError(catalogs_type_error)
     
