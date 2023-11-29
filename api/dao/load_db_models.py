@@ -776,7 +776,7 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
                    '        LEFT JOIN songs_artists AS s_ar_wo_ar ON s_ar_wo_ar.song_id = s_wo_ar.id\n' \
                    '      GROUP BY s_wo_ar.id\n' \
                    '      HAVING COUNT(s_ar_wo_ar.artist_id) = 0\n' \
-                   '    )'
+                   '    )\n'
     albums_havings.append('COUNT(s_al_filter.artist_id) = 0')
   
   if album_artist_filter.id is not None:
