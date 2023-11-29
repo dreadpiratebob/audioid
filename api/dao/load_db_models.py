@@ -670,7 +670,7 @@ def get_album(album_identifier:[int, str], include_tracks:bool = False) -> Album
     raise TypeError('an album identifier must be an integer (id) or string (name).')
   
   album_filter = FilterInfo(album_id, album_name, False, True, True, False)
-  albums = _get_albums(None, album_filter, None, None, None, include_tracks)
+  albums = get_albums(None, album_filter, None, None, None, None, None, include_tracks)
   
   if len(albums) == 0:
     return None
@@ -681,7 +681,9 @@ def get_album(album_identifier:[int, str], include_tracks:bool = False) -> Album
   raise InvalidCountException('found %s albums with the id %s.' % (str(len(albums)), str(album_id)))
 
 get_albums_order_by_type_error = 'order_by must be a list of GetAlbumsOrderByCols.'
-def _get_albums(catalog_id:int, album_filter:FilterInfo, album_artist_filter:FilterInfo, order_by:list[OrderByCol], page_info:PageInfo, include_tracks:bool = True):
+_album_to_artist_join_start    = '  INNER JOIN songs_albums AS s_al_filter ON s_al_filter.album_id = al.id\n' \
+                                 '    INNER JOIN songs_artists AS s_ar_filter ON s_ar_filter.song_id = s_al_filter.song_id\n'
+def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:FilterInfo, album_artist_filter:FilterInfo, genre_filter:FilterInfo, order_by:list[OrderByCol], page_info:PageInfo, include_tracks:bool = True):
   grievances = []
   
   if album_filter is None:
@@ -689,10 +691,20 @@ def _get_albums(catalog_id:int, album_filter:FilterInfo, album_artist_filter:Fil
   elif not isinstance(album_filter, FilterInfo):
     grievances.append('an album filter must be filter info.')
   
+  if track_artist_filter is None:
+    track_artist_filter = default_filter_info
+  elif not isinstance(track_artist_filter, FilterInfo):
+    grievances.append('a track artist filter must be filter info.')
+  
   if album_artist_filter is None:
     album_artist_filter = default_filter_info
   elif not isinstance(album_artist_filter, FilterInfo):
     grievances.append('an album artist filter must be filter info.')
+  
+  if genre_filter is None:
+    genre_filter = default_filter_info
+  elif not isinstance(genre_filter, FilterInfo):
+    grievances.append('a genre filter info must be filter info.')
   
   if order_by is None:
     order_by = default_get_albums_order_by
@@ -723,42 +735,85 @@ def _get_albums(catalog_id:int, album_filter:FilterInfo, album_artist_filter:Fil
                     '  ar.name AS album_artist_name, ar.lcase_name AS album_artist_lcase_name, ar.no_diacritic_name AS album_artist_no_diacritic_name, ar.lcase_no_diacritic_name AS album_artist_no_diacritic_name\n'
   albums_from     = 'FROM albums AS al\n' \
                     '  LEFT JOIN artists AS ar ON ar.id = al.album_artist_id\n'
-  albums_where    = 'WHERE 1=1\n'
+  albums_wheres   = []
+  albums_group_by = 'GROUP BY al.id\n'
+  albums_havings  = []
   albums_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
   albums_limit    = '' if page_info is None else (str(page_info) + '\n')
   
+  albums_from_args  = []
   albums_where_args = []
   
   if catalog_id is not None and not isinstance(catalog_id, int):
     grievances.append(invalid_catalog_id_error)
   
   if album_filter.id is not None:
-    albums_where += '  AND al.id = %s\n'
+    albums_wheres.append('al.id = %s')
     albums_where_args.append(album_filter.id)
   elif album_filter.name is not None:
-    name_column = _name_columns[(album_filter.name_is_case_sensitive, album_filter.name_matches_diacritics)][1]
-    if album_filter.name_has_wildcards:
-      albums_where += '  AND al.' + name_column + ' LIKE %s\n'
-    else:
-      albums_where += '  AND al.' + name_column + ' = %s\n'
+    album_name_column = _name_columns[(album_filter.name_is_case_sensitive, album_filter.name_matches_diacritics)][1]
+    album_match_operator = 'LIKE' if album_artist_filter.name_has_wildcards else '='
+    albums_wheres.append('al.%s %s %s' % (album_name_column, album_match_operator, '%s'))
     albums_where_args.append(album_filter.get_search_adjusted_name())
   
+  if track_artist_filter.id is not None:
+    albums_from += _album_to_artist_join_start + \
+                   '      AND s_ar_filter.artist_id = %s\n'
+    albums_from_args.append(track_artist_filter.id)
+  elif track_artist_filter.name is not None:
+    track_artist_column_name = _name_columns[(track_artist_filter.name_is_case_sensitive, track_artist_filter.name_matches_diacritics)][1]
+    track_artist_match_operator = 'LIKE' if track_artist_filter.name_has_wildcards else '='
+    albums_from += _album_to_artist_join_start + \
+                   '      INNER JOIN artists AS ar_filter ON ar_filter.id = s_ar_filter.artist_id\n' + \
+                   ('        AND ar_filter.%s %s %s\n' % (track_artist_column_name, track_artist_match_operator, '%s'))
+    albums_from_args.append(track_artist_filter.name)
+  elif track_artist_filter.filter_on_null:
+    albums_from += '  LEFT JOIN songs_albums AS s_al_filter ON s_al_filter.album_artist = al.id\n' \
+                   '    AND s_al_filter.song_id in\n' \
+                   '    (\n' \
+                   '      SELECT s_wo_ar.id\n' \
+                   '      FROM songs AS s_wo_ar\n' \
+                   '        LEFT JOIN songs_artists AS s_ar_wo_ar ON s_ar_wo_ar.song_id = s_wo_ar.id\n' \
+                   '      GROUP BY s_wo_ar.id\n' \
+                   '      HAVING COUNT(s_ar_wo_ar.artist_id) = 0\n' \
+                   '    )'
+    albums_havings.append('COUNT(s_al_filter.artist_id) = 0')
+  
   if album_artist_filter.id is not None:
-    albums_where += '  AND al.album_artist = %s\n'
+    albums_wheres.append('al.album_artist = %s')
     albums_where_args.append(album_artist_filter.id)
   elif album_artist_filter.name is not None:
-    name_column = _name_columns[(album_artist_filter.name_is_case_sensitive, album_artist_filter.name_matches_diacritics)][1]
-    if album_artist_filter.name_has_wildcards:
-      albums_where += '  AND ar.' + name_column + ' LIKE %s\n'
-    else:
-      albums_where += '  AND ar.' + name_column + ' = %s\n'
-    albums_where_args.append(album_artist_filter.name)
+    album_artist_name_column = _name_columns[(album_artist_filter.name_is_case_sensitive, album_artist_filter.name_matches_diacritics)][1]
+    album_artist_match_operator = 'LIKE' if album_artist_filter.name_has_wildcards else '='
+    albums_from += _album_to_artist_join_start + \
+                   '      INNER JOIN artists AS ar_filter ON ar_filter.id = s_ar_filter.artist_id\n' + \
+                  ('        AND ar_filter.%s %s %s\n' % (album_artist_name_column, album_artist_match_operator, '%s'))
+    albums_from_args.append(album_artist_filter.name)
   elif album_artist_filter.filter_on_null:
-    albums_where += '  AND al.album_artist IS NULL\n'
+    albums_wheres.append('al.album_artist IS NULL')
   
-  albums_query = albums_select + albums_from + albums_where + albums_order_by + albums_limit + ';'
-  albums_args  = tuple(albums_where_args)
-  albums       = []
+  if genre_filter.id is not None:
+    
+    albums_from_args.append(genre_filter.id)
+  elif genre_filter.name is not None:
+    genre_name_column = _name_columns[(genre_filter.name_is_case_sensitive, genre_filter.name_matches_diacritics)][1]
+    genre_match_operator = 'LIKE' if genre_filter.name_has_wildcards else '='
+    
+    albums_from_args.append(genre_filter.name)
+  elif genre_filter.filter_on_null:
+  
+  
+  albums_where = ''
+  if len(albums_wheres) > 0:
+    albums_where = 'WHERE %s\n' % ('\n  AND '.join(albums_wheres), )
+  
+  albums_having = ''
+  if len(albums_having) > 0:
+    albums_having = 'HAVING\n  %s\n' % ('\n  AND '.join(albums_havings), )
+  
+  albums_query  = albums_select + albums_from + albums_where + albums_group_by + albums_having + albums_order_by + albums_limit + ';'
+  albums_args   = tuple(albums_from_args + albums_where_args)
+  albums        = []
   with get_cursor(False) as cursor:
     num_rows = cursor.execute(albums_query, albums_args)
     
@@ -774,7 +829,8 @@ def _get_albums(catalog_id:int, album_filter:FilterInfo, album_artist_filter:Fil
         continue
       
       album.set_songs_albums([])
-      songs = _get_songs(catalog_id, None, None, None, True, None, None, None, True, album.get_id(), None, True, None, None, True, None, None, True, include_albums=False)
+      song_album_filter = FilterInfo(album.get_id(), None, False, True, True, False)
+      songs = _get_songs(catalog_id, None, None, None, None, song_album_filter, None, None, None, None)
       for song in songs:
         sa_query = 'SELECT track_number FROM songs_albums WHERE song_id=%s AND album_id=%s;' % (song.get_id(), album.get_id())
         cursor.execute(sa_query)
