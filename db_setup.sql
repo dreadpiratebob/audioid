@@ -40,6 +40,9 @@ CREATE TABLE songs
   catalog_id int(64) unsigned not null,
   last_scanned int(64) unsigned not null default 0,
   mp3_exists int(1) unsigned not null default 1,
+  flac_exists int(1) unsigned not null default 0,
+  title_minimum_age int(8) unsigned default null,
+  lyrics_minimum_age int(8) unsigned default null,
   UNIQUE(id),
   FOREIGN KEY (catalog_id)
     REFERENCES catalogs(id)
@@ -60,6 +63,7 @@ CREATE TABLE artists
   lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  name_minimum_age int(8) unsigned default null,
   UNIQUE(id)
 );
 
@@ -101,6 +105,7 @@ CREATE TABLE albums
   no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   album_artist int(64) unsigned,
+  name_minimum_age int(8) unsigned default null,
   UNIQUE(id),
   FOREIGN KEY (album_artist)
     REFERENCES artists(id)
@@ -144,6 +149,7 @@ CREATE TABLE genres
   lcase_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
   lcase_no_diacritic_name varchar(1024) not null default "" COLLATE utf8mb4_bin,
+  name_minimum_age int(8) unsigned default null,
   UNIQUE(id)
 );
 
@@ -174,6 +180,25 @@ GRANT INSERT ON audioid.songs_genres TO 'audioid_admin'@'localhost';
 GRANT SELECT ON audioid.songs_genres TO 'audioid_admin'@'localhost';
 GRANT UPDATE ON audioid.songs_genres TO 'audioid_admin'@'localhost';
 GRANT DELETE ON audioid.songs_genres TO 'audioid_admin'@'localhost';
+
+CREATE TABLE file_types
+(
+  id INT(16) unsigned not null primary key,
+  name VARCHAR(16) not null
+);
+
+INSERT INTO file_types (name) VALUES ("mp3"), ("flac");
+
+GRANT SELECT ON audioid.file_types TO 'audioid_user'@'localhost';
+GRANT SELECT ON audioid.file_types TO 'audioid_admin'@'localhost';
+
+CREATE TABLE songs_file_types
+(
+  song_id INT(64) unsigned not null,
+  file_type_id INT(16) unsigned not null,
+  file_size_in_bytes INT(48) unsigned not null, -- this is a maximum of one byte less than 18 GiB, so hopefully that's overkill.
+  UNIQUE(song_id, file_type_id)
+);
 
 CREATE TABLE log_levels
 (

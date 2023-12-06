@@ -3,22 +3,22 @@ load_config('test')
 
 from api.models.db_models import Catalog, Song, Album, SongAlbum
 from api.models.factories.song_factory import build_song_from_mp3
-from api.models.mp3 import MP3, MP3Fields
+from api.models.audio_metadata import AudioMetadata, AudioMetadataFields
 from api.util.functions import get_search_text_from_raw_text
 
 import unittest
 
 class SongFactoryTests(unittest.TestCase):
   catalog = Catalog(None, 'debug', 'debug', 'debug', 'debug', '/thing/')
-  mp3_with_diacritics_in_album_name = MP3({
+  mp3_with_diacritics_in_album_name = AudioMetadata({
     # required.
-    MP3Fields.FILENAME.value: '/thing/mp3.mp3', # make sure this starts with catalog._base_path (above).
-    MP3Fields.DATE_MODIFIED.value: 0,
-    MP3Fields.DURATION.value: 300.0,
+    AudioMetadataFields.FILENAME.value: '/thing/mp3.mp3', # make sure this starts with catalog._base_path (above).
+    AudioMetadataFields.DATE_MODIFIED.value: 0,
+    AudioMetadataFields.DURATION.value: 300.0,
     
     # for testing.
-    MP3Fields.ALBUM.value: 'Šiňě',
-    MP3Fields.TRACK.value: 2
+    AudioMetadataFields.ALBUM.value: 'Šiňě',
+    AudioMetadataFields.TRACK.value: 2
   })
   
   def test_album_name_char_encoding(self):

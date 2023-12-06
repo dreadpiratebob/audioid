@@ -23,7 +23,7 @@ def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None) -> Song:
   if song_year is not None:
     song_year = int(song_year)
   
-  song_fn = mp3.filename[len(catalog.get_base_path()):]
+  song_fn = catalog.get_song_filename_from_full_filename(mp3.filename)
   
   song_duration = mp3.duration
   

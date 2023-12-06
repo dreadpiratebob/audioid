@@ -1,12 +1,11 @@
-from api.dao.load_db_models import get_catalog
+from api.dao.flac import get_songs_from_flacs
+from api.dao.load_db_models import get_catalog, save_song
+from api.models.factories.audio_metadata_factory import read_metadata
 from api.dao.mysql_utils import get_cursor
-from api.dao.mp3 import read_metadata
-from api.dao.load_db_models import save_song
-from api.util.logger import get_logger
 from api.models.factories.song_factory import build_song_from_mp3
-
-from api.util.file_operations import get_last_modified_timestamp
+from api.util.file_operations import get_base_flac_dir, get_base_mp3_dir, get_last_modified_timestamp
 from api.util.functions import is_iterable
+from api.util.logger import get_logger
 
 from pymysql.err import OperationalError
 import os
@@ -26,14 +25,22 @@ def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None
   
   logger.info('scanning %s...' % str(catalog))
   
+  base_flac_dir   = catalog.get_base_flac_dir()
+  base_mp3_dir    = catalog.get_base_mp3_dir()
+  flac_songs      = get_songs_from_flacs(catalog, base_flac_dir, base_mp3_dir, logger)
+  flac_file_names = set([s.get_filename() for s in flac_songs])
+  
+  if not os.path.exists(base_mp3_dir):
+    raise ValueError('couldn\'t find the mp3 directory "%s"; aborting scan.' % (base_mp3_dir, ))
+  
   with get_cursor(True) as cursor:
     cursor.execute('UPDATE songs SET mp3_exists=0 WHERE catalog_id=%s' % (str(catalog.get_id()), ))
   
-  for (dirname, dirnames, filenames) in os.walk(catalog.get_base_path()):
-    logger.info('scanning directory "%s"...' % dirname)
+  for (dir_name, dir_names, file_names) in os.walk(base_mp3_dir):
+    logger.info('scanning directory "%s"...' % dir_name)
     
-    for filename in filenames:
-      full_name = '%s/%s' % (dirname, filename)
+    for filename in file_names:
+      full_name = '%s/%s' % (dir_name, filename)
       if filename[len(filename) - 4 : len(filename)] != '.mp3':
         logger.debug('')
         logger.info('the file "%s" isn\'t an mp3; skipping it.' % full_name)
@@ -42,7 +49,7 @@ def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None
       logger.debug('')
       logger.info('scanning file "%s"...' % full_name)
       with get_cursor(True) as cursor:
-        sql_fn = full_name[len(catalog.get_base_path()):]
+        sql_fn = catalog.get_song_filename_from_full_filename(full_name)
         query = 'SELECT begin_scan_get_last_updated(%s, "%s") AS last_scanned;' % (catalog.get_id(), sql_fn)
         cursor.execute(query)
         result = cursor.fetchone()

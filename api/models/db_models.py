@@ -39,51 +39,87 @@ class Catalog:
     if lcase_name is None or no_diacritic_name is None or lcase_no_diacritic_name is None:
       self.set_name(name)
   
-  def __eq__(self, other):
+  def __eq__(self, other) -> bool:
     return isinstance(other, Catalog) and \
       self._id == other._id and \
       self._name == other._name and \
       self._base_path == other._base_path
   
-  def __ne__(self, other):
+  def __ne__(self, other) -> bool:
     return not self.__eq__(other)
   
-  def __hash__(self):
+  def __hash__(self) -> int:
     return (((hash(self._id)*397) ^ hash(self._name))*397) ^ hash(self._base_path)
   
-  def __str__(self):
+  def __str__(self) -> str:
     return self.get_name() + ' (' + self.get_base_path() + ')'
   
-  def get_id(self):
+  def get_id(self) -> int:
     return self._id
   
-  def get_name(self):
+  def get_name(self) -> str:
     return self._name
   
-  def set_name(self, name:str):
+  def set_name(self, name:str) -> None:
     if not isinstance(name, str):
       raise ValueError('a name must be a str.')
     
     self._name = name
     self._lcase_name, self._no_diacritic_name, self._lcase_no_diacritic_name = get_search_text_from_raw_text(name)
   
-  def get_lcase_name(self):
+  def get_lcase_name(self) -> str:
     return self._lcase_name
   
-  def get_no_diacritic_name(self):
+  def get_no_diacritic_name(self) -> str:
     return self._no_diacritic_name
   
-  def get_lcase_no_diacritic_name(self):
+  def get_lcase_no_diacritic_name(self) -> str:
     return self._lcase_no_diacritic_name
   
-  def get_base_path(self):
+  def get_base_path(self) -> str:
     return self._base_path
   
-  def set_base_path(self, base_path:str):
+  def set_base_path(self, base_path:str) -> None:
     if not isinstance(base_path, str):
       raise ValueError('a base path must be a str.')
     
     self._base_path = base_path
+  
+  def get_base_flac_dir(self) -> str:
+    return self._get_base_dir('flac')
+  
+  def get_base_mp3_dir(self) -> str:
+    return self._get_base_dir('mp3')
+  
+  def _get_base_dir(self, file_type:str) -> str:
+    return '%s/%s' % (self.get_base_path(), file_type)
+  
+  def get_full_song_filename_validation_error(self, full_filename:str) -> str:
+    if not isinstance(full_filename, str):
+      return 'a filename must be a string.'
+    
+    if '.' not in full_filename:
+      return 'a song\'s filename must have an extension.'
+    
+    extension = full_filename[full_filename.rfind('.') + 1:]
+    if full_filename[:len(self._base_path) + 1 + len(extension) + 1] != '%s/%s/' % (self._base_path, extension):
+      return 'a song\'s full filename must start with its catalog\'s base path and then have a folder with the file\'s extension.'
+    
+    return None
+  
+  def get_song_filename_from_full_filename(self, full_filename:str) -> str:
+    if not isinstance(full_filename, str):
+      raise TypeError('a filename must be a string.')
+    
+    if '.' not in full_filename:
+      raise ValueError('a song\'s filename must have an extension.')
+    
+    extension = full_filename[full_filename.rfind('.') + 1:]
+    beginning_len = len(self._base_path) + 1 + len(extension) + 1
+    if full_filename[:beginning_len] != '%s/%s/' % (self._base_path, extension):
+      raise ValueError('a song\'s full filename must start with its catalog\'s base path and then have a folder with the file\'s extension.')
+    
+    return full_filename[beginning_len:]
 
 def song_album_key(s_al):
   return s_al.get_track_number()
