@@ -2,7 +2,7 @@ from api.util.config import load_config
 load_config('test')
 
 from api.models.db_models import Catalog, Song, Album, SongAlbum
-from api.models.factories.song_factory import build_song_from_mp3
+from api.models.factories.song_factory import build_song_from_metadata
 from api.models.audio_metadata import AudioMetadata, AudioMetadataFields
 from api.util.functions import get_search_text_from_raw_text
 
@@ -41,7 +41,7 @@ class SongFactoryTests(unittest.TestCase):
     
     expected.set_songs_albums([SongAlbum(expected, expected_album, 2)])
     
-    actual = build_song_from_mp3(self.mp3_with_diacritics_in_album_name, self.catalog)
+    actual = build_song_from_metadata(self.mp3_with_diacritics_in_album_name, self.catalog)
     
     self.assertEqual(expected, actual)
 

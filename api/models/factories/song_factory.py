@@ -1,3 +1,4 @@
+from api.models.audio_metadata import AudioMetadata
 from api.models.db_models import \
   Album, \
   Artist, \
@@ -9,7 +10,7 @@ from api.models.db_models import \
 
 from api.util.logger import get_logger
 
-def build_song_from_mp3(mp3, catalog:Catalog, artist_splitters = None) -> Song:
+def build_song_from_metadata(mp3:AudioMetadata, catalog:Catalog, artist_splitters:list[str] = None) -> Song:
   if artist_splitters is None:
     artist_splitters = [' feat ', ' feat. ', ' featuring ', ' remixed by ', ' covered by ', ', ', ' vs ', ' vs. ', ' & ']
   

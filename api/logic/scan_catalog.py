@@ -2,7 +2,7 @@ from api.dao.flac import get_songs_from_flacs
 from api.dao.load_db_models import get_catalog, save_song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.dao.mysql_utils import get_cursor
-from api.models.factories.song_factory import build_song_from_mp3
+from api.models.factories.song_factory import build_song_from_metadata
 from api.util.file_operations import get_base_flac_dir, get_base_mp3_dir, get_last_modified_timestamp
 from api.util.functions import is_iterable
 from api.util.logger import get_logger
@@ -72,7 +72,7 @@ def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None
       
       logger.debug('found %s, which was modified at %s.' % (str(mp3_data), str(mp3_data.date_modified)))
       
-      song = build_song_from_mp3(mp3_data, catalog, artist_splitters)
+      song = build_song_from_metadata(mp3_data, catalog, artist_splitters)
       try:
         save_song(song)
       except UnicodeEncodeError as e:

@@ -1,4 +1,6 @@
 from api.models.db_models import Catalog, Song
+from api.models.factories.audio_metadata_factory import read_metadata
+from api.models.factories.song_factory import build_song_from_metadata
 from api.util.logger import Logger, get_logger
 from api.util.file_operations import get_filename_from_song_title
 
@@ -27,12 +29,21 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
       if extension != 'flac':
         print('skipping "%s" because it\'s a %s file.' % (orig_file_name, extension))
       
-      mp3_file_name  = '%s/%s' % (target_mp3_dir, file_name)
+      metadata                = read_metadata(orig_file_name)
+      new_flac_file_name      = get_filename_from_song_title(metadata.title, 'flac')
+      new_mp3_file_name       = '%s.mp3' % (new_flac_file_name[:-5], )
+      new_full_flac_file_name = '%s/%s' % (root, new_flac_file_name)
+      new_mp3_full_file_name  = '%s/%s' % (target_mp3_dir, new_mp3_file_name)
       
       print('original file: %s' % (orig_file_name, ))
       print('       (%s.)' % ('exists' if os.path.exists(orig_file_name) else 'doesn\'t exist', ))
-      print('     new file: %s' % (mp3_file_name, ))
-      print('       (%s.)' % ('exists' if os.path.exists(mp3_file_name) else 'doesn\'t exist', ))
+      print('new flac file: %s' % (new_full_flac_file_name, ))
+      print('       (%s.)' % ('exists' if os.path.exists(new_full_flac_file_name) else 'doesn\'t exist', ))
+      print('     new file: %s' % (new_mp3_full_file_name, ))
+      print('       (%s.)' % ('exists' if os.path.exists(new_mp3_full_file_name) else 'doesn\'t exist', ))
       print('')
+      
+      metadata.flac_exists = True
+      result.append(build_song_from_metadata(metadata, catalog))
   
   return result

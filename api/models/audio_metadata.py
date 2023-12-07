@@ -1,4 +1,5 @@
 from api.exceptions.song_data import InvalidMP3DataException
+from api.util.functions import get_type_name
 from api.util.logger import get_logger
 
 import re
@@ -33,26 +34,26 @@ _audio_metadata_fields_by_key = {f.field_name: f for f in AudioMetadataFields}
 for f in AudioMetadataFields:
   for key in f.other_names:
     _audio_metadata_fields_by_key[key] = f
-def get_audio_metadat_field(name:str) -> AudioMetadataFields:
+def get_audio_metadata_field(name:str) -> AudioMetadataFields:
   if not isinstance(name, str) or name not in _audio_metadata_fields_by_key:
     raise ValueError('unknown metadata field "%s".' % (name, ))
   
   return _audio_metadata_fields_by_key[name]
 
-def _get_field(key:str, data:dict[str, str], type_func) -> any:
-  if key in data:
-    get_logger().debug('for %s, found "%s"' % (str(key), str(data[key])))
-    return type_func(data[key])
+def _get_field(field:AudioMetadataFields, data:dict[str, str], type_func) -> any:
+  for key in field.other_names:
+    if key in data:
+      get_logger().debug('for %s, found "%s"' % (str(key), str(data[key])))
+      return type_func(data[key])
   
-  get_logger().debug('didn\'t find any value for %s.' % str(key))
+  get_logger().debug('didn\'t find any value for %s.' % str(field.field_name))
   return None
 
 def _get_track(data:dict[str, str]) -> int:
-  if AudioMetadataFields.TRACK.value not in data:
-    get_logger().debug('found no track.')
+  track = _get_field(AudioMetadataFields.TRACK, data, str)
+  if track is None:
     return None
   
-  track = str(data[AudioMetadataFields.TRACK.value])
   message = 'found the track data "%s"; ' % track
   
   num_with_ttl = re.compile('^\\d+\\/\\d+$')
@@ -69,10 +70,7 @@ def _get_track(data:dict[str, str]) -> int:
   return track
 
 def _get_year(data:dict[str, str]) -> int:
-  if AudioMetadataFields.YEAR.value not in data:
-    return None
-  
-  raw_value = data[AudioMetadataFields.YEAR.value]
+  raw_value = _get_field(AudioMetadataFields.YEAR, data, str)
   
   get_logger().debug('for year, found the raw value "%s"...' % str(raw_value))
   
@@ -80,13 +78,13 @@ def _get_year(data:dict[str, str]) -> int:
     return raw_value
   
   if not isinstance(raw_value, str):
-    get_logger().warn('found an invalid year "%s" of type %s; not saving it.' % (str(raw_value), str(type(raw_value))))
+    get_logger().warn('found an invalid year "%s" of type %s; not saving it.' % (str(raw_value), get_type_name(raw_value)))
     return None
   
   pattern = re.compile('^\\d+(\\.\\d+)?$')
   if isinstance(pattern.search(raw_value), re.Match):
     return int(raw_value)
-
+  
   pattern = re.compile('^\\d{4}\\-\\d{2}\\-\\d{2}$')
   if isinstance(pattern.search(raw_value), re.Match):
     return int(raw_value[0:4])
@@ -121,17 +119,19 @@ class AudioMetadata:
     self.filename = data[AudioMetadataFields.FILENAME.value]
     self.date_modified = data[AudioMetadataFields.DATE_MODIFIED.value]
     
-    self.title = _get_field(AudioMetadataFields.TITLE.value, data, str)
+    self.title = _get_field(AudioMetadataFields.TITLE, data, str)
     self.duration = data[AudioMetadataFields.DURATION.value]
-    self.artist = _get_field(AudioMetadataFields.ARTIST.value, data, str)
-    self.album_artist = _get_field(AudioMetadataFields.ALBUM_ARTIST.value, data, str)
-    self.album = _get_field(AudioMetadataFields.ALBUM.value, data, str)
+    self.artist = _get_field(AudioMetadataFields.ARTIST, data, str)
+    self.album_artist = _get_field(AudioMetadataFields.ALBUM_ARTIST, data, str)
+    self.album = _get_field(AudioMetadataFields.ALBUM, data, str)
     self.track = _get_track(data)
-    self.genre = _get_field(AudioMetadataFields.GENRE.value, data, str)
+    self.genre = _get_field(AudioMetadataFields.GENRE, data, str)
     self.year = _get_year(data)
-    self.comment = _get_field(AudioMetadataFields.COMMENT.value, data, str)
+    self.comment = _get_field(AudioMetadataFields.COMMENT, data, str)
+    self.mp3_exists = True
+    self.flac_exists = False
     
     logger.debug('for duration, found ' + str(self.duration))
   
-  def __str__(self):
+  def __str__(self) -> str:
     return '%s by %s' % (self.title, self.artist)
