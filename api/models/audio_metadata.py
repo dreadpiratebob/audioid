@@ -40,16 +40,15 @@ def get_audio_metadata_field(name:str) -> AudioMetadataFields:
   
   return _audio_metadata_fields_by_key[name]
 
-def _get_field(field:AudioMetadataFields, data:dict[str, str], type_func) -> any:
-  for key in field.other_names:
-    if key in data:
-      get_logger().debug('for %s, found "%s"' % (str(key), str(data[key])))
-      return type_func(data[key])
+def _get_field(field:AudioMetadataFields, data:dict[AudioMetadataFields, str], type_func) -> any:
+  if field in data:
+    get_logger().debug('for %s, found "%s"' % (field.field_name, str(data[field])))
+    return type_func(data[field])
   
   get_logger().debug('didn\'t find any value for %s.' % str(field.field_name))
   return None
 
-def _get_track(data:dict[str, str]) -> int:
+def _get_track(data:dict[AudioMetadataFields, str]) -> int:
   track = _get_field(AudioMetadataFields.TRACK, data, str)
   if track is None:
     return None
@@ -69,7 +68,7 @@ def _get_track(data:dict[str, str]) -> int:
   get_logger().debug(message)
   return track
 
-def _get_year(data:dict[str, str]) -> int:
+def _get_year(data:dict[AudioMetadataFields, str]) -> int:
   raw_value = _get_field(AudioMetadataFields.YEAR, data, str)
   
   get_logger().debug('for year, found the raw value "%s"...' % str(raw_value))
@@ -95,32 +94,32 @@ def _get_year(data:dict[str, str]) -> int:
 class AudioMetadata:
   def __init__(self, data:dict):
     grievances = []
-  
-    if AudioMetadataFields.FILENAME.value not in data:
+    
+    if AudioMetadataFields.FILENAME not in data:
       grievances.append('no filename was found.')
-    elif not isinstance(data[AudioMetadataFields.FILENAME.value], str):
+    elif not isinstance(data[AudioMetadataFields.FILENAME], str):
       grievances.append('an mp3\'s filename must be a string.')
-  
-    if AudioMetadataFields.DATE_MODIFIED.value not in data:
+    
+    if AudioMetadataFields.DATE_MODIFIED not in data:
       grievances.append('no date modified was found.')
-    elif not isinstance(data[AudioMetadataFields.DATE_MODIFIED.value], int):
+    elif not isinstance(data[AudioMetadataFields.DATE_MODIFIED], int):
       grievances.append('the date modified must be the number of seconds since the unix epoc.')
-  
-    if AudioMetadataFields.DURATION.value not in data:
+    
+    if AudioMetadataFields.DURATION not in data:
       grievances.append('no duration was found.')
-    elif not isinstance(data[AudioMetadataFields.DURATION.value], float):
+    elif not isinstance(data[AudioMetadataFields.DURATION], float):
       grievances.append('a duration must be a float.')
-  
+    
     if len(grievances) > 0:
       raise InvalidMP3DataException('\n'.join(grievances))
-  
+    
     logger = get_logger()
     
-    self.filename = data[AudioMetadataFields.FILENAME.value]
-    self.date_modified = data[AudioMetadataFields.DATE_MODIFIED.value]
+    self.filename = str(data[AudioMetadataFields.FILENAME]).replace('\\', '/')
+    self.date_modified = data[AudioMetadataFields.DATE_MODIFIED]
     
     self.title = _get_field(AudioMetadataFields.TITLE, data, str)
-    self.duration = data[AudioMetadataFields.DURATION.value]
+    self.duration = data[AudioMetadataFields.DURATION]
     self.artist = _get_field(AudioMetadataFields.ARTIST, data, str)
     self.album_artist = _get_field(AudioMetadataFields.ALBUM_ARTIST, data, str)
     self.album = _get_field(AudioMetadataFields.ALBUM, data, str)
@@ -131,7 +130,10 @@ class AudioMetadata:
     self.mp3_exists = True
     self.flac_exists = False
     
+    if self.title is None:
+      self.title = self.filename[self.filename.rfind('/') + 1:self.filename.rfind('.')]
+    
     logger.debug('for duration, found ' + str(self.duration))
   
   def __str__(self) -> str:
-    return '%s by %s' % (self.title, self.artist)
+    return '\n'.join('%s: %s' % (field, self.__dict__[field]) for field in self.__dict__)
