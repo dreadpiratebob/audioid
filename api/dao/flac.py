@@ -47,7 +47,7 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
         logger.debug('skipping "%s" because it\'s a %s file.' % (orig_flac_file_name, extension))
         continue
       
-      orig_mp3__file_name     = '%s/%smp3' % (target_mp3_dir, file_name[:-4])
+      orig_mp3__file_name = '%s/%smp3' % (target_mp3_dir, file_name[:-4])
       if os.path.exists(orig_mp3__file_name):
         logger.debug('"%s" already exists; skipping it.' % (orig_mp3__file_name, ))
         continue
