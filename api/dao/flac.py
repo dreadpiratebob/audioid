@@ -35,7 +35,7 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
   for root, dir_names, file_names in os.walk(base_flac_dir):
     logger.info('ingesting files from "%s"...' % (root,))
     
-    target_mp3_dir = '%s%s' % (base_mp3_dir, root[len(base_flac_dir):])
+    target_mp3_dir = '%s%s' % (base_mp3_dir, root[len(base_flac_dir):].lower())
     if not os.path.exists(target_mp3_dir):
       os.makedirs(target_mp3_dir)
     
@@ -44,7 +44,12 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
       
       orig_flac_file_name = '%s/%s' % (root, file_name)
       if extension != 'flac':
-        logger.debug('skipping "%s" because it\'s a %s file.' % (orig_flac_file_name, extension))
+        target_file_name = '%s/%s' % (target_mp3_dir, file_name.lower())
+        if not os.path.exists(target_file_name):
+          logger.debug('"%s" is missing "%s"; copying it over.')
+          run(['cp', orig_flac_file_name, target_file_name])
+        
+        logger.debug('not transcoding "%s" because it\'s a %s file.' % (orig_flac_file_name, extension))
         continue
       
       orig_mp3__file_name = '%s/%smp3' % (target_mp3_dir, file_name[:-4])

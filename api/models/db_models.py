@@ -91,6 +91,9 @@ class Catalog:
   def get_base_mp3_dir(self) -> str:
     return self._get_base_dir('mp3')
   
+  def get_base_broken_metadata_dir(self) -> str:
+    return self._get_base_dir('fix metadata')
+  
   def _get_base_dir(self, file_type:str) -> str:
     return '%s/%s' % (self.get_base_path(), file_type)
   

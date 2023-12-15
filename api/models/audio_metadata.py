@@ -20,6 +20,7 @@ class AudioMetadataFields(Enum):
   FILENAME = 'filename', {'filename'}
   DATE_MODIFIED = 'date_modified', {'date_modified'}
   DURATION = 'duration', {'duration'}
+  ENCODER = 'encoder', {'encoder'}
   FILE_SIZE = 'file_size', {'file_size'}
   TITLE = 'title', {'title', 'TITLE', 'TIT2'}
   ARTIST = 'artist', {'artist', 'ARTIST', 'TPE1'}
@@ -48,6 +49,8 @@ def _get_field(field:AudioMetadataFields, data:dict[AudioMetadataFields, str], t
   get_logger().debug('didn\'t find any value for %s.' % str(field.field_name))
   return None
 
+_num_with_ttl = re.compile('^\\d+/\\d+$')
+_just_num = re.compile('^\\d+(\\.\\d+)?$')
 def _get_track(data:dict[AudioMetadataFields, str]) -> int:
   track = _get_field(AudioMetadataFields.TRACK, data, str)
   if track is None:
@@ -55,11 +58,9 @@ def _get_track(data:dict[AudioMetadataFields, str]) -> int:
   
   message = 'found the track data "%s"; ' % track
   
-  num_with_ttl = re.compile('^\\d+\\/\\d+$')
-  just_num = re.compile('^\\d+(\\.\\d+)?$')
-  if isinstance(num_with_ttl.search(track), re.Match):
+  if isinstance(_num_with_ttl.search(track), re.Match):
     track = int(track[0:track.index('/')])
-  elif isinstance(just_num.search(track), re.Match):
+  elif isinstance(_just_num.search(track), re.Match):
     track = int(track)
   else:
     track = None
@@ -106,8 +107,8 @@ class AudioMetadata:
       grievances.append('the date modified must be the number of seconds since the unix epoc.')
     
     if AudioMetadataFields.DURATION not in data:
-      grievances.append('no duration was found.')
-    elif not isinstance(data[AudioMetadataFields.DURATION], float):
+      data[AudioMetadataFields.DURATION] = None
+    elif data[AudioMetadataFields.DURATION] is not None and not isinstance(data[AudioMetadataFields.DURATION], float):
       grievances.append('a duration must be a float.')
     
     if len(grievances) > 0:

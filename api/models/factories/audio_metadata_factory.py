@@ -9,23 +9,27 @@ import os
 import re
 import subprocess
 
-_bad_filename_error_message = 'metadata can only be read from files with either an mp3 extension.'
+_bad_filename_error_message = 'metadata can only be read from files with either a flac or an mp3 extension.'
 _metadata_field_re = re.compile('^ +([a-zA-Z0-9_]+) +: (.*)$')
 def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None) -> AudioMetadata:
   if not '.' in filename:
     raise ValueError(_bad_filename_error_message)
   
   extension = filename[filename.rfind('.') + 1:]
-  if extension != 'mp3':
+  if extension != 'mp3' and extension != 'flac':
     raise ValueError(_bad_filename_error_message)
   
-  audio = mutagen.mp3.MP3(filename)
+  length = None
+  if extension == 'mp3':
+    audio  = mutagen.mp3.MP3(filename)
+    length = audio.info.length
+  
   file_size = get_file_size_in_bytes(filename)
   data = \
   {
     AudioMetadataFields.DATE_MODIFIED: get_last_modified_timestamp(filename),
     AudioMetadataFields.FILENAME: filename,
-    AudioMetadataFields.DURATION: audio.info.length,
+    AudioMetadataFields.DURATION: length,
     AudioMetadataFields.FILE_SIZE: file_size
   }
   
@@ -71,7 +75,7 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None)
         
         continue
       
-      if key in data:
+      if key in data and data[key] is not None:
         continue
       
       value = re_match.group(2)

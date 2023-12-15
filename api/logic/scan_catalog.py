@@ -1,15 +1,59 @@
 from api.dao.flac import get_songs_from_flacs
 from api.dao.load_db_models import get_catalog, save_song
-from api.models.factories.audio_metadata_factory import read_metadata
 from api.dao.mysql_utils import get_cursor
+from api.models.db_models import Catalog, Song
+from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
-from api.util.file_operations import get_base_flac_dir, get_base_mp3_dir, get_last_modified_timestamp
+from api.util.file_operations import get_filename_from_song_title, get_last_modified_timestamp
 from api.util.functions import is_iterable
 from api.util.logger import get_logger
 
 from pymysql.err import OperationalError
+from subprocess import run
+
 import os
 import traceback
+
+def _copy_metadata(catalog:Catalog) -> list[Song]:
+  base_bork_dir = catalog.get_base_broken_metadata_dir()
+  if not os.path.exists(base_bork_dir):
+    return []
+  
+  base_mp3_dir = catalog.get_base_mp3_dir()
+  result = []
+  for root, directories, files in os.walk(base_bork_dir):
+    source_mp3_dir = '%s%s' % (base_mp3_dir, root[len(base_bork_dir):])
+    
+    for file in files:
+      full_filename = '%s/%s' % (root, file)
+      mp3_folder_name = '%s/%s' % (source_mp3_dir, file.lower())
+      
+      if not '.' in file:
+        get_logger().debug('the file "%s" doesn\'t have an extension; skipping it.' % (full_filename, ))
+        if not os.path.exists(mp3_folder_name):
+          run(['cp', full_filename, mp3_folder_name])
+        
+        continue
+      
+      extension = file[file.rfind('.') + 1:]
+      if extension != 'flac':
+        get_logger().debug('the file "%s" is a %s file, not a flac file; skipping it.' % (full_filename, extension))
+        if not os.path.exists(mp3_folder_name):
+          run(['cp', full_filename, mp3_folder_name])
+
+        continue
+      
+      flac_metadata = read_metadata(full_filename)
+      fixed_filename = get_filename_from_song_title(flac_metadata.title, 'flac')
+      new_flac_filename = '%s/%s.%s' % (root, flac_metadata.title.lower(), extension)
+      full_mp3_filename = '%s/%s.mp3'
+      
+      print('original filename: %s' % (full_filename, ))
+      print('new flac filename: %s' % (new_flac_filename, ))
+      print(' new mp3 filename: %s' % (full_mp3_filename))
+      print()
+  
+  return result
 
 def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None:
   if artist_splitters is None:
