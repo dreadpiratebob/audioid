@@ -60,8 +60,9 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
       new_full_mp3__file_name = None
       try:
         metadata                = _transcode_flac_to_mp3(orig_flac_file_name, orig_mp3__file_name, catalog.get_base_path())
-        new_flac_file_name      = get_filename_from_song_title(metadata.title, 'flac')
-        new_mp3__file_name      = '%s.mp3' % (new_flac_file_name[:-5], )
+        new_file_name           = get_filename_from_song_title(metadata.title)
+        new_flac_file_name      = '%s.flac' % (new_file_name, )
+        new_mp3__file_name      = '%s.mp3'  % (new_file_name, )
         new_full_flac_file_name = '%s/%s' % (root, new_flac_file_name)
         new_full_mp3__file_name = '%s/%s' % (target_mp3_dir, new_mp3__file_name)
         

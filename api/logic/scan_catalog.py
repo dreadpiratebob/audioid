@@ -44,7 +44,7 @@ def _copy_metadata(catalog:Catalog) -> list[Song]:
         continue
       
       flac_metadata = read_metadata(full_filename)
-      fixed_filename = get_filename_from_song_title(flac_metadata.title, 'flac')
+      fixed_filename = get_filename_from_song_title(flac_metadata.title)
       new_flac_filename = '%s/%s.%s' % (root, flac_metadata.title.lower(), extension)
       full_mp3_filename = '%s/%s.mp3'
       

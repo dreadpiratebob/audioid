@@ -4,7 +4,7 @@ import os
 import stat
 
 _filename_acceptable_punctuation = {'.', '-', '_', ' ', '(', ')', '[', ']', '{', '}', '\'', '"'}
-def get_filename_from_song_title(song_title: str, extension: str) -> str:
+def get_filename_from_song_title(song_title:str) -> str:
   lcase, no_diacritics, lcase_no_diacritics = get_search_text_from_raw_text(song_title)
   lcase_no_diacritics_no_punctuation = ''
   
@@ -17,7 +17,7 @@ def get_filename_from_song_title(song_title: str, extension: str) -> str:
     
     lcase_no_diacritics_no_punctuation += '_'
   
-  return '%s.%s' % (lcase_no_diacritics_no_punctuation, extension)
+  return lcase_no_diacritics_no_punctuation
 
 def get_last_modified_timestamp(filename:str) -> int:
   file_stats = os.stat(filename)
