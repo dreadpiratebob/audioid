@@ -6,11 +6,13 @@ from api.util.logger import Logger, get_logger
 from api.util.file_operations import get_filename_from_song_title
 from api.util.functions import get_type_name
 
+from mutagen.mp3 import MP3
+
 import os
 
 from subprocess import PIPE, run
 
-def _transcode_flac_to_mp3(original_file_name:str, new_file_name:str, catalog_base_dir:str) -> AudioMetadata:
+def _transcode_flac_to_mp3(original_file_name:str, new_file_name:str) -> AudioMetadata:
   cmd = 'ffmpeg -i %s -ab 320k -map_metadata 0 -id3v2_version 3 %s'.split(' ')
   
   cmd[2] = original_file_name
@@ -21,17 +23,14 @@ def _transcode_flac_to_mp3(original_file_name:str, new_file_name:str, catalog_ba
   
   return read_metadata(new_file_name, ffmpeg_output)
 
-def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir:str = None, logger:Logger = get_logger()) -> list[Song]:
-  if base_flac_dir is None:
-    base_flac_dir = Catalog.get_base_flac_dir(catalog)
-  
-  if base_mp3_dir is None:
-    base_mp3_dir = Catalog.get_base_mp3_dir(catalog)
+def get_songs_from_flacs(catalog:Catalog, logger:Logger = get_logger()) -> set[Song]:
+  base_flac_dir = catalog.get_base_flac_dir()
+  base_mp3_dir  = catalog.get_base_mp3_dir()
   
   if not os.path.exists(base_flac_dir):
-    return []
+    return set()
   
-  result = []
+  result = set()
   for root, dir_names, file_names in os.walk(base_flac_dir):
     logger.info('ingesting files from "%s"...' % (root,))
     
@@ -59,7 +58,7 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
       
       new_full_mp3__file_name = None
       try:
-        metadata                = _transcode_flac_to_mp3(orig_flac_file_name, orig_mp3__file_name, catalog.get_base_path())
+        metadata                = _transcode_flac_to_mp3(orig_flac_file_name, orig_mp3__file_name)
         new_file_name           = get_filename_from_song_title(metadata.title)
         new_flac_file_name      = '%s.flac' % (new_file_name, )
         new_mp3__file_name      = '%s.mp3'  % (new_file_name, )
@@ -76,8 +75,11 @@ def get_songs_from_flacs(catalog:Catalog, base_flac_dir:str = None, base_mp3_dir
         raise e
       
       logger.debug('transcoded "%s" to "%s"...' % (new_full_flac_file_name, new_full_mp3__file_name))
+
+      mp3_data = MP3(new_full_mp3__file_name)
       
+      metadata.duration = mp3_data.info.length
       metadata.flac_exists = True
-      result.append(build_song_from_metadata(metadata, catalog))
+      result.add(build_song_from_metadata(metadata, catalog))
   
   return result

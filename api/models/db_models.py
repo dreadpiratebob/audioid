@@ -287,15 +287,15 @@ class Song:
       return 0
     
     seen_objects = seen_objects + [self]
-
+    
     result = 0
-
+    
     field_names = [key for key in self.__dict__]
     field_names.sort()  # for consistency
     for field_name in field_names:
       field_hash = 0
       field_val  = self.__dict__[field_name]
-      if isinstance(field_val, (list, tuple)):
+      if isinstance(field_val, (list, set, tuple)):
         for val_i in field_val:
           _next_hash = getattr(val_i, '_recursive_hash', None)
           if callable(_next_hash):
@@ -310,7 +310,7 @@ class Song:
           field_hash = hash(field_val)
       
       result = (result * 397) ^ field_hash
-
+    
     return result
   
   def __str__(self) -> str:

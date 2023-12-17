@@ -11,7 +11,7 @@ import subprocess
 
 _bad_filename_error_message = 'metadata can only be read from files with either a flac or an mp3 extension.'
 _metadata_field_re = re.compile('^ +([a-zA-Z0-9_]+) +: (.*)$')
-def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None) -> AudioMetadata:
+def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None, verbose:bool = False, output_file_name:str = None) -> AudioMetadata:
   if not '.' in filename:
     raise ValueError(_bad_filename_error_message)
   
@@ -36,7 +36,7 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None)
   if ffmpeg_output_from_conversion_to_mp3 is None:
     # ffmpeg -i filename -f ffmetadata outputfile
     outputfile = '%s metadata.txt' % filename
-    subprocess.run(['ffmpeg', '-i', filename, '-f', 'ffmetadata', outputfile], capture_output=True)
+    subprocess.run(['ffmpeg', '-i', filename, '-f', 'ffmetadata', outputfile, '-y'], capture_output=True)
     
     if not os.path.exists(outputfile):
       get_logger().error('ffmpeg failed for "%s".' % (str(filename), ))
@@ -46,7 +46,10 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None)
     with open(outputfile) as f:
       lines = f.readlines()
     
-    os.remove(outputfile)
+    if output_file_name is None:
+      os.remove(outputfile)
+    elif outputfile != output_file_name:
+      subprocess.run(['mv', outputfile, output_file_name])
     
     for line in lines:
       if '=' not in line:
@@ -58,8 +61,8 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None)
       data[key] = value
   else:
     lines = ffmpeg_output_from_conversion_to_mp3.replace('\r\n', '\n') \
-                         .replace('\r',   '\n') \
-                         .split('\n')
+                                                .replace('\r',   '\n') \
+                                                .split('\n')
     
     for line in lines:
       re_match = _metadata_field_re.search(line)
@@ -81,4 +84,4 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None)
       value = re_match.group(2)
       data[key] = value
   
-  return AudioMetadata(data)
+  return AudioMetadata(data, verbose)

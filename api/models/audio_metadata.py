@@ -18,6 +18,7 @@ class AudioMetadataFields(Enum):
     self.other_names = other_names
   
   FILENAME = 'filename', {'filename'}
+  DATE = 'date', {'date', 'DATE'}
   DATE_MODIFIED = 'date_modified', {'date_modified'}
   DURATION = 'duration', {'duration'}
   ENCODER = 'encoder', {'encoder'}
@@ -27,7 +28,7 @@ class AudioMetadataFields(Enum):
   ALBUM_ARTIST = 'album_artist', {'album_artist'}
   ALBUM = 'album', {'album', 'ALBUM', 'TALB'}
   TRACK = 'track', {'track', 'TRACK', 'TRCK'}
-  GENRE = 'genre', {'genre', '', 'TCON'}
+  GENRE = 'genre', {'genre', 'GENRE', 'TCON'}
   YEAR = 'year', {'year', 'DATE', 'TDRC'}
   COMMENT = 'comment', {'comment', 'COMMENT'}
 
@@ -41,22 +42,26 @@ def get_audio_metadata_field(name:str) -> AudioMetadataFields:
   
   return _audio_metadata_fields_by_key[name]
 
-def _get_field(field:AudioMetadataFields, data:dict[AudioMetadataFields, str], type_func) -> any:
+def _get_field(field:AudioMetadataFields, data:dict[AudioMetadataFields, str], type_func, verbose:bool = False) -> any:
   if field in data:
-    get_logger().debug('for %s, found "%s"' % (field.field_name, str(data[field])))
+    if verbose:
+      get_logger().debug('for %s, found "%s"' % (field.field_name, str(data[field])))
     return type_func(data[field])
   
-  get_logger().debug('didn\'t find any value for %s.' % str(field.field_name))
+  if verbose:
+    get_logger().debug('didn\'t find any value for %s.' % str(field.field_name))
   return None
 
 _num_with_ttl = re.compile('^\\d+/\\d+$')
 _just_num = re.compile('^\\d+(\\.\\d+)?$')
-def _get_track(data:dict[AudioMetadataFields, str]) -> int:
-  track = _get_field(AudioMetadataFields.TRACK, data, str)
+def _get_track(data:dict[AudioMetadataFields, str], verbose:bool = False) -> int:
+  track = _get_field(AudioMetadataFields.TRACK, data, str, verbose)
   if track is None:
     return None
   
-  message = 'found the track data "%s"; ' % track
+  message = ''
+  if verbose:
+    message = 'found the track data "%s"; ' % track
   
   if isinstance(_num_with_ttl.search(track), re.Match):
     track = int(track[0:track.index('/')])
@@ -65,14 +70,17 @@ def _get_track(data:dict[AudioMetadataFields, str]) -> int:
   else:
     track = None
   
-  message += 'setting the track to %s.' % str(track)
-  get_logger().debug(message)
+  if verbose:
+    message += 'setting the track to %s.' % str(track)
+    get_logger().debug(message)
+  
   return track
 
-def _get_year(data:dict[AudioMetadataFields, str]) -> int:
-  raw_value = _get_field(AudioMetadataFields.YEAR, data, str)
+def _get_year(data:dict[AudioMetadataFields, str], verbose:bool = False) -> int:
+  raw_value = _get_field(AudioMetadataFields.YEAR, data, str, verbose)
   
-  get_logger().debug('for year, found the raw value "%s"...' % str(raw_value))
+  if verbose:
+    get_logger().debug('for year, found the raw value "%s"...' % str(raw_value))
   
   if raw_value is None or isinstance(raw_value, int):
     return raw_value
@@ -93,7 +101,7 @@ def _get_year(data:dict[AudioMetadataFields, str]) -> int:
   return None
 
 class AudioMetadata:
-  def __init__(self, data:dict):
+  def __init__(self, data:dict, verbose:bool = False):
     grievances = []
     
     if AudioMetadataFields.FILENAME not in data:
@@ -114,27 +122,26 @@ class AudioMetadata:
     if len(grievances) > 0:
       raise InvalidMP3DataException('\n'.join(grievances))
     
-    logger = get_logger()
-    
     self.filename = str(data[AudioMetadataFields.FILENAME]).replace('\\', '/')
     self.date_modified = data[AudioMetadataFields.DATE_MODIFIED]
     
-    self.title = _get_field(AudioMetadataFields.TITLE, data, str)
+    self.title = _get_field(AudioMetadataFields.TITLE, data, str, verbose)
     self.duration = data[AudioMetadataFields.DURATION]
-    self.artist = _get_field(AudioMetadataFields.ARTIST, data, str)
-    self.album_artist = _get_field(AudioMetadataFields.ALBUM_ARTIST, data, str)
-    self.album = _get_field(AudioMetadataFields.ALBUM, data, str)
-    self.track = _get_track(data)
-    self.genre = _get_field(AudioMetadataFields.GENRE, data, str)
-    self.year = _get_year(data)
-    self.comment = _get_field(AudioMetadataFields.COMMENT, data, str)
+    self.artist = _get_field(AudioMetadataFields.ARTIST, data, str, verbose)
+    self.album_artist = _get_field(AudioMetadataFields.ALBUM_ARTIST, data, str, verbose)
+    self.album = _get_field(AudioMetadataFields.ALBUM, data, str, verbose)
+    self.track = _get_track(data, verbose)
+    self.genre = _get_field(AudioMetadataFields.GENRE, data, str, verbose)
+    self.year = _get_year(data, verbose)
+    self.comment = _get_field(AudioMetadataFields.COMMENT, data, str, verbose)
     self.mp3_exists = True
     self.flac_exists = False
     
     if self.title is None:
       self.title = self.filename[self.filename.rfind('/') + 1:self.filename.rfind('.')]
     
-    logger.debug('for duration, found ' + str(self.duration))
+    if verbose:
+      get_logger().debug('for duration, found ' + str(self.duration))
   
   def __str__(self) -> str:
     return '\n'.join('%s: %s' % (field, self.__dict__[field]) for field in self.__dict__)
