@@ -131,8 +131,12 @@ def song_artist_key(s_ar):
   return s_ar.get_list_order()
 
 class Song:
-  def __init__(self, id:int, title:str, lcase_title:str, no_diacritic_title:str, lcase_no_diacritic_title:str, year:int, duration:float, filename:str, file_last_modified:int, catalog, genres = None,
-               songs_albums = None, songs_artists = None, song_similarities_from_song2 = None, song_similarities_from_song1 = None,
+  def __init__(self, id:int,
+               title:str, lcase_title:str, no_diacritic_title:str, lcase_no_diacritic_title:str,
+               year:int, duration:float, title_minimum_age:int, lyrics_minimum_age:int,
+               mp3_file_size:int, flac_file_size:int, filename:str, file_last_modified:int,
+               catalog:Catalog, genres = None, songs_albums = None, songs_artists = None,
+               song_similarities_from_song1 = None, song_similarities_from_song2 = None,
                last_scanned:int = None):
     grievances = []
     
@@ -156,6 +160,18 @@ class Song:
     
     if not isinstance(duration, float):
       grievances.append('a duration must be a float.')
+    
+    if title_minimum_age is not None and not isinstance(title_minimum_age, int):
+      grievances.append('a song title\'s minimum age must be an int.')
+    
+    if lyrics_minimum_age is not None and not isinstance(lyrics_minimum_age, int):
+      grievances.append('a song lyrics\' minimum age must be an int.')
+    
+    if not isinstance(mp3_file_size, int):
+      grievances.append('an mp3 file size must be an int.')
+    
+    if flac_file_size is not None and not isinstance(flac_file_size, int):
+      grievances.append('a flac file size must be an int.')
     
     if filename is not None and not isinstance(filename, str):
       grievances.append('a filename must be a str.')
@@ -212,6 +228,10 @@ class Song:
     self._lcase_no_diacritic_title = lcase_no_diacritic_title
     self._year = year
     self._duration = duration
+    self._title_minimum_age = title_minimum_age
+    self._lyrics_minimum_age = lyrics_minimum_age
+    self._mp3_file_size = mp3_file_size
+    self._flac_file_size = flac_file_size
     self._filename = filename
     self._catalog = catalog
     self._last_scanned = last_scanned
@@ -361,6 +381,30 @@ class Song:
       raise ValueError('a duration must be a float.')
     
     self._duration = duration
+  
+  def get_title_minimum_age(self) -> int:
+    return self._title_minimum_age
+  
+  def set_title_minimum_age(self, title_minimum_age:int) -> None:
+    if title_minimum_age is not None and not isinstance(title_minimum_age, int):
+      raise TypeError('a title\'s minimum age must be an int.')
+    
+    if title_minimum_age < 0:
+      raise ValueError('a title\'s minimum age must be nonnegative.')
+    
+    self._title_minimum_age = title_minimum_age
+  
+  def get_lyrics_minimum_age(self) -> int:
+    return self._lyrics_minimum_age
+  
+  def set_lyrics_minimum_age(self, lyrics_minimum_age:int) -> None:
+    if lyrics_minimum_age is not None and not isinstance(lyrics_minimum_age, int):
+      raise TypeError('lyrics\' minimum age must be an int.')
+    
+    if lyrics_minimum_age < 0:
+      raise ValueError('lyrics\' minimum age must be nonnegative.')
+    
+    self._lyrics_minimum_age = lyrics_minimum_age
   
   def get_filename(self) -> str:
     return self._filename
@@ -602,7 +646,7 @@ class Artist:
   def get_albums(self) -> list:
     return self._albums
   
-  def set_albums(self, albums) -> list:
+  def set_albums(self, albums) -> None:
     self._albums = albums
   
   def get_genres(self) -> list:
@@ -743,7 +787,7 @@ class SongArtist:
       raise ValueError('a list order must be an int.')
   
     self._list_order = list_order
-
+  
   def get_conjunction(self) -> str:
     return self._conjunction
   
@@ -906,7 +950,7 @@ class Album:
   def get_lcase_no_diacritic_name(self) -> str:
     return self._name
   
-  def get_album_artist(self) -> str:
+  def get_album_artist(self) -> Artist:
     return self._album_artist
   
   def set_album_artist(self, album_artist:Artist) -> None:
@@ -931,7 +975,7 @@ class SongAlbum:
     if not isinstance(album, Album):
       grievances.append('an album must be an Album.')
     
-    if not isinstance(track_number, int):
+    if track_number is not None and not isinstance(track_number, int):
       grievances.append('a track number must be an int.')
     
     if len(grievances) > 0:

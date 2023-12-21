@@ -22,7 +22,8 @@ class AudioMetadataFields(Enum):
   DATE_MODIFIED = 'date_modified', {'date_modified'}
   DURATION = 'duration', {'duration'}
   ENCODER = 'encoder', {'encoder'}
-  FILE_SIZE = 'file_size', {'file_size'}
+  FLAC_FILE_SIZE = 'flac_file_size', {'flac_file_size'}
+  MP3_FILE_SIZE = 'mp3_file_size', {'mp3_file_size'}
   TITLE = 'title', {'title', 'TITLE', 'TIT2'}
   ARTIST = 'artist', {'artist', 'ARTIST', 'TPE1'}
   ALBUM_ARTIST = 'album_artist', {'album_artist'}
@@ -134,8 +135,9 @@ class AudioMetadata:
     self.genre = _get_field(AudioMetadataFields.GENRE, data, str, verbose)
     self.year = _get_year(data, verbose)
     self.comment = _get_field(AudioMetadataFields.COMMENT, data, str, verbose)
+    self.mp3_file_size = data[AudioMetadataFields.MP3_FILE_SIZE]
     self.mp3_exists = True
-    self.flac_exists = False
+    self.flac_file_size = data[AudioMetadataFields.FLAC_FILE_SIZE]
     
     if self.title is None:
       self.title = self.filename[self.filename.rfind('/') + 1:self.filename.rfind('.')]

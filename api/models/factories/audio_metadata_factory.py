@@ -1,6 +1,6 @@
 from api.models.audio_metadata import \
   AudioMetadataFields, AudioMetadata, \
-  get_audio_metadata_field
+  get_audio_metadata_field, _audio_metadata_fields_by_key
 from api.util.file_operations import get_file_size_in_bytes, get_last_modified_timestamp
 from api.util.logger import get_logger
 
@@ -19,18 +19,23 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None,
   if extension != 'mp3' and extension != 'flac':
     raise ValueError(_bad_filename_error_message)
   
-  length = None
+  length         = None
+  mp3_file_size  = None
+  flac_file_size = None
   if extension == 'mp3':
     audio  = mutagen.mp3.MP3(filename)
     length = audio.info.length
+    mp3_file_size = get_file_size_in_bytes(filename)
+  elif extension == 'flac':
+    flac_file_size = get_file_size_in_bytes(filename)
   
-  file_size = get_file_size_in_bytes(filename)
   data = \
   {
     AudioMetadataFields.DATE_MODIFIED: get_last_modified_timestamp(filename),
     AudioMetadataFields.FILENAME: filename,
     AudioMetadataFields.DURATION: length,
-    AudioMetadataFields.FILE_SIZE: file_size
+    AudioMetadataFields.FLAC_FILE_SIZE: flac_file_size,
+    AudioMetadataFields.MP3_FILE_SIZE: mp3_file_size
   }
   
   if ffmpeg_output_from_conversion_to_mp3 is None:
@@ -56,6 +61,9 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None,
         continue
       
       key = line[:line.index('=')]
+      if key not in _audio_metadata_fields_by_key:
+        continue
+      
       key = get_audio_metadata_field(key)
       value = line[line.index('=') + 1:len(line) - 1]
       data[key] = value

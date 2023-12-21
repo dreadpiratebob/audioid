@@ -2,7 +2,7 @@ from api.dao.mysql_utils import get_cursor
 from api.models.db_models import Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
-from api.util.file_operations import get_last_modified_timestamp
+from api.util.file_operations import get_file_size_in_bytes, get_last_modified_timestamp
 from api.util.functions import is_iterable
 from api.util.logger import get_logger
 
@@ -73,6 +73,10 @@ def get_songs_from_mp3s(catalog:Catalog, artist_splitters:list[str] = None, prev
         continue
       
       logger.debug('found %s, which was modified at %s.' % (str(mp3_data), str(mp3_data.date_modified)))
+      
+      full_flac_file_name = '%s/%s' % (catalog.get_base_flac_dir(), mp3_data.filename[len(catalog.get_base_mp3_dir()):])
+      if os.path.exists(full_flac_file_name):
+        mp3_data.flac_file_size = get_file_size_in_bytes(full_flac_file_name)
       
       result.add(build_song_from_metadata(mp3_data, catalog, artist_splitters))
   

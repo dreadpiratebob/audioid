@@ -29,7 +29,7 @@ def build_song_from_metadata(mp3:AudioMetadata, catalog:Catalog, artist_splitter
   song_duration = mp3.duration
   
   get_logger().debug('rel path: %s' % song_fn)
-  song = Song(None, song_name, None, None, None, song_year, song_duration, song_fn, int(mp3.date_modified), catalog, None, None, None, None, None)
+  song = Song(None, song_name, None, None, None, song_year, song_duration, None, None, mp3.mp3_file_size, mp3.flac_file_size, song_fn, int(mp3.date_modified), catalog, None, None, None, None, None)
   
   if mp3.artist is not None and mp3.artist != '':
     song.set_songs_artists(get_artist_joins(song, str(mp3.artist), artist_splitters))

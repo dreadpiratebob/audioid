@@ -52,6 +52,10 @@ class DBModelEqualsAndHashTests(unittest.TestCase):
   song_basic = Song(None, expected_basic_title, expected_basic_title, expected_basic_title, expected_basic_title,
                     None, # year
                     300.0, # duration
+                    None, # title min age
+                    None, # lyrics min age
+                    2, # mp3 size
+                    None, # flac size
                     expected_basic_title, # filename
                     0, # date modified
                     catalog)
@@ -60,6 +64,10 @@ class DBModelEqualsAndHashTests(unittest.TestCase):
   song_with_album = Song(None, expected_basic_title, expected_basic_title, expected_basic_title, expected_basic_title,
                          None, # year
                          300.0, # duration
+                         None,
+                         None,
+                         2,
+                         None,
                          expected_basic_title, # filename
                          0, # date modified
                          catalog)

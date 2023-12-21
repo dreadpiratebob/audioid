@@ -6,7 +6,7 @@ from api.models.audio_metadata import AudioMetadata
 from api.models.db_models import Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
-from api.util.file_operations import get_filename_from_song_title
+from api.util.file_operations import get_file_size_in_bytes, get_filename_from_song_title
 from api.util.functions import get_type_name
 from api.util.logger import get_logger
 
@@ -45,10 +45,7 @@ def _copy_tag_values(flac_filename:str, mp3_metadata:AudioMetadata) -> str:
   update_cmd = ['metaflac'] + ['--set-tag=%s=%s' % (field, fields[field]) for field in fields] + [flac_filename]
   get_logger().debug('running "%s"' % (' '.join(update_cmd), ))
   
-  result = run(update_cmd, stdout=PIPE, stderr=PIPE)
-  
-  get_logger().debug('got a %s:' % (get_type_name(result)))
-  print(result)
+  run(update_cmd, stdout=PIPE, stderr=PIPE)
 
 def _fix_metadata(catalog:Catalog) -> set[Song]:
   base_bork_dir = catalog.get_base_broken_metadata_dir()
@@ -60,11 +57,20 @@ def _fix_metadata(catalog:Catalog) -> set[Song]:
   for root, directories, files in os.walk(base_bork_dir):
     source_mp3_dir = '%s%s' % (base_mp3_dir, root[len(base_bork_dir):])
     
+    if len(os.listdir(root)) == 0:
+      os.rmdir(root)
+      continue
+    
+    for directory in directories:
+      full_dir_name = '%s/%s' % (root.replace('\\', '/'), directory)
+      if len(os.listdir(full_dir_name)) == 0:
+        os.rmdir(full_dir_name)
+    
     for file in files:
       full_filename = '%s/%s' % (root, file)
       mp3_file_name = '%s/%s' % (source_mp3_dir, file.lower())
       
-      if not '.' in file:
+      if '.' not in file:
         get_logger().debug('the file "%s" doesn\'t have an extension; skipping it.' % (full_filename, ))
         if not os.path.exists(mp3_file_name):
           run(['cp', full_filename, mp3_file_name])
@@ -76,17 +82,31 @@ def _fix_metadata(catalog:Catalog) -> set[Song]:
         get_logger().debug('the file "%s" is a %s file, not a flac file; skipping it.' % (full_filename, extension))
         if not os.path.exists(mp3_file_name):
           run(['cp', full_filename, mp3_file_name])
+        os.remove(full_filename)
         
         continue
       
       get_logger().debug('attempting to fix metadata for "%s"...' % (full_filename, ))
+      
       flac_metadata = read_metadata(full_filename)
+      title_pieces  = flac_metadata.title.split('\\;')
+      use_first     = True
+      test_val = title_pieces[0]
+      for i in range(1, len(title_pieces)):
+        if title_pieces[i] != test_val:
+          use_first = False
+          break
+      
+      if use_first:
+        flac_metadata.title = title_pieces[0]
+      
       fixed_filename = get_filename_from_song_title(flac_metadata.title)
       new_fix_metadata_filename = '%s/%s.%s'  % (root, fixed_filename, extension)
       full_mp3_filename = '%s/%s.mp3' % (source_mp3_dir, fixed_filename)
       
-      print(' full filename: ' + full_filename)
-      print('fixed filename: ' + fixed_filename)
+      get_logger().debug('         title: ' + flac_metadata.title)
+      get_logger().debug('fixed filename: ' + fixed_filename)
+      get_logger().debug(' full filename: ' + full_filename)
       
       if new_fix_metadata_filename != full_filename:
         run(['mv', full_filename, new_fix_metadata_filename])
@@ -94,16 +114,32 @@ def _fix_metadata(catalog:Catalog) -> set[Song]:
       
       if not os.path.exists(full_mp3_filename):
         get_logger().warn('no mp3 equivalent was found for "%s".' % (full_filename, ))
+        get_logger().debug('                          looking here: "%s"' % (full_mp3_filename, ))
         continue
       
       mp3_metadata = read_metadata(full_mp3_filename)
-      mp3_metadata.flac_exists = True
+      mp3_metadata.mp3_file_size = get_file_size_in_bytes(full_mp3_filename)
       
       _copy_tag_values(full_filename, mp3_metadata)
       catalog.get_base_flac_dir()
       
       new_flac_filename = '%s%s' % (catalog.get_base_flac_dir(), full_filename[len(catalog.get_base_broken_metadata_dir()):])
+      new_flac_filename = new_flac_filename.replace('\\', '/')
+      os.makedirs(new_flac_filename[:new_flac_filename.rfind('/')], exist_ok=True)
+      get_logger().debug('moving the file to "%s"...' % (new_flac_filename, ))
       run(['mv', new_fix_metadata_filename, new_flac_filename])
+      
+      new_fix_metadata_filename = new_fix_metadata_filename.replace('\\', '/')
+      fix_metadata_dir = new_fix_metadata_filename[:new_fix_metadata_filename.rfind('/')]
+      is_empty = False
+      for _root, _directories, _files in os.walk(fix_metadata_dir):
+        if _root != fix_metadata_dir:
+          continue
+        
+        is_empty = len(_directories) == 0 and len(_files) == 0
+      
+      if is_empty:
+        os.remove(fix_metadata_dir)
       
       result.add(build_song_from_metadata(mp3_metadata, catalog))
   

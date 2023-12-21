@@ -40,7 +40,6 @@ CREATE TABLE songs
   catalog_id int(64) unsigned not null,
   last_scanned int(64) unsigned not null default 0,
   mp3_exists int(1) unsigned not null default 1,
-  flac_exists int(1) unsigned not null default 0,
   title_minimum_age int(8) unsigned default null,
   lyrics_minimum_age int(8) unsigned default null,
   UNIQUE(id),
