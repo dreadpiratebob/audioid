@@ -9,4 +9,5 @@ print()
 print()
 print('found %s songs.' % (len(result), ))
 for song in result:
-  print('  • %s' % (str(song), ))
+  flac_message = 'no flac' if song.get_flac_file_size_in_bytes() is None else ('%s Mb flac' % (song.get_flac_file_size_in_bytes(), ))
+  print('  • %s (%s Mb mp3; %s)' % (str(song), song.get_mp3_file_size_in_bytes()/1024/1024, flac_message))

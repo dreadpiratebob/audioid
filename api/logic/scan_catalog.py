@@ -91,7 +91,7 @@ def _fix_metadata(catalog:Catalog) -> set[Song]:
       flac_metadata = read_metadata(full_filename)
       title_pieces  = flac_metadata.title.split('\\;')
       use_first     = True
-      test_val = title_pieces[0]
+      test_val      = title_pieces[0]
       for i in range(1, len(title_pieces)):
         if title_pieces[i] != test_val:
           use_first = False

@@ -1,7 +1,12 @@
 from api.util.functions import get_search_text_from_raw_text
 
+from enum import Enum
 import os
 import stat
+
+class AudioFileTypes(Enum):
+  FLAC = 'flac'
+  MP3  = 'mp3'
 
 _filename_acceptable_punctuation = {'.', '-', '_', ' ', '(', ')', '[', ']', '{', '}', '\'', '"'}
 def get_filename_from_song_title(song_title:str) -> str:

@@ -2,7 +2,10 @@ from api.exceptions.song_data import\
   InvalidArtistDataException,\
   InvalidCatalogDataException,\
   InvalidSongDataException
-from api.util.functions import get_search_text_from_raw_text, get_type_name, is_iterable, is_primitive
+from api.util.file_operations import AudioFileTypes, get_file_size_in_bytes
+from api.util.functions import get_search_text_from_raw_text, is_iterable
+
+import os
 
 class Catalog:
   def __init__(self, id:int, name:str, lcase_name:str, no_diacritic_name:str, lcase_no_diacritic_name:str, base_path:str):
@@ -173,8 +176,12 @@ class Song:
     if flac_file_size is not None and not isinstance(flac_file_size, int):
       grievances.append('a flac file size must be an int.')
     
-    if filename is not None and not isinstance(filename, str):
+    if not isinstance(filename, str):
       grievances.append('a filename must be a str.')
+    elif filename.endswith('.mp3'):
+      filename = filename[:-4]
+    elif filename.endswith('.flac'):
+      filename = filename[:-5]
     
     if last_scanned is not None and not isinstance(last_scanned, int):
       grievances.append('a last_scanned must be an int.')
@@ -409,14 +416,37 @@ class Song:
   def get_filename(self) -> str:
     return self._filename
   
+  def get_mp3_filename(self) -> str:
+    return self._get_file_type_filename(AudioFileTypes.MP3)
+  
+  def get_flac_filename(self) -> str:
+    return self._get_file_type_filename(AudioFileTypes.FLAC)
+  
+  def _get_file_type_filename(self, file_type:AudioFileTypes) -> str:
+    return '%s.%s' % (self.get_filename(), file_type.value)
+  
   def set_filename(self, filename:str) -> None:
     if not isinstance(filename, str):
-      raise ValueError('a filename must be a str.')
+      raise TypeError('a filename must be a str.')
+    
+    full_filename = self.get_catalog().get_base_path() + filename + '.' + AudioFileTypes.MP3.value
+    if not os.path.exists(full_filename):
+      raise ValueError('the file "%s" doesn\'t exist.' % (full_filename, ))
     
     self._filename = filename
+    self._mp3_file_size = get_file_size_in_bytes(full_filename)
+    
+    full_filename = self.get_catalog().get_base_path() + filename + '.' + AudioFileTypes.FLAC.value
+    self._flac_file_size = get_file_size_in_bytes(full_filename) if os.path.exists(full_filename) else None
   
   def get_full_filename(self) -> str:
     return self.get_catalog().get_base_path() + self.get_filename()
+  
+  def get_mp3_file_size_in_bytes(self) -> int:
+    return self._mp3_file_size
+  
+  def get_flac_file_size_in_bytes(self) -> int:
+    return self._flac_file_size
   
   def get_last_scanned(self) -> int:
     return self._last_scanned
