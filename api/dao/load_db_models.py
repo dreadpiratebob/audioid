@@ -564,15 +564,15 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
                      '  ar.lcase_no_diacritic_name AS artist_lcase_no_diacritic_name\n'
   artists_from     = 'FROM artists AS ar\n' \
                      '  LEFT JOIN songs_artists AS s_ar_cat_filter ON s_ar_cat_filter.artist_id = ar.id\n' \
-                     '    LEFT JOIN songs AS s_cat_filter_from_ar ON s_cat_filter_from_ar.song_id = s_ar_cat_filter.song_id\n' \
+                     '    LEFT JOIN songs AS s_cat_filter_from_ar ON s_cat_filter_from_ar.id = s_ar_cat_filter.song_id\n' \
                      '      AND s_cat_filter_from_ar.catalog_id = %s\n' \
                      '  LEFT JOIN albums AS al_cat_filter ON al_cat_filter.album_artist = ar.id\n' \
-                     '    LEFT JOIN songs_albums AS s_al_cat_filter ON s_al_cat_filter.album_id = al.id\n' \
+                     '    LEFT JOIN songs_albums AS s_al_cat_filter ON s_al_cat_filter.album_id = al_cat_filter.id\n' \
                      '      LEFT JOIN songs AS s_cat_filter_from_al ON s_cat_filter_from_al.id = s_al_cat_filter.song_id\n' \
                      '        AND s_cat_filter_from_al.catalog_id = %s\n'
   artists_where    = 'WHERE %s\n'
   artists_group_by = 'GROUP BY ar.id\n'
-  artists_having   = 'HAVING COUNT(s_cat_filter_from_ar) > 0 OR COUNT(s_cat_filter_from_al.id) > 0\n'
+  artists_having   = 'HAVING COUNT(s_cat_filter_from_ar.id) > 0 OR COUNT(s_cat_filter_from_al.id) > 0\n'
   artists_order_by = 'ORDER BY %s\n' % (get_order_clause(order_by), )
   artists_limit    = '' if page_info is None else (str(page_info) + '\n')
   
@@ -589,6 +589,8 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
     else:
       artists_where %= ('ar.' + column_name + ' = %s')
     artists_where_args.append(artist_filter.get_search_adjusted_name())
+  else:
+    artists_where = ''
   
   if genre_filter.id is not None or genre_filter.name is not None:
     artists_from += '  INNER JOIN songs_artists AS s_ar_genre_filter ON s_ar_genre_filter.artist_id = ar.id\n' \
@@ -623,7 +625,9 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
         artist.set_songs_artists(songs_artists)
       
       if include_albums:
-        raise NotImplementedException('!')
+        album_artist_filter = FilterInfo(artist.get_id(), None, False, True, True, False)
+        albums = get_albums(catalog_id, default_filter_info, default_filter_info, album_artist_filter, default_filter_info, None, None, include_album_tracks)
+        artist.set_albums(albums)
       
       if include_genres:
         genres_query = 'SELECT\n' \
