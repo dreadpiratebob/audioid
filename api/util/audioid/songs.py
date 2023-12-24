@@ -3,13 +3,13 @@ from api.util.http import QueryParam
 from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, get_order_parser, parse_page_size
 
 class GetSongsOrderColumns(OrderColName):
-  SONG_TITLE = 'song_title', 'the song\'s title'
-  SONG_YEAR  = 'song_year', 'the year the song was released'
-  ARTIST_NAME = 'artist_name', 'the name of the song\'s artist. (if this was something like "Some Artist feat. Another Artist" in the original file, that whole string will be used for the sort order.)'
-  ALBUM_NAME = 'album_name', 'the name of the album that the song is on'
-  ALBUM_ARTIST_NAME = 'album_artist_name', 'the name of the song\'s album\'s artist'
-  TRACK_NUMBER = 'track_number', 'the song\'s track number'
-  GENRE_NAME = 'genre_name', 'the song\'s genre\'s name'
+  SONG_TITLE = None, 'song_title', 'the song\'s title'
+  SONG_YEAR  = None, 'song_year', 'the year the song was released'
+  ARTIST_NAME = None, 'artist_name', 'the name of the song\'s artist. (if this was something like "Some Artist feat. Another Artist" in the original file, that whole string will be used for the sort order.)'
+  ALBUM_NAME = None, 'album_name', 'the name of the album that the song is on'
+  ALBUM_ARTIST_NAME = None, 'album_artist_name', 'the name of the song\'s album\'s artist'
+  TRACK_NUMBER = 's_al', 'track_number', 'the song\'s track number'
+  GENRE_NAME = None, 'genre_name', 'the song\'s genre\'s name'
 
 get_songs_order_columns_by_column_name = {col.column_name: col for col in GetSongsOrderColumns}
 default_get_songs_order_by = tuple \

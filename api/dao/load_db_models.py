@@ -333,8 +333,10 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
     songs_having += '  AND COUNT(s_g_filter.genre_id) = 0\n'
   
   songs_query = songs_select + songs_from + songs_where + songs_group_by + songs_having + songs_order_by + songs_limit + ';'
-  
   songs_args = tuple(songs_from_args + songs_where_args)
+  
+  get_logger().debug('songs query:\n%s' % (songs_query, ))
+  get_logger().debug('songs args:\n%s' % (songs_args, ))
   
   songs = []
   artists = dict()
@@ -612,6 +614,9 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
   artists_args  = tuple(artists_from_args + artists_where_args)
   artists       = []
   
+  get_logger().debug('artist query:\n%s' % (artists_query, ))
+  get_logger().debug('artist args:\n%s' % (artists_args, ))
+  
   with get_cursor() as cursor:
     artist_ct = cursor.execute(artists_query, artists_args)
     for i in range(artist_ct):
@@ -836,6 +841,10 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
   albums_query  = albums_select + albums_from + albums_where + albums_group_by + albums_having + albums_order_by + albums_limit + ';'
   albums_args   = tuple(albums_from_args + albums_where_args)
   albums        = []
+  
+  get_logger().debug('album query:\n%s' % (albums_query,))
+  get_logger().debug('album args:\n%s' % (albums_args,))
+  
   with get_cursor(False) as cursor:
     num_rows = cursor.execute(albums_query, albums_args)
     

@@ -3,7 +3,7 @@ from api.util.http import QueryParam
 from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, parse_page_size
 
 class GetCatalogsOrderColumns(OrderColName):
-  CATALOG_NAME = 'catalog_name', 'the catalog\'s name'
+  CATALOG_NAME = None, 'catalog_name', 'the catalog\'s name'
 
 get_catalogs_order_columns_by_column_name = {col.column_name: col for col in GetCatalogsOrderColumns}
 default_get_catalogs_order_by = tuple \

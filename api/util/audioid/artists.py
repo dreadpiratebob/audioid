@@ -5,7 +5,7 @@ from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDire
 from enum import Enum
 
 class GetArtistsOrderColumns(OrderColName):
-  ARTIST_NAME = 'artist_name', 'the artist\'s name'
+  ARTIST_NAME = None, 'artist_name', 'the artist\'s name'
 
 get_artists_order_columns_by_column_name = {col.column_name: col for col in GetArtistsOrderColumns}
 default_get_artists_order_by = tuple \

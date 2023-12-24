@@ -75,7 +75,8 @@ class OrderColName(Enum):
     obj._value_ = value
     return obj
   
-  def __init__(self, column_name:str, description:str):
+  def __init__(self, table_name:str, column_name:str, description:str):
+    self.table_name  = table_name
     self.column_name = column_name
     self.description = description
 
@@ -148,7 +149,7 @@ def get_order_parser(cols:type(OrderColName), cols_by_name = None):
   return parse_order
 
 def get_order_clause(order_bys:[list[OrderByCol], tuple[OrderByCol]]) -> str:
-  return ', '.join(['%s %s' % (ob.col.column_name, ob.direction.value) for ob in order_bys])
+  return ', '.join(['%s%s %s' % ('' if ob.col.table_name is None else (ob.col.table_name + '.'), ob.col.column_name, ob.direction.value) for ob in order_bys])
 
 class PageInfo:
   def __init__(self, page_number:int, page_size:int):

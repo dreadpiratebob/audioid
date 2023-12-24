@@ -7,8 +7,8 @@ from api.util.response_list_modifiers import \
 from enum import Enum
 
 class GetAlbumsOrderColumns(OrderColName):
-  ALBUM_NAME = 'album_name', 'the album\'s name'
-  ALBUM_ARTIST_NAME = 'album_artist_name', 'the album artist\'s name'
+  ALBUM_NAME = None, 'album_name', 'the album\'s name'
+  ALBUM_ARTIST_NAME = None, 'album_artist_name', 'the album artist\'s name'
 
 get_albums_order_columns_by_column_name = {col.column_name: col for col in GetAlbumsOrderColumns}
 default_get_albums_order_by = tuple \

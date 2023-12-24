@@ -3,7 +3,7 @@ from api.util.http import QueryParam
 from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, parse_page_size
 
 class GetGenresOrderColumns(OrderColName):
-  GENRE_NAME = 'genre_name', 'the genre\'s name'
+  GENRE_NAME = None, 'genre_name', 'the genre\'s name'
 
 get_genres_order_columns_by_column_name = {col.column_name: col for col in GetGenresOrderColumns}
 default_get_genres_order_by = tuple \
