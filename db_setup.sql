@@ -186,7 +186,7 @@ CREATE TABLE file_types
   name VARCHAR(16) not null
 );
 
-INSERT INTO file_types (name) VALUES ("mp3"), ("flac");
+INSERT INTO file_types (id, name) VALUES (1, "mp3"), (2, "flac");
 
 GRANT SELECT ON audioid.file_types TO 'audioid_user'@'localhost';
 GRANT SELECT ON audioid.file_types TO 'audioid_admin'@'localhost';
@@ -195,9 +195,15 @@ CREATE TABLE songs_file_types
 (
   song_id INT(64) unsigned not null,
   file_type_id INT(16) unsigned not null,
-  file_size_in_bytes INT(48) unsigned not null, -- this is a maximum of one byte less than 18 GiB, so hopefully that's overkill.
+  file_size_in_bytes INT(48) unsigned not null, -- this is a maximum of one byte less than 2^18 GiB, so hopefully that's overkill.
   UNIQUE(song_id, file_type_id)
 );
+
+GRANT SELECT ON audioid.songs_file_types TO 'audioid_user'@'localhost';
+GRANT INSERT ON audioid.songs_file_types TO 'audioid_admin'@'localhost';
+GRANT SELECT ON audioid.songs_file_types TO 'audioid_admin'@'localhost';
+GRANT UPDATE ON audioid.songs_file_types TO 'audioid_admin'@'localhost';
+GRANT DELETE ON audioid.songs_file_types TO 'audioid_admin'@'localhost';
 
 CREATE TABLE log_levels
 (
@@ -311,12 +317,14 @@ GRANT EXECUTE ON FUNCTION audioid.begin_scan_get_last_updated TO 'audioid_admin'
 
 CREATE PROCEDURE upsert_song(IN in_song_title VARCHAR(128), IN in_lcase_title VARCHAR(128), IN in_no_diacritic_title VARCHAR(128), IN in_lcase_no_diacritic_title VARCHAR(128),
                              IN in_filename VARCHAR(1024), IN in_year INT(16) unsigned, IN in_duration REAL(15, 10) unsigned,
+                             IN in_song_title_minimum_age INT(8) unsigned, IN in_song_lyrics_minimum_age INT(8) unsigned,
+                             IN in_mp3_file_size INT(48) unsigned, IN in_flac_file_size INT(48) unsigned,
                              IN in_catalog_id INT(64) unsigned,
                              IN in_album_name VARCHAR(1024), in_album_lcase_name VARCHAR(1024), in_album_no_diacritic_name VARCHAR(1024), in_album_lcase_no_diacritic_name VARCHAR(1024),
                              IN in_album_artist_name VARCHAR(1024), IN in_album_artist_lcase_name VARCHAR(1024), IN in_album_artist_no_diacritic_name VARCHAR(1024), IN in_album_artist_lcase_no_diacritic_name VARCHAR(1024),
                              IN in_track_number INT(64) unsigned,
                              IN in_genre_name VARCHAR(1024), IN in_genre_lcase_name VARCHAR(1024), IN in_genre_no_diacritic_name VARCHAR(1024), IN in_genre_lcase_no_diacritic_name VARCHAR(1024),
-                             in_last_modified INT(64) unsigned)
+                             IN in_last_modified INT(64) unsigned)
 upsert_song:BEGIN
   DECLARE var_song_id      INT(64) unsigned DEFAULT NULL;
   DECLARE var_genre_id     INT(64) unsigned DEFAULT NULL;
@@ -348,6 +356,8 @@ upsert_song:BEGIN
     INSERT INTO songs (title, lcase_title, no_diacritic_title, lcase_no_diacritic_title, filename, `year`, duration, catalog_id, last_scanned)
       VALUES(in_song_title, in_lcase_title, in_no_diacritic_title, in_lcase_no_diacritic_title, in_filename, in_year, in_duration, in_catalog_id, unix_timestamp());
     SELECT LAST_INSERT_ID() INTO var_song_id;
+
+    INSERT INTO songs_file_types(song_id, file_type_id, file_size_in_bytes) VALUES (var_song_id, (SELECT id FROM file_types WHERE name = "mp3"), in_mp3_file_size);
   ELSE
     IF var_last_scanned > in_last_modified THEN
       -- CALL log_debug(CONCAT("song id ", var_song_id, " was last scanned after it was last modified.",
@@ -357,7 +367,14 @@ upsert_song:BEGIN
     
     -- CALL log_debug(CONCAT("updating ", in_song_title, "..."));
     UPDATE songs SET title=in_song_title, lcase_title = in_lcase_title, no_diacritic_title = in_no_diacritic_title, lcase_no_diacritic_title = in_lcase_no_diacritic_title,
-     year=in_year, duration=in_duration, last_scanned=unix_timestamp(), mp3_exists=1 WHERE id=var_song_id;
+      `year`=in_year, duration=in_duration, last_scanned=unix_timestamp(), mp3_exists=1 WHERE id=var_song_id;
+
+    UPDATE songs_file_types SET file_size_in_bytes = in_mp3_file_size WHERE song_id = var_song_id AND file_type_id = (SELECT id FROM file_types WHERE name = "mp3");
+    DELETE FROM songs_file_types WHERE song_id = var_song_id AND file_type_id = (SELECT id FROM file_types WHERE name = "flac");
+  END IF;
+
+  IF in_flac_file_size IS NOT NULL THEN
+    INSERT INTO songs_file_types(song_id, file_type_id, file_size_in_bytes) VALUES (var_song_id, (SELECT id FROM file_types WHERE name = "flac"), in_flac_file_size);
   END IF;
 
   -- CALL log_debug(CONCAT("this song's new id is ", var_song_id));

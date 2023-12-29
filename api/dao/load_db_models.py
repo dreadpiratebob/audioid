@@ -212,6 +212,10 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
                    '  s.filename AS song_filename,\n' \
                    '  s.year AS song_year,\n' \
                    '  s.duration AS song_duration,\n' \
+                   '  s.title_minimum_age AS title_minimum_age,\n' \
+                   '  s.lyrics_minimum_age AS lyrics_minimum_age,\n' \
+                   '  mp3_data.file_size_in_bytes AS mp3_file_size,\n' \
+                   '  flac_data.file_size_in_bytes AS flac_file_size,\n' \
                    '  c.id AS catalog_id,\n' \
                    '  c.name AS catalog_name,\n' \
                    '  c.lcase_name AS catalog_lcase_name,\n' \
@@ -226,6 +230,10 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
                   ('  GROUP_CONCAT(CONCAT(g.id, "%s", g.name, "%s", g.lcase_name, "%s", g.no_diacritic_name, "%s", g.lcase_no_diacritic_name) ORDER BY g.name SEPARATOR "%s") AS genre_names\n' % ((_name_separator_for_queries,) * 5))
   songs_from     = 'FROM songs AS s\n' \
                    '  INNER JOIN catalogs AS c ON c.id = s.catalog_id\n' \
+                   '  INNER JOIN songs_file_types AS mp3_data ON mp3_data.song_id = s.id\n' \
+                   '    AND mp3_data.file_type_id = 1\n' \
+                   '  LEFT JOIN songs_file_types AS flac_data ON flac_data.song_id = s.id\n' \
+                   '    AND flac_data.file_type_id = 2\n' \
                    '  LEFT JOIN songs_artists AS s_ar ON s_ar.song_id = s.id\n' \
                    '    LEFT JOIN artists AS ar ON ar.id = s_ar.artist_id\n' \
                    '  LEFT JOIN songs_albums AS s_al ON s_al.song_id = s.id\n' \
@@ -347,7 +355,13 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
       db_song = songs_cursor.fetchone()
       
       catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], db_song['catalog_lcase_name'], db_song['catalog_no_diacritic_name'], db_song['catalog_lcase_no_diacritic_name'], None)
-      song_filter = Song(db_song['song_id'], db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'], db_song['song_year'], db_song['song_duration'], db_song['song_filename'], None, catalog, genres=[], songs_artists=[], songs_albums=[])
+      song = Song(db_song['song_id'],
+                  db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'],
+                  db_song['song_year'],
+                  db_song['song_duration'],
+                  db_song['title_minimum_age'], db_song['lyrics_minimum_age'],
+                  db_song['mp3_file_size'], db_song['flac_file_size'],
+                  db_song['song_filename'], None, catalog, genres=[], songs_artists=[], songs_albums=[])
       
       if include_artists and db_song['artist_names'] is not None:
         artist_names = db_song['artist_names'].split(_name_separator_for_splitting)
@@ -359,8 +373,8 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
           else:
             artist_filter = Artist(int(artist_names[j]), artist_names[j + 1], artist_names[j + 2], artist_names[j + 3], artist_names[j + 4])
             artists[artist_id] = artist_filter
-          song_artist = SongArtist(song_filter, artist_filter, int(artist_names[j + 5]), artist_names[j + 6])
-          song_filter.get_songs_artists().append(song_artist)
+          song_artist = SongArtist(song, artist_filter, int(artist_names[j + 5]), artist_names[j + 6])
+          song.get_songs_artists().append(song_artist)
       
       if include_albums and db_song['album_names'] is not None:
         album_names = db_song['album_names'].split(_name_separator_for_splitting)
@@ -379,8 +393,8 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
               artists[album_artist_id] = album_artist_filter
             album_filter = Album(album_id, album_names[j + 1], album_names[j + 2], album_names[j + 3], album_names[j + 4], album_artist_filter)
             albums[album_id] = album_filter
-          song_album = SongAlbum(song_filter, album_filter, int(album_names[j + 10]))
-          song_filter.get_songs_albums().append(song_album)
+          song_album = SongAlbum(song, album_filter, int(album_names[j + 10]))
+          song.get_songs_albums().append(song_album)
       
       if include_genres and db_song['genre_names'] is not None:
         genre_names = db_song['genre_names'].split(_name_separator_for_splitting)
@@ -392,9 +406,9 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
           else:
             genre_filter = Genre(genre_id, genre_names[j + 1], genre_names[j + 2], genre_names[j + 3], genre_names[j + 4])
             genres[genre_id] = genre_filter
-          song_filter.get_genres().append(genre_filter)
+          song.get_genres().append(genre_filter)
       
-      songs.append(song_filter)
+      songs.append(song)
   
   return songs
 
@@ -471,6 +485,10 @@ def save_song(song):
       song.get_filename(),  # in_filename
       song.get_year(),  # in_year
       song.get_duration(), # in_duration
+      song.get_title_minimum_age(),
+      song.get_lyrics_minimum_age(),
+      song.get_mp3_file_size_in_bytes(),
+      song.get_flac_file_size_in_bytes(),
       song.get_catalog().get_id(),  # in_catalog_id
       in_album_name,
       in_album_lcase_name,
@@ -614,8 +632,8 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
   artists_args  = tuple(artists_from_args + artists_where_args)
   artists       = []
   
-  get_logger().debug('artist query:\n%s' % (artists_query, ))
-  get_logger().debug('artist args:\n%s' % (artists_args, ))
+  # get_logger().debug('artist query:\n%s' % (artists_query, ))
+  # get_logger().debug('artist args:\n%s' % (artists_args, ))
   
   with get_cursor() as cursor:
     artist_ct = cursor.execute(artists_query, artists_args)
@@ -857,6 +875,7 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
       albums.append(album)
       
       if not include_tracks:
+        get_logger().debug('skipping tracks for the album "%s" (%s)...' % (album.get_name(), album.get_id()))
         continue
       
       album.set_songs_albums([])
@@ -868,7 +887,10 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
         song_album = SongAlbum(song, album, cursor.fetchone()['track_number'])
         album.get_songs_albums().append(song_album)
       
+      get_logger().debug('songs:\n  %s' % ('\n  '.join('%s. (%s) %s' % (s_a.get_track_number(), s_a.get_song().get_id(), str(s_a.get_song())) for s_a in album.get_songs_albums())))
+      
       album.get_songs_albums().sort(key=lambda s_a: s_a.get_track_number())
+      get_logger().debug('sorted songs:\n  %s' % ('\n  '.join('%s. (%s) %s' % (s_a.get_track_number(), s_a.get_song().get_id(), str(s_a.get_song())) for s_a in album.get_songs_albums())))
   
   return albums
 

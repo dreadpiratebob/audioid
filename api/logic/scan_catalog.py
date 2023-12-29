@@ -7,7 +7,6 @@ from api.models.db_models import Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
 from api.util.file_operations import get_file_size_in_bytes, get_filename_from_song_title
-from api.util.functions import get_type_name
 from api.util.logger import get_logger
 
 from pymysql.err import OperationalError

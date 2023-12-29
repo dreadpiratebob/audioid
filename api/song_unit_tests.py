@@ -12,13 +12,15 @@ class SongFactoryTests(unittest.TestCase):
   catalog = Catalog(None, 'debug', 'debug', 'debug', 'debug', '/thing/')
   mp3_with_diacritics_in_album_name = AudioMetadata({
     # required.
-    AudioMetadataFields.FILENAME.value: '/thing/mp3.mp3', # make sure this starts with catalog._base_path (above).
-    AudioMetadataFields.DATE_MODIFIED.value: 0,
-    AudioMetadataFields.DURATION.value: 300.0,
+    AudioMetadataFields.FILENAME: '/thing/mp3/mp3.mp3', # make sure this starts with catalog._base_path (above).
+    AudioMetadataFields.MP3_FILE_SIZE: 7,
+    AudioMetadataFields.FLAC_FILE_SIZE: None,
+    AudioMetadataFields.DATE_MODIFIED: 0,
+    AudioMetadataFields.DURATION: 300.0,
     
     # for testing.
-    AudioMetadataFields.ALBUM.value: 'Šiňě',
-    AudioMetadataFields.TRACK.value: 2
+    AudioMetadataFields.ALBUM: 'Šiňě',
+    AudioMetadataFields.TRACK: 2
   })
   
   def test_album_name_char_encoding(self):
@@ -27,13 +29,17 @@ class SongFactoryTests(unittest.TestCase):
     
     expected_album = Album(None, self.mp3_with_diacritics_in_album_name.album, expected_album_lcase, expected_album_no_diacritics, expected_album_lcase_no_diacritics, None)
     
-    expected_filename = expected_title = self.mp3_with_diacritics_in_album_name.filename[len(self.catalog.get_base_path()):]
+    expected_filename = expected_title = self.mp3_with_diacritics_in_album_name.filename[len(self.catalog.get_base_path()) + 4:-4]
     expected = Song\
     (
       None,
       expected_title, expected_title, expected_title, expected_title,
       None, # year
       self.mp3_with_diacritics_in_album_name.duration,
+      None,
+      None,
+      self.mp3_with_diacritics_in_album_name.mp3_file_size,
+      self.mp3_with_diacritics_in_album_name.flac_file_size,
       expected_filename,
       self.mp3_with_diacritics_in_album_name.date_modified,
       self.catalog
