@@ -21,27 +21,7 @@ class DBModel:
     
     return not self._recursive_equals(other)
   
-  def dbg_cmp(self, other:any) -> None:
-    if type(self) != type(other):
-      print('type mismatch: %s != %s' % (get_type_name(self, True), get_type_name(other, True)))
-      return
-    
-    print('comparing two %ss.' % (get_type_name(self, True)))
-    for field in self.__dict__:
-      if isinstance(self.__dict__[field], (DBModel, dict, set, tuple, list)):
-        print('skipping %s, which is a %s.' % (field, get_type_name(self.__dict__[field])))
-        continue
-      
-      self_val = self.__dict__[field]
-      other_val = other.__dict__[field]
-      eq = '==' if self_val == other_val else '!='
-      
-      print('%s: %s %s %s' % (field, self_val, eq, other_val))
-    print()
-  
   def _recursive_equals(self, other:any, seen_objects:list = None) -> bool:
-    # self.dbg_cmp(other)
-    
     if seen_objects is None:
       seen_objects = []
     

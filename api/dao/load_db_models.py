@@ -343,9 +343,6 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
   songs_query = songs_select + songs_from + songs_where + songs_group_by + songs_having + songs_order_by + songs_limit + ';'
   songs_args = tuple(songs_from_args + songs_where_args)
   
-  get_logger().debug('songs query:\n%s' % (songs_query, ))
-  get_logger().debug('songs args:\n%s' % (songs_args, ))
-  
   songs = []
   artists = dict()
   albums = dict()
@@ -632,9 +629,6 @@ def get_artists(catalog_id:int, artist_filter:FilterInfo, genre_filter:FilterInf
   artists_args  = tuple(artists_from_args + artists_where_args)
   artists       = []
   
-  # get_logger().debug('artist query:\n%s' % (artists_query, ))
-  # get_logger().debug('artist args:\n%s' % (artists_args, ))
-  
   with get_cursor() as cursor:
     artist_ct = cursor.execute(artists_query, artists_args)
     for i in range(artist_ct):
@@ -860,9 +854,6 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
   albums_args   = tuple(albums_from_args + albums_where_args)
   albums        = []
   
-  get_logger().debug('album query:\n%s' % (albums_query,))
-  get_logger().debug('album args:\n%s' % (albums_args,))
-  
   with get_cursor(False) as cursor:
     num_rows = cursor.execute(albums_query, albums_args)
     
@@ -875,7 +866,6 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
       albums.append(album)
       
       if not include_tracks:
-        get_logger().debug('skipping tracks for the album "%s" (%s)...' % (album.get_name(), album.get_id()))
         continue
       
       album.set_songs_albums([])
@@ -886,8 +876,6 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
         cursor.execute(sa_query)
         song_album = SongAlbum(song, album, cursor.fetchone()['track_number'])
         album.get_songs_albums().append(song_album)
-      
-      get_logger().debug('songs:\n  %s' % ('\n  '.join('%s. (%s) %s' % (s_a.get_track_number(), s_a.get_song().get_id(), str(s_a.get_song())) for s_a in album.get_songs_albums())))
       
       album.get_songs_albums().sort(key=lambda s_a: s_a.get_track_number())
       get_logger().debug('sorted songs:\n  %s' % ('\n  '.join('%s. (%s) %s' % (s_a.get_track_number(), s_a.get_song().get_id(), str(s_a.get_song())) for s_a in album.get_songs_albums())))
