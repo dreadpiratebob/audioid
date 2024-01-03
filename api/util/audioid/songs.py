@@ -1,5 +1,5 @@
 from api.util.functions import parse_bool
-from api.util.http import QueryParam
+from api.util.http import PathParam, QueryParam
 from api.util.response_list_modifiers import OrderByCol, OrderColName, OrderDirection, get_order_parser, parse_page_size
 
 class GetSongsOrderColumns(OrderColName):
@@ -20,6 +20,14 @@ default_get_songs_order_by = tuple \
     OrderByCol(GetSongsOrderColumns.TRACK_NUMBER,      OrderDirection.ASCENDING)
   ]
 )
+
+class GetSongPathParams(PathParam):
+  SONG_ID = 'song_id', 'integer', 'an integer', 'the id of the song to get', int
+
+class GetSongQueryParams(QueryParam):
+  INCLUDE_ARTISTS = 'include_artists', False, parse_bool, 'boolean', 'a boolean', True, 'whether to include the song\'s artist(s) in the result'
+  INCLUDE_ALBUMS  = 'include_albums',  False, parse_bool, 'boolean', 'a boolean', True, 'whether to include the song\'s album(s) in the result'
+  INCLUDE_GENRES  = 'include_genres',  False, parse_bool, 'boolean', 'a boolean', True, 'whether to include the song\'s genre(s) in the result'
 
 class GetSongsQueryParams(QueryParam):
   ALBUM_ID    = 'album_id',    False, int, 'integer', 'an integer', None, 'the id of the album whose songs to get; only one of this and album_name can be set.'

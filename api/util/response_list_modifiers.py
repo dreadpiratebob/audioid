@@ -49,6 +49,9 @@ class FilterInfo:
     
     return result
   
+  def __str__(self):
+    return 'filter info: { %s }' % (', '.join(['%s: %s' % (field, self.__dict__[field]) for field in self.__dict__]), )
+  
   def clone(self):
     return FilterInfo(self.id, self.name, self.name_has_wildcards, self.name_is_case_sensitive, self.name_matches_diacritics, self.filter_on_null)
   

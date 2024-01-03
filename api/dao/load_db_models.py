@@ -118,23 +118,36 @@ def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = N
   
   return catalogs
 
-def get_song(catalog_id:int, id_or_filename:[int, str], include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> Song:
+def get_song(id_or_filename:[int, str], include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> Song:
   grievances = []
+
+  catalog_query = 'SELECT catalog_id FROM songs WHERE '
+  catalog_args  = []
   
-  if not isinstance(catalog_id, int):
-    grievances.append('a catalog id must be an int.  (found "%s", a %s instead.)' % (str(catalog_id), get_type_name(catalog_id)))
-  
-  song_filter = default_filter_info
+  song_filter = default_filter_info.clone()
   filename = None
   if isinstance(id_or_filename, int):
     song_filter.id = id_or_filename
+    catalog_query += 'id'
+    catalog_args = (song_filter.id, )
   elif isinstance(id_or_filename, str):
     filename = id_or_filename
+    catalog_query += 'filename'
+    catalog_args = (filename, )
   else:
     grievances.append('an id or file name must be an int or a string.  (found "%s", a %s instead.)' % (str(id_or_filename), get_type_name(id_or_filename)))
   
   if len(grievances) > 0:
     raise TypeError('\n'.join(grievances))
+  
+  catalog_query += ' = %s'
+  catalog_id     = None
+  with get_cursor(False) as cursor:
+    result = cursor.execute(catalog_query, catalog_args)
+    if result == 0:
+      return None
+    db_catalog = cursor.fetchone()
+    catalog_id = db_catalog['catalog_id']
   
   result = _get_songs(catalog_id, filename, song_filter, None, None, None, None, None, None, None, include_artists, include_albums, include_genres)
   
@@ -504,13 +517,11 @@ def save_song(song):
     )
     
     logger.info('saving ' + str(song) + ' from "' + song.get_full_filename() + '" to the database...')
-    logger.debug('proc args: ' + str(proc_args))
     cursor.callproc('upsert_song', proc_args) # python won't get the result returned by mysql.  \-:
     commit(admin)
     
     cursor.execute('SELECT id FROM songs WHERE filename="%s";' % song.get_filename())
     song_id = cursor.fetchone()['id']
-    logger.debug('last insert id was ' + str(song_id))
     song.set_id(song_id)
   
   commit(admin)
@@ -878,7 +889,6 @@ def get_albums(catalog_id:int, album_filter:FilterInfo, track_artist_filter:Filt
         album.get_songs_albums().append(song_album)
       
       album.get_songs_albums().sort(key=lambda s_a: s_a.get_track_number())
-      get_logger().debug('sorted songs:\n  %s' % ('\n  '.join('%s. (%s) %s' % (s_a.get_track_number(), s_a.get_song().get_id(), str(s_a.get_song())) for s_a in album.get_songs_albums())))
   
   return albums
 

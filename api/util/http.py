@@ -704,13 +704,31 @@ class QueryParam(Enum):
     return get_param(self.param_name, query_params, self._parse_func, self._exception_param_type_name, self.is_required, 'query',
                      self.default_value, return_error_message)
 
-def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = False, param_type:str = 'query',
-              default_value=None, return_error_message:bool = False):
+class PathParam(Enum):
+  def __new__(self, *args, **kwds):
+    value = len(self.__members__) + 1
+    obj = object.__new__(self)
+    obj._value_ = value
+    return obj
+  
+  def __init__(self, param_name:str, public_param_type_name:str, param_type_name_for_exceptions:str, description:str, parse_func):
+    self.param_name = param_name
+    self.param_type = public_param_type_name
+    self._param_type_name_for_exceptions = param_type_name_for_exceptions
+    self.description = description
+    self._parse_func = parse_func
+  
+  def __str__(self):
+    return self.param_name + ' (' + self.type_name + ')'
+  
+  def get_value(self, path_params:dict[str, str], return_error_message = True):
+    return get_param(self.param_name, path_params, self._parse_func, self._param_type_name_for_exceptions, True, 'path', None, return_error_message)
+
+def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = False, param_type:str = 'query', default_value=None, return_error_message:bool = False):
   if key not in params:
     if required:
       if return_error_message:
-        return default_value, BadRequestException(
-          'the %s parameter called "%s" is required and was missing.' % (param_type, key))
+        return default_value, BadRequestException('the %s parameter called "%s" is required and was missing.' % (param_type, key))
       else:
         raise BadRequestException('the %s parameter called "%s" is required and was missing.' % (param_type, key))
     
@@ -723,18 +741,3 @@ def get_param(key:str, params:dict, parse_func, type_name:str, required:bool = F
       return None, BadRequestException('the %s "%s" couldn\'t be parsed as %s.' % (key, params[key], type_name))
     else:
       raise BadRequestException('the %s "%s" couldn\'t be parsed as %s.' % (key, params[key], type_name))
-
-class PathParam(Enum):
-  def __new__(self, *args, **kwds):
-    value = len(self.__members__) + 1
-    obj = object.__new__(self)
-    obj._value_ = value
-    return obj
-  
-  def __init__(self, param_name:str, type_name:str, description:str):
-    self.param_name = param_name
-    self.type_name = type_name
-    self.description = description
-  
-  def __str__(self):
-    return self.param_name + ' (' + self.type_name + ')'
