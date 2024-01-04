@@ -21,6 +21,9 @@ default_get_songs_order_by = tuple \
   ]
 )
 
+class DownloadSongPathParams(PathParam):
+  SONG_ID = 'song_id', 'integer', 'an integer', 'the id of the song to download', int
+
 class GetSongPathParams(PathParam):
   SONG_ID = 'song_id', 'integer', 'an integer', 'the id of the song to get', int
 
