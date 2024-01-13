@@ -16,6 +16,7 @@ from api.util.http import \
   HTTPRequestMethods, \
   HTTPStatusCodes, \
   HTTPMIMETypes, \
+  Response, \
   ResponseMessage, \
   build_http_response_from_exception, \
   serialize_by_field_to_json, \
@@ -493,7 +494,7 @@ class SerToYAMLTests(unittest.TestCase):
     actual   = serialize_by_field_to_yaml(value)
     
     self.assertEqual(expected, actual)
-
+  
   def test_empty_list(self):
     obj = []
   
@@ -865,6 +866,24 @@ class GetQueryParamTests(unittest.TestCase):
     self.assertTrue(GetSongsQueryParams.ALBUM_NAME_IS_CASE_SENSITIVE.param_name in query_params)
     self.assertFalse(GetSongsQueryParams.ALBUM_NAME_IS_CASE_SENSITIVE.get_value(query_params, False)[0])
 
+class ResponseTests(unittest.TestCase):
+  def test_serialize_string(self):
+    contents = 'message'
+    
+    expected = '"%s"' % (contents, )
+    actual   = Response(contents, HTTPStatusCodes.HTTP200, mime_type=HTTPMIMETypes.APPLICATION_YAML).serialize()
+    
+    self.assertEqual(expected, actual)
+  
+  def test_get_string_bytes(self):
+    encoding = 'UTF-8'
+    contents = 'message'
+    
+    expected = bytes('"%s"' % (contents, ), encoding)
+    actual   = Response(contents, HTTPStatusCodes.HTTP200, mime_type=HTTPMIMETypes.MEDIA_MPEG).get_payload_as_bytes(encoding)
+    
+    self.assertEqual(expected, actual)
+
 class BuildResponseFromExceptionTests(unittest.TestCase):
   def test_404_not_found(self):
     message = 'not found'
@@ -1043,9 +1062,9 @@ class RelPathTests(unittest.TestCase):
     self.assertIsNotNone(path_param_folder_name_re.match(subdir_name))
 
 class TestCols(OrderColName):
-  A = 'a', '1'
-  B = 'b', '2'
-  C = 'c', '3'
+  A = 'a', '1', '!'
+  B = 'b', '2', '?'
+  C = 'c', '3', '_'
 
 test_cols_by_name = { col.column_name: col for col in TestCols }
 

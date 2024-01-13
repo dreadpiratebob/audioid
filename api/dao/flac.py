@@ -1,9 +1,9 @@
-from api.models.db_models import Catalog, Song
 from api.models.audio_metadata import AudioMetadata
+from api.models.db_models import FileTypes, Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
 from api.util.logger import Logger, get_logger
-from api.util.file_operations import get_file_size_in_bytes, get_filename_from_song_title
+from api.util.file_operations import get_file_contents, get_file_size_in_bytes, get_filename_from_song_title
 from api.util.functions import get_type_name
 
 from mutagen.mp3 import MP3
@@ -83,3 +83,6 @@ def get_songs_from_flacs(catalog:Catalog, logger:Logger = get_logger()) -> set[S
       result.add(build_song_from_metadata(metadata, catalog))
   
   return result
+
+def get_flac_contents(song:Song):
+  return get_file_contents(song.get_full_filename(FileTypes.FLAC))

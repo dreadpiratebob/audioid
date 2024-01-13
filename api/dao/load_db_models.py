@@ -1,7 +1,6 @@
 from api.dao.mysql_utils import commit, get_cursor
-from api.exceptions.http_base import NotImplementedException
 from api.exceptions.song_data import InvalidCountException, InvalidSongDataException
-from api.models.db_models import Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
+from api.models.db_models import FileTypes, Catalog, Album, Artist, Genre, Song, SongAlbum, SongArtist
 from api.util.audioid.albums import GetAlbumsOrderColumns, default_get_albums_order_by
 from api.util.audioid.artists import GetArtistsOrderColumns, IncludeAlbumModes, default_get_artists_order_by
 from api.util.audioid.catalogs import GetCatalogsOrderColumns, default_get_catalogs_order_by
@@ -118,7 +117,7 @@ def get_catalogs(catalog_filter:FilterInfo = None, order_by:list[OrderByCol] = N
   
   return catalogs
 
-def get_song(id_or_filename:[int, str], include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> Song:
+def get_song(id_or_filename:[int, str], include_artists:bool = True, include_albums:bool = True, include_genres:bool = True, include_catalog_base_path:bool = False) -> Song:
   grievances = []
 
   catalog_query = 'SELECT catalog_id FROM songs WHERE '
@@ -149,7 +148,7 @@ def get_song(id_or_filename:[int, str], include_artists:bool = True, include_alb
     db_catalog = cursor.fetchone()
     catalog_id = db_catalog['catalog_id']
   
-  result = _get_songs(catalog_id, filename, song_filter, None, None, None, None, None, None, None, include_artists, include_albums, include_genres)
+  result = _get_songs(catalog_id, filename, song_filter, None, None, None, None, None, None, None, include_artists, include_albums, include_genres, include_catalog_base_path)
   
   if len(result) == 0:
     return None
@@ -173,7 +172,7 @@ _name_separator_for_splitting = _name_separator_for_queries.replace('\\n', '\n')
 get_songs_order_by_type_error = 'order_by for getting songs must be a list of song columns.'
 def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_year:int, artist_filter:FilterInfo, album_filter:FilterInfo, album_artist_filter:FilterInfo, genre_filter:FilterInfo,
                order_by:list[OrderByCol], page_info:PageInfo,
-               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True) -> list[Song]:
+               include_artists:bool = True, include_albums:bool = True, include_genres:bool = True, include_catalog_base_path = False) -> list[Song]:
   if not isinstance(catalog_id, int):
     raise ValueError('got a catalog id that\'s a(n) %s instead of an int: %s' % (get_type_name(catalog_id), str(catalog_id)))
   
@@ -233,7 +232,8 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
                    '  c.name AS catalog_name,\n' \
                    '  c.lcase_name AS catalog_lcase_name,\n' \
                    '  c.no_diacritic_name AS catalog_no_diacritic_name,\n' \
-                   '  c.lcase_no_diacritic_name AS catalog_lcase_no_diacritic_name,\n' \
+                   '  c.lcase_no_diacritic_name AS catalog_lcase_no_diacritic_name,\n' + \
+                  ('  c.base_path AS catalog_base_path,\n' if include_catalog_base_path else '') + \
                    '  GROUP_CONCAT(CONCAT(ar.name, s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "") AS artist_name,\n' + \
                   ('  GROUP_CONCAT(CONCAT(ar.id, "%s", ar.name, "%s", ar.lcase_name, "%s", ar.no_diacritic_name, "%s", ar.lcase_no_diacritic_name, "%s", s_ar.list_order, "%s", s_ar.conjunction) ORDER BY s_ar.list_order SEPARATOR "%s") AS artist_names,\n' % ((_name_separator_for_queries,) * 7)) + \
                    '  al.name AS album_name,\n' \
@@ -364,7 +364,9 @@ def _get_songs(catalog_id:int, song_filename:str, song_filter:FilterInfo, song_y
     for i in range(song_count):
       db_song = songs_cursor.fetchone()
       
-      catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], db_song['catalog_lcase_name'], db_song['catalog_no_diacritic_name'], db_song['catalog_lcase_no_diacritic_name'], None)
+      catalog_base_path = db_song['catalog_base_path'] if include_catalog_base_path else None
+      
+      catalog = Catalog(db_song['catalog_id'], db_song['catalog_name'], db_song['catalog_lcase_name'], db_song['catalog_no_diacritic_name'], db_song['catalog_lcase_no_diacritic_name'], catalog_base_path)
       song = Song(db_song['song_id'],
                   db_song['song_title'], db_song['song_lcase_title'], db_song['song_no_diacritic_title'], db_song['song_lcase_no_diacritic_title'],
                   db_song['song_year'],
@@ -516,7 +518,7 @@ def save_song(song):
       song.get_file_last_modified()
     )
     
-    logger.info('saving ' + str(song) + ' from "' + song.get_full_filename() + '" to the database...')
+    logger.info('saving ' + str(song) + ' from "' + song.get_full_filename(FileTypes.MP3) + '" to the database...')
     cursor.callproc('upsert_song', proc_args) # python won't get the result returned by mysql.  \-:
     commit(admin)
     

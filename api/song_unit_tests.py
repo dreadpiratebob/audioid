@@ -1,12 +1,33 @@
 from api.util.config import load_config
 load_config('test')
 
-from api.models.db_models import Catalog, Song, Album, SongAlbum
+from api.models.db_models import FileTypes, Catalog, Song, Album, SongAlbum
 from api.models.factories.song_factory import build_song_from_metadata
 from api.models.audio_metadata import AudioMetadata, AudioMetadataFields
 from api.util.functions import get_search_text_from_raw_text
 
 import unittest
+
+class SongTests(unittest.TestCase):
+  _catalog = Catalog(1, 'debug', 'debug', 'debug', 'debug', '/music')
+  _good_song = Song(1, 'song', 'song', 'song', 'song', 2024, 3.0, None, None, 3, None, '/song', 0, _catalog)
+  
+  def test_get_full_file_name(self):
+    file_type = FileTypes.MP3
+    
+    expected = '%s/%s/song.%s' % (self._catalog.get_base_path(), str(file_type), str(file_type))
+    actual = self._good_song.get_full_filename(file_type)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_get_relative_file_name_from_mp3(self):
+    file_type = FileTypes.MP3
+    full_file_name = '%s/%s%s.%s' % (self._catalog.get_base_path(), str(file_type), self._good_song.get_filename(), str(file_type))
+    
+    expected = self._good_song.get_filename()
+    actual = self._catalog.get_song_filename_from_full_filename(full_file_name)
+    
+    self.assertEqual(expected, actual)
 
 class SongFactoryTests(unittest.TestCase):
   catalog = Catalog(None, 'debug', 'debug', 'debug', 'debug', '/thing/')

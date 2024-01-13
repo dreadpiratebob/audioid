@@ -6,6 +6,80 @@ from enum import Enum
 from inspect import signature
 from urllib.parse import quote_plus
 
+
+class HTTPMIMETypes(Enum):
+  def __new__(self, *args, **kwds):
+    value = len(self.__members__) + 1
+    obj = object.__new__(self)
+    obj._value_ = value
+    return obj
+  
+  def __init__(self, http_name, serializer_function_name, base_structure):
+    self.http_name = http_name
+    self.serializer_function_name = serializer_function_name
+    self.base_structure = base_structure
+  
+  def __eq__(self, other):
+    return isinstance(other, HTTPMIMETypes) and \
+      self.http_name == other.http_name and \
+      self.serializer_function_name == other.serializer_function_name and \
+      self.base_structure == other.base_structure
+  
+  def __ne__(self, other):
+    return not self.__eq__(other)
+  
+  def __hash__(self):
+    return (((hash(self.http_name) * 397) ^ hash(self.serializer_function_name)) * 397) ^ hash(self.base_structure)
+  
+  def __str__(self):
+    return self.http_name
+  
+  APPLICATION_JSON = 'application/json', 'to_json', '{"data": "%s"}'
+  APPLICATION_X_YAML = 'application/x-yaml', 'to_yaml', 'data: %s'
+  APPLICATION_XML = 'application/xml', 'to_xml', '<data>%s</data>'
+  APPLICATION_YAML = 'application/yaml', 'to_yaml', 'data: %s'
+  MEDIA_MPEG = 'audio/mpeg', None, bytes()
+  MEDIA_FLAC = 'audio/flac', None, bytes()
+  TEXT_PLAIN = 'text/plain', None, '%s'
+
+HTTPMIMETypes_by_name = {x.http_name: x for x in HTTPMIMETypes} | {'*/*': HTTPMIMETypes.APPLICATION_YAML}
+
+class HTTPHeaders(Enum):
+  def __new__(self, *args, **kwds):
+    value = len(self.__members__) + 1
+    obj = object.__new__(self)
+    obj._value_ = value
+    return obj
+  
+  def __init__(self, header_name:str, other_names:set[str], str_to_value_map:dict, default_value):
+    self._header_name = header_name
+    self._other_names = other_names
+    self._str_to_value_map = str_to_value_map
+    self._default_value = default_value
+  
+  def __hash__(self):
+    return hash(self._header_name)
+  
+  def __eq__(self, other):
+    return isinstance(other, type(self)) and \
+      self._header_name == other._header_name
+  
+  def __ne__(self, other):
+    return not self.__eq__(other)
+  
+  def __str__(self):
+    return self._header_name
+  
+  def get_value(self, environment:dict[str, str]) -> str:
+    for name in {self._header_name} | self._other_names:
+      if name in environment:
+        return self._str_to_value_map.get(environment[name], self._default_value)
+    
+    return self._default_value
+  
+  ACCEPT = 'accept', {'HTTP_ACCEPT'}, HTTPMIMETypes_by_name, HTTPMIMETypes.APPLICATION_YAML
+  CONTENT_TYPE = 'content-type', set(), HTTPMIMETypes_by_name, HTTPMIMETypes.APPLICATION_YAML
+
 class HTTPStatusCodes(Enum):
   def __new__(self, *args, **kwds):
     value = len(self.__members__) + 1
@@ -102,41 +176,6 @@ class HTTPStatusCodes(Enum):
 
 HTTPStatusCodes_by_code = {sc.get_code(): sc for sc in HTTPStatusCodes}
 
-class HTTPMIMETypes(Enum):
-  def __new__(self, *args, **kwds):
-    value = len(self.__members__) + 1
-    obj = object.__new__(self)
-    obj._value_ = value
-    return obj
-  
-  def __init__(self, http_name, serializer_function_name, base_structure):
-    self.http_name = http_name
-    self.serializer_function_name = serializer_function_name
-    self.base_structure = base_structure
-  
-  def __eq__(self, other):
-    return isinstance(other, HTTPMIMETypes) and \
-      self.http_name == other.http_name and \
-      self.serializer_function_name == other.serializer_function_name and \
-      self.base_structure == other.base_structure
-  
-  def __ne__(self, other):
-    return not self.__eq__(other)
-  
-  def __hash__(self):
-    return (((hash(self.http_name) * 397) ^ hash(self.serializer_function_name)) * 397) ^ hash(self.base_structure)
-  
-  def __str__(self):
-    return self.http_name
-  
-  APPLICATION_JSON   = 'application/json',   'to_json', '{"data": "%s"}'
-  APPLICATION_X_YAML = 'application/x-yaml', 'to_yaml', 'data: %s'
-  APPLICATION_XML    = 'application/xml',    'to_xml',  '<data>%s</data>'
-  APPLICATION_YAML   = 'application/yaml',   'to_yaml', 'data: %s'
-  TEXT_PLAIN         = 'text/plain',         None,      '%s'
-
-HTTPMIMETypes_by_name = {x.http_name: x for x in HTTPMIMETypes} | {'*/*': HTTPMIMETypes.APPLICATION_YAML}
-
 class HTTPRequestMethods(Enum):
   def __new__(self, *args, **kwds):
     value = len(self.__members__) + 1
@@ -171,7 +210,7 @@ def get_authorization(environment:dict):
   return environment.get('HTTP_AUTHORIZATION', None)
 
 class Response:
-  def __init__(self, payload, status_code:HTTPStatusCodes, mime_type:HTTPMIMETypes = None, serialization_falls_back_to_fields:bool = True, use_public_fields_only:bool = True, use_base_field_in_xml = False, use_base_field_in_yaml:bool = False):
+  def __init__(self, payload, status_code:HTTPStatusCodes, mime_type:HTTPMIMETypes = None, serialization_falls_back_to_fields:bool = True, use_public_fields_only:bool = True, use_base_field_in_xml = False, use_base_field_in_yaml:bool = False, data_is_raw:bool = False):
     grievances = []
     
     if not isinstance(status_code, HTTPStatusCodes):
@@ -192,6 +231,9 @@ class Response:
     if not isinstance(use_base_field_in_yaml, bool):
       grievances.append('the "use base field in yaml" flag must be a bool.')
     
+    if not isinstance(data_is_raw, bool):
+      grievances.append('the "data is raw" flag must be a bool.')
+    
     if len(grievances) > 0:
       raise TypeError('\n'.join(grievances))
     
@@ -202,6 +244,7 @@ class Response:
     self._use_public_fields_only = use_public_fields_only
     self._use_base_field_in_xml = use_base_field_in_xml
     self._use_base_field_in_yaml = use_base_field_in_yaml
+    self._data_is_raw = data_is_raw
   
   def __str__(self):
     mime_was_none = False
@@ -228,7 +271,19 @@ class Response:
     
     self._mime_type = mime_type
   
-  def serialize(self):
+  def data_is_raw(self):
+    return self._data_is_raw
+  
+  def get_payload_as_bytes(self, encoding:str) -> bytes:
+    if self._data_is_raw:
+      return self.payload
+    
+    return bytes(self.serialize(), encoding)
+  
+  def serialize(self) -> str:
+    if self._data_is_raw:
+      return str(self.payload)
+    
     if self.payload is None:
       return ''
     
@@ -248,8 +303,11 @@ class Response:
     
     data = quote_plus(str(self.payload))
     return self._mime_type.base_structure % data
-
+  
   def serialize_by_field(self):
+    if self._data_is_raw:
+      raise ValueError('raw data can\'t be serialized (by field or otherwise).')
+    
     if self._mime_type is None:
       raise ValueError('no mime type was given.')
     

@@ -1,4 +1,4 @@
-from api.util.functions import get_search_text_from_raw_text
+from api.util.functions import get_search_text_from_raw_text, get_type_name
 
 from enum import Enum
 import os
@@ -30,3 +30,22 @@ def get_last_modified_timestamp(filename:str) -> int:
 
 def get_file_size_in_bytes(filename:str) -> int:
   return os.path.getsize(filename)
+
+def get_file_contents(filename:str) -> bytes:
+  if not isinstance(filename, str):
+    raise TypeError('a filename must be a string; found "%s", which is a %s, instead.' % (filename, get_type_name(filename)))
+  
+  if not os.path.exists(filename):
+    raise ValueError('no file named "%s" exists.' % (filename, ))
+  
+  result = bytes()
+  
+  with open(filename, 'rb') as file:
+    while True:
+      chunk = file.read()
+      if not chunk:
+        break
+      
+      result += chunk
+  
+  return result

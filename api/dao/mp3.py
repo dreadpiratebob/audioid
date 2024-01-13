@@ -1,8 +1,8 @@
 from api.dao.mysql_utils import get_cursor
-from api.models.db_models import Catalog, Song
+from api.models.db_models import FileTypes, Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
-from api.util.file_operations import get_file_size_in_bytes, get_last_modified_timestamp
+from api.util.file_operations import get_file_contents, get_file_size_in_bytes, get_last_modified_timestamp
 from api.util.functions import is_iterable
 from api.util.logger import get_logger
 
@@ -81,3 +81,6 @@ def get_songs_from_mp3s(catalog:Catalog, artist_splitters:list[str] = None, prev
       result.add(build_song_from_metadata(mp3_data, catalog, artist_splitters))
   
   return result
+
+def get_mp3_contents(song:Song):
+  return get_file_contents(song.get_full_filename(FileTypes.MP3))

@@ -5,8 +5,27 @@ from api.exceptions.song_data import\
 from api.exceptions.http_base import NotImplementedException
 from api.util.file_operations import AudioFileTypes, get_file_size_in_bytes
 from api.util.functions import get_search_text_from_raw_text, get_type_name, is_iterable
+from api.util.logger import get_logger
 
 import os
+from enum import Enum
+from traceback import print_stack
+
+class FileTypes(Enum):
+  def __new__(self, *args, **kwds):
+    value = len(self.__members__) + 1
+    obj = object.__new__(self)
+    obj._value_ = value
+    return obj
+  
+  def __init__(self, extension:str):
+    self.extension = extension
+  
+  def __str__(self):
+    return self.extension
+  
+  FLAC = 'flac'
+  MP3  = 'mp3'
 
 class DBModel:
   def __eq__(self, other:any) -> bool:
@@ -218,17 +237,21 @@ class Catalog(DBModel):
     if not isinstance(full_filename, str):
       raise TypeError('a filename must be a string.')
     
+    extension_error = 'a song\'s filename must have an extension.'
     if '.' not in full_filename:
-      raise ValueError('a song\'s filename must have an extension.')
+      raise ValueError(extension_error)
     
     extension = full_filename[full_filename.rfind('.') + 1:]
+    if '/' in extension:
+      raise ValueError(extension_error)
+    
     beginning_len = len(self._base_path) + 1 + len(extension)
     beginning = full_filename[:beginning_len]
-    expected = '%s%s/' % (self._base_path, extension)
+    expected = '%s/%s' % (self._base_path, extension)
     if beginning != expected:
       raise ValueError('a song\'s full filename must start with its catalog\'s base path and then have a folder with the file\'s extension.')
     
-    return full_filename[beginning_len:]
+    return full_filename[beginning_len:-1*(len(extension) + 1)]
 
 def song_album_key(s_al):
   return s_al.get_track_number()
@@ -281,10 +304,16 @@ class Song(DBModel):
     
     if not isinstance(filename, str):
       grievances.append('a filename must be a str.')
-    elif filename.endswith('.mp3'):
-      filename = filename[:-4]
-    elif filename.endswith('.flac'):
-      filename = filename[:-5]
+    else:
+      if filename.endswith('.mp3'):
+        filename = filename[:-4]
+      elif filename.endswith('.flac'):
+        filename = filename[:-5]
+      
+      if not filename.startswith('/'):
+        filename = '/%s' % (filename, )
+        get_logger().debug('filename was missing a /:')
+        print_stack()
     
     if last_scanned is not None and not isinstance(last_scanned, int):
       grievances.append('a last_scanned must be an int.')
@@ -454,8 +483,11 @@ class Song(DBModel):
     full_filename = self.get_catalog().get_base_path() + filename + '.' + AudioFileTypes.FLAC.value
     self._flac_file_size = get_file_size_in_bytes(full_filename) if os.path.exists(full_filename) else None
   
-  def get_full_filename(self) -> str:
-    return self.get_catalog().get_base_path() + self.get_filename()
+  def get_full_filename(self, file_type:FileTypes) -> str:
+    if not isinstance(file_type, FileTypes):
+      raise TypeError('file_type must be a FileType.')
+    
+    return '%s/%s%s.%s' % (self.get_catalog().get_base_path(), str(file_type), self.get_filename(), str(file_type))
   
   def get_mp3_file_size_in_bytes(self) -> int:
     return self._mp3_file_size

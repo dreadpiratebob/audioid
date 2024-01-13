@@ -7,7 +7,7 @@ class AvailablePaths:
   def __str__(self):
     return str(self.paths)
 
-def get(environment:dict, path_params:dict, query_params:dict, body):
+def get(environment:dict, headers:dict, path_params:dict, query_params:dict, body) -> Response:
   paths = set()
   
   start_path = '/interface'

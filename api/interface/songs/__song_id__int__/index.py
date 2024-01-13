@@ -4,7 +4,7 @@ from api.util.audioid.songs import GetSongPathParams, GetSongQueryParams
 from api.util.http import HTTPStatusCodes, Response
 from api.util.http_path import AvailablePath
 
-def get(environment:dict, path_params:dict, query_params:dict, body) -> Response:
+def get(environment:dict, headers:dict, path_params:dict, query_params:dict, body) -> Response:
   song_id, song_id_error = GetSongPathParams.SONG_ID.get_value(path_params, True)
   if song_id_error is not None:
     return Response(str(song_id_error), HTTPStatusCodes.HTTP400)
@@ -30,3 +30,6 @@ def get(environment:dict, path_params:dict, query_params:dict, body) -> Response
 
 def get_help():
   return AvailablePath(query_params=tuple(param for param in GetSongQueryParams), path_params=tuple(param for param in GetSongPathParams), description='this endpoint gets information about a particular song.')
+
+def post(environment:dict, headers:dict, path_params:dict, query_params:dict, body) -> Response:
+  return Response('to do: allow ratings to be set', HTTPStatusCodes.HTTP501)

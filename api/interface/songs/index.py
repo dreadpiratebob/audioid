@@ -18,7 +18,7 @@ class Songs:
     
     self.songs = songs
 
-def get(environment:dict, path_params:dict, query_params:dict, body) -> Response:
+def get(environment:dict, headers:dict, path_params:dict, query_params:dict, body) -> Response:
   param_val_errors = {param.param_name: param.get_value(query_params) for param in GetSongsQueryParams}
   params = {param_name: param_val_errors[param_name][0] for param_name in param_val_errors}
   grievances = []

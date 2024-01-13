@@ -18,7 +18,7 @@ class Albums:
     
     self.albums = albums
 
-def get(environment:dict, path_params:dict, query_params:dict, body) -> Response:
+def get(environment:dict, headers:dict, path_params:dict, query_params:dict, body) -> Response:
   param_val_errors = {param.param_name: param.get_value(query_params) for param in GetAlbumsQueryParams}
   grievances = []
   for pve in param_val_errors.values():

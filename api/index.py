@@ -12,8 +12,7 @@ from api.util.logger import get_logger
 from api.util.http import \
   HTTPStatusCodes, \
   HTTPRequestMethods_by_name, \
-  HTTPMIMETypes, \
-  HTTPMIMETypes_by_name, \
+  HTTPHeaders, \
   Response, \
   ResponseMessage, \
   build_http_response_from_exception, \
@@ -43,14 +42,6 @@ def get_and_validate_request_method(environment:dict):
   
   return result
 
-default_accepted_mime_type = HTTPMIMETypes.APPLICATION_YAML
-def get_accepted_mime_type(environment:dict):
-  header_accept = environment.get('HTTP_ACCEPT', None)
-  if header_accept is None:
-    return default_accepted_mime_type
-  
-  return HTTPMIMETypes_by_name.get(header_accept, default_accepted_mime_type)
-
 def get_and_validate_query_params(environment:dict):
   query_string = environment['QUERY_STRING']
   query_params = {}
@@ -76,7 +67,7 @@ def get_request_body(environment:dict):
   
   return environment['wsgi.input'].read(request_body_size)
 
-def get_contents(environment):
+def get_contents(environment, headers):
   request_method = get_and_validate_request_method(environment)
   rel_path_data = get_and_validate_rel_path(environment)
   query_params = get_and_validate_query_params(environment)
@@ -94,14 +85,14 @@ def get_contents(environment):
   endpoint_sig = '%s %s' % (str(request_method).upper(), rel_path)
   try:
     sig = signature(exec_func)
-    if len(sig.parameters) != 4:
+    if len(sig.parameters) != 5:
       get_logger().warn('%s has the wrong number of parameters.' % (endpoint_sig, ))
       raise bad_method_exception
   except TypeError:
     get_logger().warn('%s isn\'t callable.' % (endpoint_sig, ))
     raise bad_method_exception
   
-  return exec_func(preprocess_request(environment), rel_path_data.path_parameters, query_params, body)
+  return exec_func(preprocess_request(environment), headers, rel_path_data.path_parameters, query_params, body)
 
 def preprocess_request(environment:dict):
   environment['auth_object'] = get_authorization(environment)
@@ -110,15 +101,15 @@ def preprocess_request(environment:dict):
   return environment
 
 def application(environment, start_response):
-  accept_mime_type = get_accepted_mime_type(environment)
+  headers = {header: header.get_value(environment) for header in HTTPHeaders}
   response = Response(ResponseMessage('no.'), HTTPStatusCodes.HTTP501)
   
   try:
-    obj = get_contents(environment)
+    obj = get_contents(environment, headers)
     if isinstance(obj, Response):
       response = obj
     else:
-      response = Response(obj, HTTPStatusCodes.HTTP200, accept_mime_type)
+      response = Response(obj, HTTPStatusCodes.HTTP200, headers[HTTPHeaders.ACCEPT])
   except Exception as e:
     get_logger().debug('caught a(n) %s: %s' % (get_type_name(e), str(e)))
     exception_traceback = e.__traceback__
@@ -132,14 +123,14 @@ def application(environment, start_response):
     response = build_http_response_from_exception(e)
   
   if response.get_mime_type() is None:
-    response.set_mime_type(accept_mime_type)
+    response.set_mime_type(headers[HTTPHeaders.ACCEPT])
   
-  output = bytes(response.serialize(), bytes_encoding)
+  output = response.get_payload_as_bytes(bytes_encoding)
   status = str(response.get_status_code())
   
   headers = \
   [
-    ('Content-Type', str(accept_mime_type)),
+    ('Content-Type', str(headers[HTTPHeaders.ACCEPT])),
     ('Content-Length', str(len(output)))
   ]
   
