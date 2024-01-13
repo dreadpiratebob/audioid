@@ -323,7 +323,7 @@ class Response:
     if self._mime_type == HTTPMIMETypes.TEXT_PLAIN:
       return serialize_by_field_to_plain_text(self.payload, self._use_public_fields_only)
     
-    return None
+    raise ValueError('can\'t serialize by field to %s.' % (self._mime_type, ))
 
 circular_reference_text = quote_plus('<circular reference>')
 def serialize_by_field_to_json(obj:any, public_only:bool = True, skip_null_values:bool = True, skip_circular_references:bool = True) -> str:
