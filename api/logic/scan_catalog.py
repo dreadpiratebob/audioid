@@ -1,8 +1,8 @@
+from api.dao.audio_metadata import write_tag_values
 from api.dao.flac import get_songs_from_flacs
 from api.dao.load_db_models import get_catalog, save_song
 from api.dao.mp3 import get_songs_from_mp3s
 from api.dao.mysql_utils import get_cursor
-from api.models.audio_metadata import AudioMetadata
 from api.models.db_models import Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
@@ -10,41 +10,10 @@ from api.util.file_operations import get_file_size_in_bytes, get_filename_from_s
 from api.util.logger import get_logger
 
 from pymysql.err import OperationalError
-from subprocess import run, PIPE
+from subprocess import run
 
 import os
 import traceback
-
-def _copy_tag_values(flac_filename:str, mp3_metadata:AudioMetadata) -> str:
-  fields = {'title': mp3_metadata.title}
-  
-  if mp3_metadata.artist is not None:
-    fields['artist'] = mp3_metadata.artist
-  
-  if mp3_metadata.album_artist is not None:
-    fields['album_artist'] = mp3_metadata.album_artist
-  
-  if mp3_metadata.album is not None:
-    fields['album'] = mp3_metadata.album
-  
-  if mp3_metadata.track is not None:
-    fields['track'] = mp3_metadata.track
-  
-  if mp3_metadata.genre is not None:
-    fields['genre'] = mp3_metadata.genre
-  
-  if mp3_metadata.year is not None:
-    fields['year'] = mp3_metadata.year
-  
-  if mp3_metadata.comment is None:
-    fields['comment'] = ''
-  else:
-    fields['comment'] = mp3_metadata.comment
-  
-  update_cmd = ['metaflac'] + ['--set-tag=%s=%s' % (field, fields[field]) for field in fields] + [flac_filename]
-  get_logger().debug('running "%s"' % (' '.join(update_cmd), ))
-  
-  run(update_cmd, stdout=PIPE, stderr=PIPE)
 
 def _fix_metadata(catalog:Catalog) -> set[Song]:
   base_bork_dir = catalog.get_base_broken_metadata_dir()
@@ -119,7 +88,7 @@ def _fix_metadata(catalog:Catalog) -> set[Song]:
       mp3_metadata = read_metadata(full_mp3_filename)
       mp3_metadata.mp3_file_size = get_file_size_in_bytes(full_mp3_filename)
       
-      _copy_tag_values(full_filename, mp3_metadata)
+      write_tag_values(full_filename, mp3_metadata)
       catalog.get_base_flac_dir()
       
       new_flac_filename = '%s%s' % (catalog.get_base_flac_dir(), full_filename[len(catalog.get_base_broken_metadata_dir()):])

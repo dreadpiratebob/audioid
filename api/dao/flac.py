@@ -1,4 +1,5 @@
-from api.models.audio_metadata import AudioMetadata
+from api.dao.audio_metadata import write_tag_values
+from api.models.audio_metadata import AudioMetadata, dedup_audio_metadata
 from api.models.db_models import FileTypes, Catalog, Song
 from api.models.factories.audio_metadata_factory import read_metadata
 from api.models.factories.song_factory import build_song_from_metadata
@@ -58,7 +59,18 @@ def get_songs_from_flacs(catalog:Catalog, logger:Logger = get_logger()) -> set[S
       
       new_full_mp3__file_name = None
       try:
-        metadata                = _transcode_flac_to_mp3(orig_flac_file_name, orig_mp3__file_name)
+        metadata         = _transcode_flac_to_mp3(orig_flac_file_name, orig_mp3__file_name)
+        deduped_metadata = dedup_audio_metadata(metadata)
+        
+        get_logger().debug('metadata:\n%s\n' % (str(metadata), ))
+        get_logger().debug('deduped:\n%s\n' % (str(deduped_metadata), ))
+        
+        if metadata != deduped_metadata:
+          # |=*(|<1|\|6 windows bugs.
+          write_tag_values(orig_flac_file_name, deduped_metadata)
+          write_tag_values(orig_mp3__file_name, deduped_metadata)
+          metadata = deduped_metadata
+        
         new_file_name           = get_filename_from_song_title(metadata.title)
         new_flac_file_name      = '%s.flac' % (new_file_name, )
         new_mp3__file_name      = '%s.mp3'  % (new_file_name, )

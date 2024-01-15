@@ -1,6 +1,7 @@
 from api.models.audio_metadata import \
-  AudioMetadataFields, AudioMetadata, \
-  get_audio_metadata_field, _audio_metadata_fields_by_key
+  AudioMetadata
+from api.models.audio_metadata_fields import AudioMetadataFields, _audio_metadata_fields_by_key, \
+  get_audio_metadata_field
 from api.util.file_operations import get_file_size_in_bytes, get_last_modified_timestamp
 from api.util.logger import get_logger
 
@@ -92,4 +93,4 @@ def read_metadata(filename:str, ffmpeg_output_from_conversion_to_mp3:str = None,
       value = re_match.group(2)
       data[key] = value
   
-  return AudioMetadata(data, verbose)
+  return AudioMetadata(data, verbose=verbose)

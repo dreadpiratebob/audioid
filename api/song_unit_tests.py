@@ -3,7 +3,8 @@ load_config('test')
 
 from api.models.db_models import FileTypes, Catalog, Song, Album, SongAlbum
 from api.models.factories.song_factory import build_song_from_metadata
-from api.models.audio_metadata import AudioMetadata, AudioMetadataFields
+from api.models.audio_metadata import AudioMetadata
+from api.models.audio_metadata_fields import AudioMetadataFields
 from api.util.functions import get_search_text_from_raw_text
 
 import unittest
