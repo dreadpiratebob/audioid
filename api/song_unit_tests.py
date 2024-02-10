@@ -169,11 +169,6 @@ class FilenameFromTitleTests(unittest.TestCase):
                     .replace('☽', '_')
     actual = get_filename_from_song_title(title)
     
-    print('values:')
-    print(expected)
-    print(actual)
-    print()
-    
     self.assertEqual(expected, actual)
 
 if __name__ == '__main__':
