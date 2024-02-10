@@ -1,19 +1,63 @@
 from enum import Enum
 from unidecode import unidecode
 
+_char_replacements = \
+{
+  '​': '',
+  '☾': '_',
+  '☽': '_',
+  '♡': 'heart',
+  '⛧': 'star',
+  '☆': 'star',
+  '★': 'star',
+  '⁰': '0',
+  '¹': '1',
+  '²': '2',
+  '³': '3',
+  '３': '3',
+  '⁵': '5',
+  '｡': '_',
+  '◕': '_',
+  '‿': '_',
+  '&': 'and',
+  '∆': 'D',
+  '第': 'dai',
+  'ヘ': 'he',
+  '変': 'hen',
+  '京': 'kyo',
+  'メ': 'me',
+  'ン': 'n',
+  'ラ': 'ra',
+  '市': 'shi',
+  '新': 'shin',
+  '態': 'tai',
+  '東': 'to',
+}
 _diacritic_removal_special_cases = \
 {
-  'KoЯn': 'Korn'
+  'HE∆T W∆VES': 'HEAT WAVES',
+  'KoЯn': 'KoRn'
 }
-def get_search_text_from_raw_text(raw_text:str) -> tuple[str, str, str]:
+def get_search_text_from_raw_text(input_text:str, verbose:bool = False) -> tuple[str, str, str]:
+  raw_text = '' + input_text
   lcase = raw_text.lower()
   
   if raw_text in _diacritic_removal_special_cases:
     no_diacritics = _diacritic_removal_special_cases[raw_text]
   else:
+    raw_text = ''
+    for char in input_text:
+      if char in _char_replacements:
+        raw_text += _char_replacements[char]
+      else:
+        raw_text += char
+    
     no_diacritics = unidecode(raw_text)
   
   lcase_no_diacritics = no_diacritics.lower()
+  
+  if verbose:
+    print('decoding for search text: [ %s | %s | %s | %s ]' % (raw_text, lcase, no_diacritics, lcase_no_diacritics))
   
   return lcase, no_diacritics, lcase_no_diacritics
 

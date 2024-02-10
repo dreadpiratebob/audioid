@@ -12,6 +12,8 @@ def get_song_for_download(song_id:int, file_type:FileTypes) -> bytes:
 
 def get_song_for_streaming(song_id:int, file_type:FileTypes) -> bytes:
   content = _get_song_contents(song_id, file_type)
+  if content is None:
+    return None
   
   for byte in content:
     yield byte

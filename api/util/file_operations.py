@@ -10,7 +10,9 @@ class AudioFileTypes(Enum):
 
 _filename_acceptable_punctuation = {'.', '-', '_', ' ', '(', ')', '[', ']', '{', '}', '\'', '"'}
 def get_filename_from_song_title(song_title:str) -> str:
-  lcase, no_diacritics, lcase_no_diacritics = get_search_text_from_raw_text(song_title)
+  input_text = '' + song_title
+  
+  lcase, no_diacritics, lcase_no_diacritics = get_search_text_from_raw_text(input_text)
   lcase_no_diacritics_no_punctuation = ''
   
   for i in range(len(lcase_no_diacritics)):

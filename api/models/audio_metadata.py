@@ -93,7 +93,7 @@ class AudioMetadata:
   def __str__(self) -> str:
     return '\n'.join('%s: %s' % (field, self.__dict__[field]) for field in self.__dict__)
 
-_dupable_fields = {'title', 'artist', 'album_artist', 'album', 'genre'}
+_dupable_fields = {'title', 'artist', 'album_artist', 'album', 'genre', 'comment'}
 def dedup_audio_metadata(audio_metadata:AudioMetadata) -> AudioMetadata:
   if not isinstance(audio_metadata, AudioMetadata):
     raise TypeError('audio metadata must be an AudioMetadata.')
@@ -109,13 +109,33 @@ def dedup_audio_metadata(audio_metadata:AudioMetadata) -> AudioMetadata:
   return result
 
 def _dedup_value(val:str) -> str:
-  tokens = val.split(';')
+  if val is None:
+    return None
   
-  for token in tokens[1:]:
-    if token != tokens[0]:
-      return val
+  if not isinstance(val, str):
+    raise TypeError('only a string value can be deduped as metadata.')
   
-  return tokens[0]
+  raw_tokens = val.replace('\\;', ';')\
+                  .split(';')
+  
+  for i in range(1, len(raw_tokens)):
+    if len(raw_tokens) % i != 0:
+      continue
+    
+    tokens = []
+    for j in range(int(len(raw_tokens)/i)):
+      tokens.append(';'.join(raw_tokens[j*i:(j+1)*i]))
+    
+    valid = True
+    for token in tokens[1:]:
+      if token != tokens[0]:
+        valid = False
+        break
+    
+    if valid:
+      return tokens[0]
+  
+  return val
 
 def _get_field(field:AudioMetadataFields, data:dict[AudioMetadataFields, str], type_func, dedup_value:bool = True, verbose:bool = False) -> any:
   if field in data:

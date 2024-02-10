@@ -1,5 +1,4 @@
-from api.dao.audio_metadata import write_tag_values
-from api.dao.flac import get_songs_from_flacs
+from api.dao.flac import get_songs_from_flacs, write_tag_values
 from api.dao.load_db_models import get_catalog, save_song
 from api.dao.mp3 import get_songs_from_mp3s
 from api.dao.mysql_utils import get_cursor
@@ -9,6 +8,7 @@ from api.models.factories.song_factory import build_song_from_metadata
 from api.util.file_operations import get_file_size_in_bytes, get_filename_from_song_title
 from api.util.logger import get_logger
 
+from pathlib import Path
 from pymysql.err import OperationalError
 from subprocess import run
 
@@ -95,21 +95,16 @@ def _fix_metadata(catalog:Catalog) -> set[Song]:
       new_flac_filename = new_flac_filename.replace('\\', '/')
       os.makedirs(new_flac_filename[:new_flac_filename.rfind('/')], exist_ok=True)
       get_logger().debug('moving the file to "%s"...' % (new_flac_filename, ))
-      run(['mv', new_fix_metadata_filename, new_flac_filename])
-      
-      new_fix_metadata_filename = new_fix_metadata_filename.replace('\\', '/')
-      fix_metadata_dir = new_fix_metadata_filename[:new_fix_metadata_filename.rfind('/')]
-      is_empty = False
-      for _root, _directories, _files in os.walk(fix_metadata_dir):
-        if _root != fix_metadata_dir:
-          continue
-        
-        is_empty = len(_directories) == 0 and len(_files) == 0
-      
-      if is_empty:
-        os.remove(fix_metadata_dir)
+      os.rename(new_fix_metadata_filename, new_flac_filename)
       
       result.add(build_song_from_metadata(mp3_metadata, catalog))
+  
+  for _root, _directories, _files in os.walk(base_bork_dir, topdown=False):
+    if len(_files) > 0 or len(_directories) > 0:
+      continue
+    
+    path = Path(_root)
+    path.rmdir()
   
   return result
 
@@ -123,10 +118,10 @@ def scan_catalog(catalog_identifier:[int, str], artist_splitters = None) -> None
   logger.info('scanning %s...' % str(catalog))
   
   flac_songs      = get_songs_from_flacs(catalog, logger)
-  flac_file_names = set([s.get_filename() for s in flac_songs])
+  flac_file_names = {s.get_filename() for s in flac_songs}
   
   fixed_songs      = _fix_metadata(catalog)
-  fixed_file_names = set([s.get_filename() for s in fixed_songs])
+  fixed_file_names = {s.get_filename() for s in fixed_songs}
   
   mp3_songs = get_songs_from_mp3s(catalog, artist_splitters, flac_file_names | fixed_file_names)
   

@@ -3,8 +3,9 @@ load_config('test')
 
 from api.models.db_models import FileTypes, Catalog, Song, Album, SongAlbum
 from api.models.factories.song_factory import build_song_from_metadata
-from api.models.audio_metadata import AudioMetadata
+from api.models.audio_metadata import AudioMetadata, _dedup_value
 from api.models.audio_metadata_fields import AudioMetadataFields
+from api.util.file_operations import get_filename_from_song_title
 from api.util.functions import get_search_text_from_raw_text
 
 import unittest
@@ -117,6 +118,63 @@ class DBModelEqualsAndHashTests(unittest.TestCase):
     actual1 = hash(self.song_with_album)
     actual2 = hash(self.song_with_album)
     self.assertEqual(actual1, actual2)
+
+class MetadataTests(unittest.TestCase):
+  def test_dedup_with_one_semicolon_twice(self):
+    expected = 'n/a; single'
+    actual = _dedup_value(';'.join([expected]*2))
+    
+    self.assertEqual(expected, actual)
+  
+  def test_dedup_with_one_semicolon_three_times(self):
+    expected = 'n/a; single'
+    actual = _dedup_value(';'.join([expected]*3))
+    
+    self.assertEqual(expected, actual)
+  
+  def test_dedup_with_two_semicolons(self):
+    expected = 'n/a; single;?'
+    actual = _dedup_value(';'.join([expected]*3))
+    
+    self.assertEqual(expected, actual)
+  
+  def test_dedup_with_two_semicolons_and_one_at_the_end(self):
+    expected = 'n/a; single;'
+    actual = _dedup_value(';'.join([expected]*3))
+    
+    self.assertEqual(expected, actual)
+
+class FilenameFromTitleTests(unittest.TestCase):
+  def test_get_filename_from_simple_song_title(self):
+    expected = 'title.'
+    actual = get_filename_from_song_title(expected)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_get_filename_from_song_title_with_an_ampersand(self):
+    title = 'thing & stuff'
+    
+    expected = title.replace('&', 'and')
+    actual = get_filename_from_song_title(title)
+    
+    self.assertEqual(expected, actual)
+  
+  def test_get_filename_from_song_title_with_an_unprintable_character(self):
+    title = '★​☆☾ ur my phantasy_star ☽☆​★'
+    
+    expected = title.replace('★', 'star') \
+                    .replace('​', '') \
+                    .replace('☆', 'star') \
+                    .replace('☾', '_') \
+                    .replace('☽', '_')
+    actual = get_filename_from_song_title(title)
+    
+    print('values:')
+    print(expected)
+    print(actual)
+    print()
+    
+    self.assertEqual(expected, actual)
 
 if __name__ == '__main__':
   unittest.main()
