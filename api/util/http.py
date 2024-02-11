@@ -43,6 +43,15 @@ class HTTPMIMETypes(Enum):
   TEXT_PLAIN = 'text/plain', None, '%s'
 
 HTTPMIMETypes_by_name = {x.http_name: x for x in HTTPMIMETypes} | {'*/*': HTTPMIMETypes.APPLICATION_YAML}
+text_HTTPMIMETypes = \
+{
+  HTTPMIMETypes.APPLICATION_JSON,
+  HTTPMIMETypes.APPLICATION_XML,
+  HTTPMIMETypes.APPLICATION_X_YAML,
+  HTTPMIMETypes.APPLICATION_YAML,
+  HTTPMIMETypes.TEXT_PLAIN
+}
+default_text_HTTPMIMEType = HTTPMIMETypes.APPLICATION_JSON
 
 class HTTPHeaders(Enum):
   def __new__(self, *args, **kwds):
@@ -210,7 +219,7 @@ def get_authorization(environment:dict):
   return environment.get('HTTP_AUTHORIZATION', None)
 
 class Response:
-  def __init__(self, payload, status_code:HTTPStatusCodes, mime_type:HTTPMIMETypes = None, serialization_falls_back_to_fields:bool = True, use_public_fields_only:bool = True, use_base_field_in_xml = False, use_base_field_in_yaml:bool = False, data_is_raw:bool = False):
+  def __init__(self, payload, status_code:HTTPStatusCodes, mime_type:HTTPMIMETypes = None, serialization_falls_back_to_fields:bool = True, use_public_fields_only:bool = True, use_base_field_in_xml = False, use_base_field_in_yaml:bool = False, data_is_raw:bool = False, content_length:int = None):
     grievances = []
     
     if not isinstance(status_code, HTTPStatusCodes):
@@ -234,6 +243,9 @@ class Response:
     if not isinstance(data_is_raw, bool):
       grievances.append('the "data is raw" flag must be a bool.')
     
+    if content_length is not None and not isinstance(content_length, int):
+      grievances.append('a content\'s length must be an int.')
+    
     if len(grievances) > 0:
       raise TypeError('\n'.join(grievances))
     
@@ -245,6 +257,7 @@ class Response:
     self._use_base_field_in_xml = use_base_field_in_xml
     self._use_base_field_in_yaml = use_base_field_in_yaml
     self._data_is_raw = data_is_raw
+    self._content_length = content_length
   
   def __str__(self):
     mime_was_none = False
@@ -273,6 +286,9 @@ class Response:
   
   def data_is_raw(self):
     return self._data_is_raw
+  
+  def get_content_length(self):
+    return self._content_length
   
   def get_payload_as_bytes(self, encoding:str) -> bytes:
     if self._data_is_raw:

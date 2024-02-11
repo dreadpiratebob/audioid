@@ -16,7 +16,9 @@ from api.util.http import \
   Response, \
   ResponseMessage, \
   build_http_response_from_exception, \
-  get_authorization
+  get_authorization, \
+  default_text_HTTPMIMEType, \
+  text_HTTPMIMETypes
 from api.util.http_path import \
   get_and_validate_rel_path, \
   default_interface_dir, \
@@ -24,6 +26,7 @@ from api.util.http_path import \
 from api.util.functions import get_type_name
 
 from inspect import signature
+from types import GeneratorType
 from urllib.parse import parse_qs
 
 bytes_encoding = 'UTF-8'
@@ -121,19 +124,25 @@ def application(environment, start_response):
       exception_traceback = exception_traceback.tb_next
     
     response = build_http_response_from_exception(e)
+    if headers[HTTPHeaders.ACCEPT] not in text_HTTPMIMETypes:
+      response.set_mime_type(default_text_HTTPMIMEType)
   
   if response.get_mime_type() is None:
     response.set_mime_type(headers[HTTPHeaders.ACCEPT])
   
   output = response.get_payload_as_bytes(bytes_encoding)
+  if not isinstance(output, GeneratorType):
+    output = [output]
+  
+  content_length = len(output) if response.get_content_length() is None else response.get_content_length()
   status = str(response.get_status_code())
   
   headers = \
   [
     ('Content-Type', str(headers[HTTPHeaders.ACCEPT])),
-    ('Content-Length', str(len(output)))
+    ('Content-Length', str(content_length))
   ]
   
   start_response(status, headers)
   
-  return [output]
+  return output

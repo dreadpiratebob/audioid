@@ -33,7 +33,7 @@ def get_last_modified_timestamp(filename:str) -> int:
 def get_file_size_in_bytes(filename:str) -> int:
   return os.path.getsize(filename)
 
-def get_file_contents(filename:str) -> bytes:
+def get_file_contents(filename:str, stream:bool = False) -> bytes:
   if not isinstance(filename, str):
     raise TypeError('a filename must be a string; found "%s", which is a %s, instead.' % (filename, get_type_name(filename)))
   
@@ -48,6 +48,10 @@ def get_file_contents(filename:str) -> bytes:
       if not chunk:
         break
       
-      result += chunk
+      if stream:
+        yield chunk
+      else:
+        result += chunk
   
-  return result
+  if not stream:
+    return result

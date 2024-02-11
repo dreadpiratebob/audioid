@@ -1,7 +1,7 @@
-from api.logic.songs import get_song, get_song_for_streaming
+from api.logic.songs import get_song, get_song_for_streaming, get_song_size_in_bytes
 from api.models.db_models import FileTypes
 from api.util.audioid.songs import DownloadSongPathParams
-from api.util.http import HTTPHeaders, HTTPStatusCodes, HTTPMIMETypes, Response
+from api.util.http import HTTPHeaders, HTTPStatusCodes, HTTPMIMETypes, Response, default_text_HTTPMIMEType
 from api.util.http_path import AvailablePath
 
 _mime_type_to_file_type = \
@@ -24,16 +24,18 @@ def get(environment:dict, headers:dict, path_params:dict, query_params:dict, bod
   if len(grievances) > 0:
     return Response('\n'.join(grievances), HTTPStatusCodes.HTTP400)
   
-  content = get_song_for_streaming(song_id, file_type)
+  song = get_song(song_id, False, False, False, True)
+  content = get_song_for_streaming(song, file_type)
   if content is None:
-    song = get_song(song_id, False, False, False, False)
     message = 'that track doesn\'t have a %s file.' % (str(file_type), )
     if song is None:
       message = 'no track with the id %s was found.' % (song_id, )
     
-    return Response(message, HTTPStatusCodes.HTTP404, mime_type=HTTPMIMETypes.APPLICATION_JSON)
+    return Response(message, HTTPStatusCodes.HTTP404, mime_type=default_text_HTTPMIMEType)
   
-  return Response(content, HTTPStatusCodes.HTTP200, data_is_raw=True)
+  content_length = get_song_size_in_bytes(song, file_type)
+  
+  return Response(content, HTTPStatusCodes.HTTP200, data_is_raw=True, content_length=content_length)
 
 def get_help():
   return AvailablePath(path_params=tuple(param for param in DownloadSongPathParams), description='this endpoint provides the content of a particular song.  it uses the accept header to figure out what format the audio contents should be provided in; use "media/flac" for flac or "media/mpeg" for mp3.')

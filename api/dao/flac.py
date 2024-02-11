@@ -102,8 +102,8 @@ def _check_mp3_metadata(flac_file_name:str, mp3_file_name:str) -> None:
   
   write_tag_values(flac_file_name, mp3_metadata)
 
-def get_flac_contents(song:Song):
-  return get_file_contents(song.get_full_filename(FileTypes.FLAC))
+def get_flac_contents(song:Song, stream:bool = False):
+  return get_file_contents(song.get_full_filename(FileTypes.FLAC), stream)
 
 def write_tag_values(full_filename:str, mp3_metadata:AudioMetadata) -> None:
   fields = {'title': mp3_metadata.title}

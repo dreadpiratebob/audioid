@@ -82,5 +82,5 @@ def get_songs_from_mp3s(catalog:Catalog, artist_splitters:list[str] = None, prev
   
   return result
 
-def get_mp3_contents(song:Song):
-  return get_file_contents(song.get_full_filename(FileTypes.MP3))
+def get_mp3_contents(song:Song, stream:bool = False):
+  return get_file_contents(song.get_full_filename(FileTypes.MP3), stream)
